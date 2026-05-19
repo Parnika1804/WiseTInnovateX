@@ -1,0 +1,32 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from database import init_db
+from roster import router as roster_router
+from teams import router as teams_router
+from pipeline import router as pipeline_router
+from comms import router as comms_router
+import uvicorn
+
+app = FastAPI(title="EventFlow API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+init_db()
+
+app.include_router(roster_router)
+app.include_router(teams_router)
+app.include_router(pipeline_router)
+app.include_router(comms_router)
+
+@app.get("/")
+def root():
+    return {"message": "EventFlow API is running"}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
