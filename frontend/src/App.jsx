@@ -9,15 +9,25 @@ import GenerateTeamsButton from './components/GenerateTeamsButton';
 import TeamList from './components/TeamList';
 import CommsDraftForm from './components/CommsDraftForm';
 import CommsLogTable from './components/CommsLogTable';
+import ScoreSubmitForm from './components/ScoreSubmitForm';
+import Leaderboard from './components/Leaderboard';
+import ActivityLog from './components/ActivityLog';
+import ParticipantPortal from './components/ParticipantPortal';
 
 const Dashboard = () => {
   const [refresh, setRefresh] = useState(0);
   return (
-    <div>
-      <h2>Dashboard</h2>
-      <PipelineBar />
-      <CSVUpload onUploadSuccess={() => setRefresh(prev => prev + 1)} />
-      <ParticipantTable refreshTrigger={refresh} />
+    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+      <div>
+        <h2>Dashboard</h2>
+        <PipelineBar />
+        <CSVUpload onUploadSuccess={() => setRefresh(prev => prev + 1)} />
+        <ParticipantTable refreshTrigger={refresh} />
+      </div>
+      <div>
+        <h2 style={{ visibility: 'hidden' }}>Activity</h2>
+        <ActivityLog />
+      </div>
     </div>
   );
 };
@@ -45,21 +55,36 @@ const CommsLog = () => {
   );
 };
 
+const EvaluationView = () => {
+  const [refreshScores, setRefreshScores] = useState(0);
+  return (
+    <div>
+      <h2>Evaluation & Results</h2>
+      <ScoreSubmitForm onScoreSubmitted={() => setRefreshScores(prev => prev + 1)} />
+      <Leaderboard refreshTrigger={refreshScores} />
+    </div>
+  );
+};
+
 function App() {
   return (
     <Router>
       <div style={{ fontFamily: 'sans-serif', margin: '0 auto', maxWidth: '1200px', padding: '20px' }}>
-        <nav style={{ paddingBottom: '20px', marginBottom: '20px', borderBottom: '1px solid #ccc' }}>
-          <h1 style={{ display: 'inline-block', marginRight: '30px' }}>EventFlow Orchestrator</h1>
-          <Link to="/" style={{ marginRight: '15px' }}>Dashboard</Link>
-          <Link to="/teams" style={{ marginRight: '15px' }}>Team Formation</Link>
+        <nav style={{ paddingBottom: '20px', marginBottom: '20px', borderBottom: '1px solid #ccc', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+          <h1 style={{ margin: '0 20px 0 0' }}>EventFlow Orchestrator</h1>
+          <Link to="/">Dashboard</Link>
+          <Link to="/teams">Team Formation</Link>
           <Link to="/comms">Communications</Link>
+          <Link to="/evaluation">Evaluations</Link>
+          <Link to="/portal">Participant Portal</Link>
         </nav>
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/teams" element={<TeamView />} />
             <Route path="/comms" element={<CommsLog />} />
+            <Route path="/evaluation" element={<EvaluationView />} />
+            <Route path="/portal" element={<ParticipantPortal />} />
           </Routes>
         </main>
       </div>
