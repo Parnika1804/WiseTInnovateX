@@ -1,4 +1,3 @@
-Here is your API_DOCS.md — single copy paste:
 markdown# EventFlow API Documentation
 
 **Base URL:** `http://localhost:8000`
@@ -248,6 +247,160 @@ Get all communications with delivery status.
 
 ---
 
+## Scores
+
+### POST /scores/submit
+Submit a judge score for a team. Score must be between 0 and 10.
+
+**Request:**
+```json
+{
+  "team_id": 1,
+  "judge_name": "Judge A",
+  "score": 8.5,
+  "notes": "Great problem solving approach"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Score submitted successfully",
+  "score": {
+    "id": 1,
+    "team_id": 1,
+    "judge_name": "Judge A",
+    "score": 8.5,
+    "notes": "Great problem solving approach",
+    "created_at": "2026-05-20T08:00:00.000000"
+  }
+}
+```
+
+---
+
+### GET /scores/leaderboard
+Get leaderboard with average scores and breakdown per team.
+
+**Response:**
+```json
+[
+  {
+    "team_id": 1,
+    "team_name": "Team 1",
+    "average_score": 7.75,
+    "scores": [
+      { "judge_name": "Judge A", "score": 8.5, "notes": "Great problem solving" },
+      { "judge_name": "Judge B", "score": 7.0, "notes": "Good but lacks innovation" }
+    ]
+  }
+]
+```
+
+---
+
+## Activity Log
+
+### POST /activity/log
+Log a system action manually.
+
+**Request params** (query params, not body):
+action: "ROSTER_UPLOAD"
+description: "3 participants uploaded successfully"
+performed_by: "committee"
+
+**Response:**
+```json
+{
+  "message": "Action logged successfully"
+}
+```
+
+---
+
+### GET /activity
+Get all system activity logs in descending order.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "action": "ROSTER_UPLOAD",
+    "description": "3 participants uploaded successfully",
+    "performed_by": "committee",
+    "created_at": "2026-05-20T08:00:00.000000"
+  }
+]
+```
+
+---
+
+## Participant Portal
+
+### GET /participant/{participant_id}
+Get full status for a single participant — stage, team, evaluator, dates and qualification.
+
+**Request:** Pass participant id in the URL path — e.g. `/participant/1`
+
+**Response:**
+```json
+{
+  "participant": {
+    "id": 1,
+    "name": "Alice",
+    "email": "alice@example.com",
+    "skill": "ML",
+    "institution": "IIT Delhi"
+  },
+  "current_stage": {
+    "name": "INTAKE",
+    "label": "Participant Intake",
+    "description": "Upload and verify participant roster"
+  },
+  "team": {
+    "id": 1,
+    "name": "Team 1",
+    "status": "APPROVED",
+    "members": [
+      { "id": 1, "name": "Alice", "skill": "ML" },
+      { "id": 2, "name": "Bob", "skill": "Backend" }
+    ]
+  },
+  "evaluator": "Judge A",
+  "key_dates": {
+    "event_start": "2026-06-01",
+    "team_announcement": "2026-06-02",
+    "evaluation_date": "2026-06-03",
+    "results_date": "2026-06-04"
+  },
+  "progression": {
+    "is_qualified": true,
+    "message": "Congratulations! You have been invited to the next round."
+  }
+}
+```
+
+---
+
+### GET /participants/portal
+Get all participants list for portal overview.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Alice",
+    "email": "alice@example.com",
+    "skill": "ML",
+    "institution": "IIT Delhi"
+  }
+]
+```
+
+---
+
 ## Status Reference
 
 | Field | Values |
@@ -255,3 +408,4 @@ Get all communications with delivery status.
 | Team status | `PENDING` `APPROVED` `REJECTED` |
 | Communication status | `DRAFT` `SENT` |
 | Pipeline stage status | `ACTIVE` `COMPLETED` `UPCOMING` |
+| Qualification | `true` if average score >= 7.0, otherwise `false` |

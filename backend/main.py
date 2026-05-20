@@ -5,6 +5,9 @@ from roster import router as roster_router
 from teams import router as teams_router
 from pipeline import router as pipeline_router
 from comms import router as comms_router
+from scores import router as scores_router
+from activity import router as activity_router
+from participant import router as participant_router
 import uvicorn
 
 app = FastAPI(title="EventFlow API")
@@ -23,6 +26,9 @@ app.include_router(roster_router)
 app.include_router(teams_router)
 app.include_router(pipeline_router)
 app.include_router(comms_router)
+app.include_router(scores_router)
+app.include_router(activity_router)
+app.include_router(participant_router)
 
 @app.get("/")
 def root():
