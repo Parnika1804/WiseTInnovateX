@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Team, Score
+from models import Team, Score, Participant
 from pydantic import BaseModel
 from datetime import datetime
+from gemini import call_gemini
+import json
 
 router = APIRouter()
 
@@ -20,6 +22,43 @@ def check_anomaly(scores: list, new_score: float) -> bool:
         return False
     average = sum(scores) / len(scores)
     return abs(new_score - average) > ANOMALY_THRESHOLD
+
+
+@router.get("/scores/assessment-guide/{team_id}")
+def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    member_ids = json.loads(team.member_ids)
+    members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+    member_names = [m.name for m in members]
+    member_skills = [m.skill for m in members]
+
+    prompt = f"""You are an expert hackathon judge. Generate a structured assessment guide for evaluating the following team.
+
+Team Name: {team.name}
+Team Members: {', '.join(member_names)}
+Team Skills: {', '.join(member_skills)}
+
+Generate a concise assessment guide with the following sections:
+1. Key evaluation criteria (3-4 points based on their skills)
+2. What to look for in their presentation
+3. Scoring breakdown suggestion (out of 10)
+
+Keep it practical and specific to this team's skill set."""
+
+    guide = call_gemini(prompt)
+
+    return {
+        "team_id": team.id,
+        "team_name": team.name,
+        "members": member_names,
+        "skills": member_skills,
+        "assessment_guide": guide
+    }
+
 
 @router.post("/scores/submit")
 def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):

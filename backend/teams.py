@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Team, Participant
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
+from gemini import call_gemini
 import json
 
 router = APIRouter()
@@ -61,11 +62,23 @@ def generate_teams(config: TeamConfig, db: Session = Depends(get_db)):
 
         member_ids = [p.id for p in chunk]
         skills = [p.skill for p in chunk]
+        names = [p.name for p in chunk]
+        institutions = [p.institution for p in chunk]
+
+        # Call Gemini to generate rationale for this team
+        prompt = f"""You are an event organizer AI. A team has been formed with the following members:
+Names: {', '.join(names)}
+Skills: {', '.join(skills)}
+Institutions: {', '.join(institutions)}
+
+Write a 2-3 sentence rationale explaining why this is a good team composition for a hackathon. Be specific about the skills and diversity."""
+
+        rationale = call_gemini(prompt)
 
         team = Team(
             name=f"Team {team_number}",
             member_ids=json.dumps(member_ids),
-            rationale=f"Grouped based on skill balance. Skills in this team: {', '.join(skills)}.",
+            rationale=rationale,
             status="PENDING"
         )
         db.add(team)
