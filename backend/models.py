@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from datetime import datetime
 
 Base = declarative_base()
@@ -46,4 +46,26 @@ class CommunicationLog(Base):
     message = Column(String, nullable=False)
     status = Column(String, default="DRAFT")
     sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Score(Base):
+    __tablename__ = "scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    judge_name = Column(String, nullable=False)
+    score = Column(Float, nullable=False)
+    notes = Column(String, nullable=True)
+    anomaly_flagged = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    performed_by = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

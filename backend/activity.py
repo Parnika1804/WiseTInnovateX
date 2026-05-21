@@ -1,20 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, DateTime
-from database import get_db, Base
-from datetime import datetime
+from database import get_db
+from models import ActivityLog
 
 router = APIRouter()
-
-class ActivityLog(Base):
-    __tablename__ = "activity_logs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    action = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    performed_by = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
 
 def log_action(db: Session, action: str, description: str, performed_by: str = "committee"):
     entry = ActivityLog(
@@ -25,12 +14,10 @@ def log_action(db: Session, action: str, description: str, performed_by: str = "
     db.add(entry)
     db.commit()
 
-
 @router.post("/activity/log")
 def create_log(action: str, description: str, performed_by: str = "committee", db: Session = Depends(get_db)):
     log_action(db, action, description, performed_by)
     return {"message": "Action logged successfully"}
-
 
 @router.get("/activity")
 def get_activity_log(db: Session = Depends(get_db)):
