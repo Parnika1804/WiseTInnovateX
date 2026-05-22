@@ -31,12 +31,9 @@ const TeamList = ({ refreshTrigger }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '10px' }}>
                 <h4 style={{ margin: 0 }}>{team.name}</h4>
                 <span style={{
-                  padding: '4px 8px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  backgroundColor: team.status === 'APPROVED' ? '#d4edda' : '#fff3cd',
-                  color: team.status === 'APPROVED' ? '#155724' : '#856404'
+                  padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
+                  backgroundColor: team.status === 'APPROVED' ? '#d4edda' : team.status === 'REJECTED' ? '#f8d7da' : '#fff3cd',
+                  color: team.status === 'APPROVED' ? '#155724' : team.status === 'REJECTED' ? '#721c24' : '#856404'
                 }}>
                   {team.status || 'PENDING'}
                 </span>
@@ -49,12 +46,13 @@ const TeamList = ({ refreshTrigger }) => {
                 </ul>
               </div>
 
-              <div style={{ fontSize: '13px', color: '#555', backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '4px' }}>
-                <strong>LLM Rationale:</strong> {team.rationale}
+              {/* AI Rationale Box */}
+              <div style={{ fontSize: '13px', color: '#333', backgroundColor: '#f0f7ff', borderLeft: '3px solid #0056b3', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>
+                <strong>✨ AI Rationale:</strong> <br/>
+                {team.rationale}
               </div>
               
               <ApproveRejectButtons teamId={team.id} currentStatus={team.status} onStatusChange={fetchTeams} />
-
             </div>
           ))}
         </div>

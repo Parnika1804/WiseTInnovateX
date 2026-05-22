@@ -13,6 +13,8 @@ import ScoreSubmitForm from './components/ScoreSubmitForm';
 import Leaderboard from './components/Leaderboard';
 import ActivityLog from './components/ActivityLog';
 import ParticipantPortal from './components/ParticipantPortal';
+import JudgePortal from './components/JudgePortal';
+import ParticipantLink from './components/ParticipantLink';
 
 const Dashboard = () => {
   const [refresh, setRefresh] = useState(0);
@@ -70,21 +72,34 @@ function App() {
   return (
     <Router>
       <div style={{ fontFamily: 'sans-serif', margin: '0 auto', maxWidth: '1200px', padding: '20px' }}>
-        <nav style={{ paddingBottom: '20px', marginBottom: '20px', borderBottom: '1px solid #ccc', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-          <h1 style={{ margin: '0 20px 0 0' }}>EventFlow Orchestrator</h1>
-          <Link to="/">Dashboard</Link>
-          <Link to="/teams">Team Formation</Link>
-          <Link to="/comms">Communications</Link>
-          <Link to="/evaluation">Evaluations</Link>
-          <Link to="/portal">Participant Portal</Link>
-        </nav>
+        
+        {/* We only show the main navigation for the committee members */}
+        <Routes>
+          <Route path="/portal" element={null} />
+          <Route path="/judge" element={null} />
+          <Route path="*" element={
+            <nav style={{ paddingBottom: '20px', marginBottom: '20px', borderBottom: '1px solid #ccc', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+              <h1 style={{ margin: '0 20px 0 0' }}>EventFlow Orchestrator</h1>
+              <Link to="/">Dashboard</Link>
+              <Link to="/teams">Teams</Link>
+              <Link to="/comms">Comms</Link>
+              <Link to="/evaluation">Evaluations</Link>
+              <Link to="/links" style={{ backgroundColor: '#0056b3', color: 'white', padding: '5px 10px', borderRadius: '4px', textDecoration: 'none' }}>Portal Links</Link>
+            </nav>
+          } />
+        </Routes>
+
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/teams" element={<TeamView />} />
             <Route path="/comms" element={<CommsLog />} />
             <Route path="/evaluation" element={<EvaluationView />} />
+            <Route path="/links" element={<ParticipantLink />} />
+            
+            {/* Secure Portal Routes (No main navigation) */}
             <Route path="/portal" element={<ParticipantPortal />} />
+            <Route path="/judge" element={<JudgePortal />} />
           </Routes>
         </main>
       </div>
