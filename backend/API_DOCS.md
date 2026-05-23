@@ -1,3 +1,4 @@
+Here is your updated API_DOCS.md — single copy paste:
 markdown# EventFlow API Documentation
 
 **Base URL:** `http://localhost:8000`
@@ -46,7 +47,7 @@ Get all participants.
 ## Teams
 
 ### POST /teams/configure
-Save team formation rules.
+Save team formation rules manually.
 
 **Request:**
 ```json
@@ -72,9 +73,9 @@ Save team formation rules.
 ---
 
 ### POST /teams/generate
-Generate teams based on rules.
+Generate teams. Reads team size from dynamic event config if available, otherwise uses manual config.
 
-**Request:**
+**Request:** (optional — leave empty if dynamic config is active)
 ```json
 {
   "team_size": 2,
@@ -87,12 +88,13 @@ Generate teams based on rules.
 ```json
 {
   "message": "3 teams generated successfully",
+  "config_source": "dynamic",
   "teams": [
     {
       "id": 1,
       "name": "Team 1",
       "member_ids": [1, 2],
-      "rationale": "Grouped based on skill balance. Skills in this team: ML, Backend.",
+      "rationale": "Gemini generated rationale here",
       "status": "PENDING"
     }
   ]
@@ -133,7 +135,7 @@ Get all teams with status.
     "id": 1,
     "name": "Team 1",
     "member_ids": [1, 2],
-    "rationale": "Grouped based on skill balance. Skills in this team: ML, Backend.",
+    "rationale": "Gemini generated rationale here",
     "status": "PENDING"
   }
 ]
@@ -144,7 +146,7 @@ Get all teams with status.
 ## Pipeline
 
 ### GET /pipeline/status
-Get current stage and pending items.
+Get hardcoded pipeline stage and pending items.
 
 **Response:**
 ```json
@@ -157,13 +159,35 @@ Get current stage and pending items.
     { "order": 4, "name": "EVALUATION", "label": "Evaluation", "description": "Judges assess teams and submit scores", "status": "UPCOMING" },
     { "order": 5, "name": "RESULTS", "label": "Results", "description": "Consolidate scores and send progression invites", "status": "UPCOMING" }
   ],
-  "pending_items": [
-    {
-      "type": "TEAM_APPROVAL",
-      "message": "2 team(s) awaiting committee approval",
-      "count": 2
-    }
-  ]
+  "pending_items": []
+}
+```
+
+---
+
+### GET /pipeline/dynamic/status
+Get dynamic pipeline stages from active event config stored in DB.
+
+**Response:**
+```json
+{
+  "event_name": "Unknown",
+  "current_stage": "ROUND_1",
+  "stages": [
+    { "order": 1, "name": "ROUND_1", "label": "Round 1", "description": "First round of the coding contest", "status": "ACTIVE" },
+    { "order": 2, "name": "ROUND_2", "label": "Round 2", "description": "Second round of the coding contest", "status": "UPCOMING" },
+    { "order": 3, "name": "ROUND_3", "label": "Round 3", "description": "Third and final round of the coding contest", "status": "UPCOMING" }
+  ],
+  "team_formation": {
+    "team_size": 4,
+    "skill_balance": false,
+    "constraints": null
+  },
+  "scoring": {
+    "max_score": 100,
+    "scoring_criteria": "Judges score out of 100",
+    "advancement_rule": "Top 10 teams advance to the next round"
+  }
 }
 ```
 
@@ -172,14 +196,14 @@ Get current stage and pending items.
 ## Communications
 
 ### POST /comms/draft
-Save a draft communication.
+Save a manual draft communication.
 
 **Request:**
 ```json
 {
   "recipient_email": "alice@example.com",
   "subject": "Welcome to EventFlow Hackathon",
-  "message": "Hi Alice, you have been successfully registered. Your team will be announced soon."
+  "message": "Hi Alice, you have been successfully registered."
 }
 ```
 
@@ -191,7 +215,36 @@ Save a draft communication.
     "id": 1,
     "recipient_email": "alice@example.com",
     "subject": "Welcome to EventFlow Hackathon",
-    "message": "Hi Alice, you have been successfully registered. Your team will be announced soon.",
+    "message": "Hi Alice, you have been successfully registered.",
+    "status": "DRAFT",
+    "created_at": "2026-05-19T08:09:02.810829"
+  }
+}
+```
+
+---
+
+### POST /comms/draft/gemini
+Gemini drafts a communication for a specific stage. Stage must be `TEAM_ASSIGNMENT` or `EVALUATION_REMINDER`.
+
+**Request:**
+```json
+{
+  "stage": "TEAM_ASSIGNMENT",
+  "team_id": 1,
+  "recipient_email": "alice@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Gemini drafted communication ready for preview",
+  "preview": {
+    "id": 1,
+    "recipient_email": "alice@example.com",
+    "subject": "Your Team Assignment — Team 1",
+    "message": "Gemini drafted message here",
     "status": "DRAFT",
     "created_at": "2026-05-19T08:09:02.810829"
   }
@@ -218,7 +271,7 @@ Send a drafted communication by log id.
     "id": 1,
     "recipient_email": "alice@example.com",
     "subject": "Welcome to EventFlow Hackathon",
-    "message": "Hi Alice, you have been successfully registered. Your team will be announced soon.",
+    "message": "Hi Alice, you have been successfully registered.",
     "status": "SENT",
     "sent_at": "2026-05-19T08:10:00.000000"
   }
@@ -237,7 +290,7 @@ Get all communications with delivery status.
     "id": 1,
     "recipient_email": "alice@example.com",
     "subject": "Welcome to EventFlow Hackathon",
-    "message": "Hi Alice, you have been successfully registered. Your team will be announced soon.",
+    "message": "Hi Alice, you have been successfully registered.",
     "status": "SENT",
     "sent_at": "2026-05-19T08:10:00.000000",
     "created_at": "2026-05-19T08:09:02.810829"
@@ -249,16 +302,37 @@ Get all communications with delivery status.
 
 ## Scores
 
+### GET /scores/assessment-guide/{team_id}
+Get Gemini generated assessment guide for a team. Reads scoring config from active event config.
+
+**Request:** Pass team id in URL — e.g. `/scores/assessment-guide/1`
+
+**Response:**
+```json
+{
+  "team_id": 1,
+  "team_name": "Team 1",
+  "members": ["Alice", "Bob"],
+  "skills": ["ML", "Backend"],
+  "max_score": 100,
+  "scoring_criteria": "Judges score out of 100",
+  "advancement_rule": "Top 10 teams advance to the next round",
+  "assessment_guide": "Gemini generated guide here"
+}
+```
+
+---
+
 ### POST /scores/submit
-Submit a judge score for a team. Score must be between 0 and 10.
+Submit a judge score for a team. Max score is read from active event config.
 
 **Request:**
 ```json
 {
   "team_id": 1,
   "judge_name": "Judge A",
-  "score": 8.5,
-  "notes": "Great problem solving approach"
+  "score": 85,
+  "notes": "Excellent work"
 }
 ```
 
@@ -266,12 +340,14 @@ Submit a judge score for a team. Score must be between 0 and 10.
 ```json
 {
   "message": "Score submitted successfully",
+  "max_score": 100,
   "score": {
     "id": 1,
     "team_id": 1,
     "judge_name": "Judge A",
-    "score": 8.5,
-    "notes": "Great problem solving approach",
+    "score": 85,
+    "notes": "Excellent work",
+    "anomaly_flagged": false,
     "created_at": "2026-05-20T08:00:00.000000"
   }
 }
@@ -280,7 +356,7 @@ Submit a judge score for a team. Score must be between 0 and 10.
 ---
 
 ### GET /scores/leaderboard
-Get leaderboard with average scores and breakdown per team.
+Get leaderboard with average scores. Reads max score and advancement rule from active event config.
 
 **Response:**
 ```json
@@ -288,13 +364,54 @@ Get leaderboard with average scores and breakdown per team.
   {
     "team_id": 1,
     "team_name": "Team 1",
-    "average_score": 7.75,
+    "average_score": 85.0,
+    "max_score": 100,
+    "has_anomaly": false,
+    "results_on_hold": false,
+    "advancement_rule": "Top 10 teams advance to the next round",
     "scores": [
-      { "judge_name": "Judge A", "score": 8.5, "notes": "Great problem solving" },
-      { "judge_name": "Judge B", "score": 7.0, "notes": "Good but lacks innovation" }
+      { "judge_name": "Judge A", "score": 85, "notes": "Excellent work", "anomaly_flagged": false }
     ]
   }
 ]
+```
+
+---
+
+### GET /scores/anomalies
+Get all flagged anomalous scores.
+
+**Response:**
+```json
+{
+  "message": "1 anomaly(s) detected",
+  "anomalies": [
+    {
+      "id": 2,
+      "team_id": 1,
+      "judge_name": "Judge B",
+      "score": 3.0,
+      "notes": "Poor execution",
+      "created_at": "2026-05-20T08:00:00.000000"
+    }
+  ]
+}
+```
+
+---
+
+### POST /scores/resolve/{score_id}
+Resolve a flagged anomaly.
+
+**Request:** Pass score id in URL — e.g. `/scores/resolve/2`
+
+**Response:**
+```json
+{
+  "message": "Anomaly resolved for score id 2",
+  "score_id": 2,
+  "anomaly_flagged": false
+}
 ```
 
 ---
@@ -304,7 +421,7 @@ Get leaderboard with average scores and breakdown per team.
 ### POST /activity/log
 Log a system action manually.
 
-**Request params** (query params, not body):
+**Request params** (query params):
 action: "ROSTER_UPLOAD"
 description: "3 participants uploaded successfully"
 performed_by: "committee"
@@ -339,9 +456,9 @@ Get all system activity logs in descending order.
 ## Participant Portal
 
 ### GET /participant/{participant_id}
-Get full status for a single participant — stage, team, evaluator, dates and qualification.
+Get full status for a single participant.
 
-**Request:** Pass participant id in the URL path — e.g. `/participant/1`
+**Request:** Pass participant id in URL — e.g. `/participant/1`
 
 **Response:**
 ```json
@@ -401,6 +518,144 @@ Get all participants list for portal overview.
 
 ---
 
+## Dynamic Event Configuration
+
+### POST /event/describe
+Submit event description and check if it is complete.
+
+**Request:**
+```json
+{
+  "description": "We are running a 3 round coding contest with team size 4, judges score out of 100, top 10 teams advance"
+}
+```
+
+**Response (complete):**
+```json
+{
+  "status": "complete",
+  "message": "Event description parsed successfully",
+  "config": {
+    "event_name": "Unknown",
+    "stages": [...],
+    "team_formation": { "team_size": 4, "skill_balance": false, "constraints": null },
+    "scoring": { "max_score": 100, "scoring_criteria": "Judges score out of 100", "advancement_rule": "top 10 advance" },
+    "communication_touchpoints": [...],
+    "approval_requirements": [...],
+    "is_complete": true,
+    "missing_fields": []
+  }
+}
+```
+
+**Response (incomplete):**
+```json
+{
+  "status": "incomplete",
+  "message": "Event description is missing some critical information",
+  "missing_fields": ["stages", "team_size", "scoring max_score"],
+  "parsed_so_far": {}
+}
+```
+
+---
+
+### POST /event/configure
+Parse description and save event config to DB. Deactivates any previous config.
+
+**Request:**
+```json
+{
+  "description": "We are running a 3 round coding contest with team size 4, judges score out of 100, top 10 teams advance to the next round. Committee must approve teams before announcement. Send welcome email at start and results email at end."
+}
+```
+
+**Response:**
+```json
+{
+  "status": "saved",
+  "message": "Event config saved successfully for Unknown",
+  "config_id": 1,
+  "config": { ... }
+}
+```
+
+---
+
+### GET /event/config
+Get the currently active event config.
+
+**Response:**
+```json
+{
+  "status": "found",
+  "config": {
+    "id": 1,
+    "event_name": "Unknown",
+    "stages": [...],
+    "team_formation": { "team_size": 4, "skill_balance": false, "constraints": null },
+    "scoring": { "max_score": 100, "scoring_criteria": "Judges score out of 100", "advancement_rule": "Top 10 teams advance" },
+    "communication_touchpoints": [...],
+    "approval_requirements": [...],
+    "created_at": "2026-05-23T17:04:21.563415"
+  }
+}
+```
+
+---
+
+### POST /event/clarify
+Get Gemini generated follow-up questions for incomplete description.
+
+**Request:**
+```json
+{
+  "description": "We are running a hackathon with some teams",
+  "missing_fields": ["stages", "team_size", "scoring max_score"]
+}
+```
+
+**Response:**
+```json
+{
+  "status": "clarification_needed",
+  "message": "Please answer the following questions to complete your event setup",
+  "questions": [
+    { "field": "stages", "question": "How many rounds or stages does your event have?" },
+    { "field": "team_size", "question": "How many members should each team have?" },
+    { "field": "scoring max_score", "question": "What is the maximum score a team can receive?" }
+  ]
+}
+```
+
+---
+
+### POST /event/clarify/resubmit
+Combine original description with clarification answers into one description.
+
+**Request:**
+```json
+{
+  "original_description": "We are running a hackathon with some teams",
+  "answers": {
+    "stages": "3 rounds - qualifying, semi final, final",
+    "team_size": "4 members per team",
+    "scoring max_score": "100 points total"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ready",
+  "message": "Description updated with your answers. Please resubmit to POST /event/configure",
+  "combined_description": "We are running a hackathon with some teams\n\nAdditional details:\n- stages: 3 rounds - qualifying, semi final, final\n- team_size: 4 members per team\n- scoring max_score: 100 points total\n"
+}
+```
+
+---
+
 ## Status Reference
 
 | Field | Values |
@@ -408,4 +663,8 @@ Get all participants list for portal overview.
 | Team status | `PENDING` `APPROVED` `REJECTED` |
 | Communication status | `DRAFT` `SENT` |
 | Pipeline stage status | `ACTIVE` `COMPLETED` `UPCOMING` |
-| Qualification | `true` if average score >= 7.0, otherwise `false` |
+| Qualification | `true` if average score >= 70% of max score, otherwise `false` |
+| Config source | `dynamic` if event config exists, `manual` if manually provided |
+| Event config status | `found` `not_found` `not_configured` |
+| Clarification status | `clarification_needed` |
+| Description status | `complete` `incomplete` `received` |
