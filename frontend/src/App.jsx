@@ -1,28 +1,38 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
-import PipelineBar from './components/PipelineBar';
+import DynamicPipelineBar from './components/DynamicPipelineBar';
 import CSVUpload from './components/CSVUpload';
 import ParticipantTable from './components/ParticipantTable';
-import TeamConfigForm from './components/TeamConfigForm';
+import DynamicTeamConfig from './components/DynamicTeamConfig';
 import GenerateTeamsButton from './components/GenerateTeamsButton';
 import TeamList from './components/TeamList';
 import CommsDraftForm from './components/CommsDraftForm';
 import CommsLogTable from './components/CommsLogTable';
 import ScoreSubmitForm from './components/ScoreSubmitForm';
-import Leaderboard from './components/Leaderboard';
+import DynamicLeaderboard from './components/DynamicLeaderboard';
 import ActivityLog from './components/ActivityLog';
 import ParticipantPortal from './components/ParticipantPortal';
 import JudgePortal from './components/JudgePortal';
 import ParticipantLink from './components/ParticipantLink';
+// Your import is correct here
+import EventDescriptionForm from './components/EventDescriptionForm';
 
 const Dashboard = () => {
   const [refresh, setRefresh] = useState(0);
+
+  // MOCK DATA: Testing our new dynamic pipeline bar
+  // Change the array or the currentStageIndex to see how the UI adapts!
+  const mockDynamicStages = ["Registration", "Initial Pitch", "Prototyping", "Final Evaluation"];
+  
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
       <div>
         <h2>Dashboard</h2>
-        <PipelineBar />
+        
+        {/* NEW DYNAMIC COMPONENT */}
+        <DynamicPipelineBar stages={mockDynamicStages} currentStageIndex={1} />
+        
         <CSVUpload onUploadSuccess={() => setRefresh(prev => prev + 1)} />
         <ParticipantTable refreshTrigger={refresh} />
       </div>
@@ -33,13 +43,27 @@ const Dashboard = () => {
     </div>
   );
 };
-
+// ... (TeamView, CommsLog, EvaluationView remain exactly the same) ...
 const TeamView = () => {
   const [refreshTeams, setRefreshTeams] = useState(0);
+
+  // MOCK DATA: Simulating what the AI extracted from the text description
+  const mockExtractedRules = {
+    minSize: 2,
+    maxSize: 5,
+    allowCrossCollege: true
+  };
+
   return (
     <div>
-      <h2>Team Formation & Approval</h2>
-      <TeamConfigForm />
+      <h2 className="text-2xl font-bold mb-6">Team Formation & Approval</h2>
+      
+      {/* NEW DYNAMIC COMPONENT */}
+      <DynamicTeamConfig 
+        suggestedRules={mockExtractedRules} 
+        onRulesConfirmed={(finalRules) => console.log("Database updated with:", finalRules)} 
+      />
+      
       <GenerateTeamsButton onGenerated={() => setRefreshTeams(prev => prev + 1)} />
       <TeamList refreshTrigger={refreshTeams} />
     </div>
@@ -59,11 +83,27 @@ const CommsLog = () => {
 
 const EvaluationView = () => {
   const [refreshScores, setRefreshScores] = useState(0);
+
+  // MOCK DATA: Simulating what the AI extracted for scoring logic
+  const mockDynamicCategories = ["Innovation", "Technical Depth", "Presentation"];
+  
+  // MOCK DATA: Simulating team scores stored in the database
+  const mockTeamData = [
+    { id: 1, name: "Tech Titans", scores: { "Innovation": 8, "Technical Depth": 9, "Presentation": 7 } },
+    { id: 2, name: "Code Crafters", scores: { "Innovation": 9, "Technical Depth": 7, "Presentation": 9 } },
+    { id: 3, name: "Data Demons", scores: { "Innovation": 6, "Technical Depth": 8, "Presentation": 6 } },
+  ];
+
   return (
     <div>
-      <h2>Evaluation & Results</h2>
+      <h2 className="text-2xl font-bold mb-6">Evaluation & Results</h2>
       <ScoreSubmitForm onScoreSubmitted={() => setRefreshScores(prev => prev + 1)} />
-      <Leaderboard refreshTrigger={refreshScores} />
+      
+      {/* NEW DYNAMIC COMPONENT */}
+      <DynamicLeaderboard 
+        scoringCategories={mockDynamicCategories} 
+        teamData={mockTeamData} 
+      />
     </div>
   );
 };
@@ -73,7 +113,6 @@ function App() {
     <Router>
       <div style={{ fontFamily: 'sans-serif', margin: '0 auto', maxWidth: '1200px', padding: '20px' }}>
         
-        {/* We only show the main navigation for the committee members */}
         <Routes>
           <Route path="/portal" element={null} />
           <Route path="/judge" element={null} />
@@ -81,6 +120,8 @@ function App() {
             <nav style={{ paddingBottom: '20px', marginBottom: '20px', borderBottom: '1px solid #ccc', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
               <h1 style={{ margin: '0 20px 0 0' }}>EventFlow Orchestrator</h1>
               <Link to="/">Dashboard</Link>
+              {/* ADDED: A new link for the setup page */}
+              <Link to="/setup">Setup Event</Link>
               <Link to="/teams">Teams</Link>
               <Link to="/comms">Comms</Link>
               <Link to="/evaluation">Evaluations</Link>
@@ -92,12 +133,17 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            {/* ADDED: The new route that actually renders your form */}
+            <Route path="/setup" element={
+              <div>
+                <EventDescriptionForm onConfigExtracted={(data) => console.log("Form submitted with:", data)} />
+              </div>
+            } />
             <Route path="/teams" element={<TeamView />} />
             <Route path="/comms" element={<CommsLog />} />
             <Route path="/evaluation" element={<EvaluationView />} />
             <Route path="/links" element={<ParticipantLink />} />
             
-            {/* Secure Portal Routes (No main navigation) */}
             <Route path="/portal" element={<ParticipantPortal />} />
             <Route path="/judge" element={<JudgePortal />} />
           </Routes>
