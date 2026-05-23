@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Team, Score, Participant
+from models import Team, Score, Participant, EventConfig
 from pydantic import BaseModel
 from datetime import datetime
 from gemini import call_gemini
@@ -17,11 +17,19 @@ class ScoreRequest(BaseModel):
     score: float
     notes: str = None
 
-def check_anomaly(scores: list, new_score: float) -> bool:
+def get_dynamic_scoring_config(db: Session):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    if config:
+        scoring = json.loads(config.scoring)
+        return scoring
+    return None
+
+def check_anomaly(scores: list, new_score: float, max_score: float = 10.0) -> bool:
     if len(scores) == 0:
         return False
     average = sum(scores) / len(scores)
-    return abs(new_score - average) > ANOMALY_THRESHOLD
+    threshold = max_score * 0.2
+    return abs(new_score - average) > threshold
 
 
 @router.get("/scores/assessment-guide/{team_id}")
@@ -36,16 +44,30 @@ def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
     member_names = [m.name for m in members]
     member_skills = [m.skill for m in members]
 
+    scoring_config = get_dynamic_scoring_config(db)
+
+    if scoring_config:
+        max_score = scoring_config.get("max_score", 10)
+        scoring_criteria = scoring_config.get("scoring_criteria", "general performance")
+        advancement_rule = scoring_config.get("advancement_rule", "top teams advance")
+    else:
+        max_score = 10
+        scoring_criteria = "general performance"
+        advancement_rule = "top teams advance"
+
     prompt = f"""You are an expert hackathon judge. Generate a structured assessment guide for evaluating the following team.
 
 Team Name: {team.name}
 Team Members: {', '.join(member_names)}
 Team Skills: {', '.join(member_skills)}
+Scoring: out of {max_score} points
+Scoring Criteria: {scoring_criteria}
+Advancement Rule: {advancement_rule}
 
 Generate a concise assessment guide with the following sections:
 1. Key evaluation criteria (3-4 points based on their skills)
 2. What to look for in their presentation
-3. Scoring breakdown suggestion (out of 10)
+3. Scoring breakdown suggestion (out of {max_score})
 
 Keep it practical and specific to this team's skill set."""
 
@@ -56,6 +78,9 @@ Keep it practical and specific to this team's skill set."""
         "team_name": team.name,
         "members": member_names,
         "skills": member_skills,
+        "max_score": max_score,
+        "scoring_criteria": scoring_criteria,
+        "advancement_rule": advancement_rule,
         "assessment_guide": guide
     }
 
@@ -67,13 +92,16 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    if request.score < 0 or request.score > 10:
-        raise HTTPException(status_code=400, detail="Score must be between 0 and 10")
+    scoring_config = get_dynamic_scoring_config(db)
+    max_score = scoring_config.get("max_score", 10) if scoring_config else 10
+
+    if request.score < 0 or request.score > max_score:
+        raise HTTPException(status_code=400, detail=f"Score must be between 0 and {max_score}")
 
     existing_scores = db.query(Score).filter(Score.team_id == request.team_id).all()
     existing_score_values = [s.score for s in existing_scores]
 
-    is_anomaly = check_anomaly(existing_score_values, request.score)
+    is_anomaly = check_anomaly(existing_score_values, request.score, max_score)
 
     score = Score(
         team_id=request.team_id,
@@ -88,6 +116,7 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
 
     response = {
         "message": "Score submitted successfully",
+        "max_score": max_score,
         "score": {
             "id": score.id,
             "team_id": score.team_id,
@@ -100,7 +129,7 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
     }
 
     if is_anomaly:
-        response["warning"] = f"Anomaly detected — this score deviates more than {ANOMALY_THRESHOLD} points from the panel average. Results are on hold."
+        response["warning"] = f"Anomaly detected — this score deviates more than 20% of {max_score} points from the panel average. Results are on hold."
 
     return response
 
@@ -108,6 +137,10 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
 @router.get("/scores/leaderboard")
 def get_leaderboard(db: Session = Depends(get_db)):
     teams = db.query(Team).all()
+
+    scoring_config = get_dynamic_scoring_config(db)
+    max_score = scoring_config.get("max_score", 10) if scoring_config else 10
+    advancement_rule = scoring_config.get("advancement_rule", "top teams advance") if scoring_config else "top teams advance"
 
     leaderboard = []
     for team in teams:
@@ -127,8 +160,10 @@ def get_leaderboard(db: Session = Depends(get_db)):
             "team_id": team.id,
             "team_name": team.name,
             "average_score": average,
+            "max_score": max_score,
             "has_anomaly": has_anomaly,
             "results_on_hold": results_on_hold,
+            "advancement_rule": advancement_rule,
             "scores": [
                 {
                     "judge_name": s.judge_name,

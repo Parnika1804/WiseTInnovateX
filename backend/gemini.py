@@ -1,7 +1,7 @@
 import requests
 import os
 
-GEMINI_API_KEY = "AIzaSyA7zYSsH_7fhdyQlEEoHmMbS5G5POKzYLo"
+GEMINI_API_KEY = "AIzaSyBtryTEwtvdjkZD5gFxUtlOgKD8AmaQe-M"
 
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={GEMINI_API_KEY}"
 

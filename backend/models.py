@@ -69,3 +69,16 @@ class ActivityLog(Base):
     description = Column(String, nullable=False)
     performed_by = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class EventConfig(Base):
+    __tablename__ = "event_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_name = Column(String, nullable=False)
+    stages = Column(String, nullable=False)
+    team_formation = Column(String, nullable=False)
+    scoring = Column(String, nullable=False)
+    communication_touchpoints = Column(String, nullable=False)
+    approval_requirements = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

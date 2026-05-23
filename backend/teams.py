@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Team, Participant
+from models import Team, Participant, EventConfig
 from pydantic import BaseModel
 from typing import Optional
 from gemini import call_gemini
@@ -18,6 +18,13 @@ class ApproveRequest(BaseModel):
     team_id: int
     action: str
 
+def get_dynamic_team_config(db: Session):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    if config:
+        team_formation = json.loads(config.team_formation)
+        return team_formation
+    return None
+
 @router.post("/teams/configure")
 def configure_teams(config: TeamConfig, db: Session = Depends(get_db)):
     return {
@@ -30,19 +37,35 @@ def configure_teams(config: TeamConfig, db: Session = Depends(get_db)):
     }
 
 @router.post("/teams/generate")
-def generate_teams(config: TeamConfig, db: Session = Depends(get_db)):
+def generate_teams(config: Optional[TeamConfig] = None, db: Session = Depends(get_db)):
+    # Try to get config from dynamic event config first
+    dynamic_config = get_dynamic_team_config(db)
+
+    if dynamic_config:
+        team_size = dynamic_config.get("team_size", 2)
+        skill_balance = dynamic_config.get("skill_balance", True)
+        constraints = dynamic_config.get("constraints", None)
+        print(f"Using dynamic config — team_size: {team_size}, skill_balance: {skill_balance}")
+    elif config:
+        team_size = config.team_size
+        skill_balance = config.skill_balance
+        constraints = config.constraints
+        print(f"Using manual config — team_size: {team_size}")
+    else:
+        raise HTTPException(status_code=400, detail="No team config found. Either describe your event first or provide team config manually.")
+
     participants = db.query(Participant).all()
 
     if not participants:
         raise HTTPException(status_code=400, detail="No participants found. Upload a roster first.")
 
-    if len(participants) < config.team_size:
+    if len(participants) < team_size:
         raise HTTPException(status_code=400, detail="Not enough participants to form teams.")
 
     db.query(Team).delete()
     db.commit()
 
-    if config.skill_balance:
+    if skill_balance:
         sorted_participants = sorted(participants, key=lambda p: p.skill)
     else:
         sorted_participants = participants
@@ -50,9 +73,9 @@ def generate_teams(config: TeamConfig, db: Session = Depends(get_db)):
     teams = []
     team_number = 1
 
-    for i in range(0, len(sorted_participants), config.team_size):
-        chunk = sorted_participants[i:i + config.team_size]
-        if len(chunk) < config.team_size:
+    for i in range(0, len(sorted_participants), team_size):
+        chunk = sorted_participants[i:i + team_size]
+        if len(chunk) < team_size:
             if teams:
                 existing_ids = json.loads(teams[-1].member_ids)
                 existing_ids.extend([p.id for p in chunk])
@@ -65,7 +88,6 @@ def generate_teams(config: TeamConfig, db: Session = Depends(get_db)):
         names = [p.name for p in chunk]
         institutions = [p.institution for p in chunk]
 
-        # Call Gemini to generate rationale for this team
         prompt = f"""You are an event organizer AI. A team has been formed with the following members:
 Names: {', '.join(names)}
 Skills: {', '.join(skills)}
@@ -89,6 +111,7 @@ Write a 2-3 sentence rationale explaining why this is a good team composition fo
 
     return {
         "message": f"{len(teams)} teams generated successfully",
+        "config_source": "dynamic" if dynamic_config else "manual",
         "teams": [
             {
                 "id": t.id,
