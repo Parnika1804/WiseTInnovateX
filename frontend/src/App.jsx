@@ -56,16 +56,12 @@ const EvaluationView = () => {
     { id: 2, name: "Code Crafters", scores: { "Innovation": 9, "Technical Depth": 7, "Presentation": 9 } },
     { id: 3, name: "Data Demons", scores: { "Innovation": 6, "Technical Depth": 8, "Presentation": 6 } },
   ];
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Evaluation & Results</h2>
       <ScoreSubmitForm onScoreSubmitted={() => setRefreshScores(prev => prev + 1)} />
-      
-      {/* THE REAL AI LEADERBOARD */}
       <Leaderboard refreshTrigger={refreshScores} />
-    </div>
-  );
-};
       <DynamicLeaderboard scoringCategories={mockDynamicCategories} teamData={mockTeamData} />
     </div>
   );
@@ -79,7 +75,7 @@ function App() {
         <Routes>
           {/* Public Login Route */}
           <Route path="/login" element={<Login />} />
-          
+
           {/* Fallback redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
