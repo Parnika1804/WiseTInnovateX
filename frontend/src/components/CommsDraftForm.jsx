@@ -27,11 +27,26 @@ const CommsDraftForm = ({ onDraftSaved }) => {
   };
 
   // Saves the previewed draft to the log table
-  const handleSavePreview = () => {
-    alert("Draft saved and ready to send!");
-    setPreview(null);
-    setEmail(''); setTeamId('');
-    if (onDraftSaved) onDraftSaved();
+  const handleSavePreview = async () => {
+    try {
+      // Create a manual draft entry using the preview data
+      const payload = {
+        recipient_email: preview.recipient_email,
+        subject: preview.subject,
+        message: preview.message,
+        stage: stage
+      };
+      await axios.post('http://localhost:8000/comms/draft', payload);
+      
+      alert("Draft saved to the log and ready to send!");
+      setPreview(null);
+      setEmail(''); 
+      setTeamId('');
+      if (onDraftSaved) onDraftSaved();
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Failed to save draft to the log.");
+    }
   };
 
   return (

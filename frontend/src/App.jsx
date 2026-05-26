@@ -10,7 +10,7 @@ import TeamList from './components/TeamList';
 import CommsDraftForm from './components/CommsDraftForm';
 import CommsLogTable from './components/CommsLogTable';
 import ScoreSubmitForm from './components/ScoreSubmitForm';
-import DynamicLeaderboard from './components/DynamicLeaderboard';
+import Leaderboard from './components/Leaderboard';
 import ActivityLog from './components/ActivityLog';
 import ParticipantPortal from './components/ParticipantPortal';
 import JudgePortal from './components/JudgePortal';
@@ -84,30 +84,16 @@ const CommsLog = () => {
 const EvaluationView = () => {
   const [refreshScores, setRefreshScores] = useState(0);
 
-  // MOCK DATA: Simulating what the AI extracted for scoring logic
-  const mockDynamicCategories = ["Innovation", "Technical Depth", "Presentation"];
-  
-  // MOCK DATA: Simulating team scores stored in the database
-  const mockTeamData = [
-    { id: 1, name: "Tech Titans", scores: { "Innovation": 8, "Technical Depth": 9, "Presentation": 7 } },
-    { id: 2, name: "Code Crafters", scores: { "Innovation": 9, "Technical Depth": 7, "Presentation": 9 } },
-    { id: 3, name: "Data Demons", scores: { "Innovation": 6, "Technical Depth": 8, "Presentation": 6 } },
-  ];
-
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Evaluation & Results</h2>
       <ScoreSubmitForm onScoreSubmitted={() => setRefreshScores(prev => prev + 1)} />
       
-      {/* NEW DYNAMIC COMPONENT */}
-      <DynamicLeaderboard 
-        scoringCategories={mockDynamicCategories} 
-        teamData={mockTeamData} 
-      />
+      {/* THE REAL AI LEADERBOARD */}
+      <Leaderboard refreshTrigger={refreshScores} />
     </div>
   );
 };
-
 function App() {
   return (
     <Router>

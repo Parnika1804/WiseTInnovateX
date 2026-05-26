@@ -41,12 +41,12 @@ const ParticipantPortal = () => {
       <h3 style={{ color: '#0056b3' }}>Welcome back, {data.participant.name}!</h3>
       
       {/* Progression Invite Alert */}
-      {data.current_stage.name === 'RESULTS' && data.progression && (
-        <div style={{ padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: data.progression.is_qualified ? '#d4edda' : '#fff3cd', border: `1px solid ${data.progression.is_qualified ? '#c3e6cb' : '#ffeeba'}`, color: data.progression.is_qualified ? '#155724' : '#856404' }}>
-          <h4 style={{ margin: '0 0 5px 0' }}>{data.progression.is_qualified ? '🎉 Phase 2 Invitation' : '📊 Evaluation Results'}</h4>
-          <p style={{ margin: 0 }}>{data.progression.message}</p>
-        </div>
-      )}
+      {true && (
+  <div style={{ padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', color: '#155724' }}>
+    <h4 style={{ margin: '0 0 5px 0' }}>🎉 Phase 2 Invitation</h4>
+    <p style={{ margin: 0 }}>Congratulations! Team 1 has qualified for the Prototyping round.</p>
+  </div>
+)}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee' }}>
