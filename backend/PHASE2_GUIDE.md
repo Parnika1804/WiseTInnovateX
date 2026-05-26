@@ -1,123 +1,88 @@
-# EventFlow Phase 2 — Handoff Guide for Incoming Members
+# EventFlow Orchestrator: Master Handoff & Dev Guide
 
-## What has already been done
+## 1. Project Overview
 
-### Phase 1 (fully complete)
-- Participant CSV upload and roster display
-- Team formation with rules configuration and approval gate
-- Hardcoded pipeline stages
-- Manual communication drafting and delivery log
-- Judge score submission interface
-- Leaderboard with score breakdowns
-- Activity log
-- Participant portal (read only)
+EventFlow is an AI-powered hackathon management platform that automates the full lifecycle—from setup and team formation to communication and precision evaluation.
 
-### Phase 2 (partially complete — done by previous team)
-- Gemini API connected and working via `gemini.py`
-- Celery + Redis set up and running via `celery_app.py`
-- Three async Celery tasks defined in `tasks.py`
-- Anomaly detection logic complete in `scores.py`
-- Anomaly indicators on leaderboard complete in `scores.py`
-- LLM rationale per team complete in `teams.py`
-- LLM drafted communications for two stages complete in `comms.py`
-- LLM assessment guide per team complete in `scores.py`
+### Architecture
+
+* **Frontend:** React + Vite (Standardizes portal-based interactions).
+* **Backend:** FastAPI (Handles routing and orchestration).
+* **Brain:** Google Gemini Pro/Flash (via `google-genai` SDK).
+* **Task Queue:** Celery + Redis (Handles long-running AI operations asynchronously).
 
 ---
 
-## What is left for you to build
+## 2. Environment Setup
 
-### Backend
-- Nothing remaining — all backend routes are complete
+### Backend (Python)
 
-### Frontend (your main job)
-Build these components in React inside the `frontend` folder:
+1. **Directory:** Navigate to `/backend`.
+2. **Virtual Env:** `python -m venv venv` $\rightarrow$ `venv\Scripts\activate`.
+3. **Install:** `pip install -r requirements.txt`.
+4. **Environment Variables:** Store keys in a `.env` file (never hardcode in production):
+* `GEMINI_API_KEY`: Get from [aistudio.google.com](https://aistudio.google.com).
+* `SENDGRID_API_KEY`: For production email delivery.
 
-1. Show LLM rationale under each team card — fetches from `GET /teams`
-2. Show Gemini drafted message as preview before committee sends — uses `POST /comms/draft/gemini` then `POST /comms/send`
-3. Show assessment guide on judge score submission page — fetches from `GET /scores/assessment-guide/{team_id}`
-4. Show anomaly flag indicator on leaderboard — fetches from `GET /scores/leaderboard` and checks `has_anomaly`
-5. Update participant portal to show progression invite for qualifying teams — fetches from `GET /participant/{participant_id}` and checks `progression.is_qualified`
-6. JWT signed links for participant and evaluator access
 
----
 
-## How to run the project
+### Celery (Required for AI)
 
-### Backend
-1. Open terminal inside `backend` folder
-2. Activate venv — run `venv\Scripts\activate`
-3. Run `python main.py`
-4. Backend runs on `http://localhost:8000`
-5. API docs at `http://localhost:8000/docs`
+1. **Redis:** Ensure Redis server is active.
+2. **Execution:** `celery -A celery_app worker --loglevel=info --pool=solo`.
+* *Note: The worker must stay active to process team rationales and email drafts.*
 
-### Celery worker (required for async Gemini calls)
-1. Open a second terminal inside `backend` folder
-2. Activate venv — run `venv\Scripts\activate`
-3. Run `celery -A celery_app worker --loglevel=info --pool=solo`
-4. Keep this terminal running while working
 
-### Redis
-- Already installed as a Windows service
-- Runs automatically — no action needed
 
-### Frontend
-1. Open terminal inside `frontend` folder
-2. Run `npm install`
-3. Run `npm run dev`
-4. Frontend runs on `http://localhost:5173`
+### Frontend (React)
+
+1. **Directory:** Navigate to `/frontend`.
+2. **Install:** `npm install`.
+3. **Execution:** `npm run dev` (Runs at `http://localhost:5173`).
 
 ---
 
-## Key files to know
+## 3. Development Roadmap & Key Modules
 
-| File | What it does |
-|---|---|
-| `gemini.py` | Gemini API connection — import `call_gemini` to use |
-| `celery_app.py` | Celery + Redis setup |
-| `tasks.py` | Three async Gemini tasks — `generate_team_rationale`, `draft_communication`, `generate_assessment_guide` |
-| `models.py` | All database models — Participant, Team, Score, CommunicationLog, ActivityLog |
-| `teams.py` | Team formation routes including LLM rationale |
-| `comms.py` | Communication routes including Gemini drafting and preview |
-| `scores.py` | Score submission, leaderboard, anomaly detection, assessment guide |
-| `participant.py` | Participant portal route |
-| `API_DOCS.md` | All routes with request and response examples — read this first |
+| Module | Purpose | Key Routes / Logic |
+| --- | --- | --- |
+| `gemini.py` | AI Wrapper | Centralized `call_gemini` function. |
+| `tasks.py` | Celery Tasks | `generate_team_rationale`, `draft_communication`, `generate_assessment_guide`. |
+| `models.py` | Database | Participant, Team, Score, Logs. |
+| `scores.py` | Evaluation | `GET /scores/leaderboard` (with anomaly flagging), `GET /scores/anomalies`. |
+| `comms.py` | Messaging | `POST /comms/draft/gemini` (AI Drafting), `POST /comms/send`. |
+| `participant.py` | Portals | `GET /participant/{participant_id}` (Progression logic). |
 
 ---
 
-## Gemini API key
+## 4. Phase 2: Feature Implementation Checklist
 
-- Key is hardcoded in `gemini.py`
-- If you get a 429 rate limit error wait 1-2 minutes and retry
-- If it keeps failing create a new key at `aistudio.google.com` and replace it in `gemini.py`
-- Correct URL being used: `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`
+The following features are now live and should be utilized in all front-end builds:
 
----
-
-## New routes added in Phase 2
-
-| Route | What it does |
-|---|---|
-| `POST /comms/draft/gemini` | Gemini drafts a communication for TEAM_ASSIGNMENT or EVALUATION_REMINDER stage |
-| `GET /scores/assessment-guide/{team_id}` | Gemini generates assessment guide for a team |
-| `GET /scores/anomalies` | Returns all flagged anomalous scores |
-| `POST /scores/resolve/{score_id}` | Resolves a flagged anomaly |
+* **AI Rationale:** Display under team cards via `GET /teams`.
+* **AI Comms Drafting:** Use `POST /comms/draft/gemini` to create drafts, followed by `POST /comms/send`.
+* **Assessment Guides:** Fetch via `GET /scores/assessment-guide/{team_id}` to provide judges context.
+* **Anomaly Detection:** Use `has_anomaly` boolean from `GET /scores/leaderboard` to toggle red warning badges.
+* **Progression Logic:** `GET /participant/{participant_id}` now includes `progression` metadata for the portal.
+* **Security:** Access is locked via JWT tokens passed as URL parameters (`?token=...`).
 
 ---
 
-## Important rules
+## 5. Deployment & Operational Rules
 
-- Never send a team announcement or results without committee approval
-- Anomaly detection threshold is set to `2.0` in `scores.py` — change `ANOMALY_THRESHOLD` to adjust
-- All Gemini calls are async via Celery — always keep the Celery worker running
-- The `tasks.py` file has all three Gemini tasks ready — you can call them directly if needed
+1. **Safety First:** Committee approval is required before triggering any `POST /comms/send` request.
+2. **Rate Limiting:** If a 429 error occurs, the system defaults to a retry queue via Celery; avoid manual spamming of the Gemini endpoint.
+3. **Anomaly Threshold:** Adjust the `ANOMALY_THRESHOLD` constant in `scores.py` to tune the sensitivity of the judge-bias detector.
+4. **CORS Policy:** Localhost (`http://localhost:5173`) is currently white-listed. Ensure the CORS middleware in `main.py` is updated to include your final production domain before deploying to Vercel/Render.
 
 ---
 
-## First thing to do when you start
+## 6. Initial Setup Protocol
 
-1. Pull latest from `dev` — run `git pull origin dev`
-2. Read `API_DOCS.md` fully
-3. Start backend — `python main.py`
-4. Start Celery worker
-5. Start frontend — `npm run dev`
-6. Confirm everything runs before writing any code
+Whenever starting a new dev session, verify state in this order:
+
+1. **Sync:** `git pull origin main` (or `dev`).
+2. **Backend:** `python main.py` (Verify logs show server startup).
+3. **Worker:** Start Celery worker (Verify worker is connected to Redis).
+4. **Frontend:** `npm run dev` (Verify no console errors).
+5. **Test:** Navigate to `http://localhost:8000/docs` to run a smoke test on the `GET /pipeline/status` route.
