@@ -1,48 +1,89 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import ClarificationDialog from './ClarificationDialog';
+
 const EventDescriptionForm = ({ onConfigExtracted }) => {
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-    const [showClarification, setShowClarification] = useState(false);
-    const [clarificationQuestions, setClarificationQuestions] = useState([]);
+  const [showClarification, setShowClarification] = useState(false);
+  const [clarificationQuestions, setClarificationQuestions] = useState([]);
+  const [missingFields, setMissingFields] = useState([]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); // Clear previous errors
+    setError('');
 
-    // Enterprise-ready validation: Prevent empty submissions
     if (!description.trim()) {
       setError('Please provide a description of your event before submitting.');
       return;
     }
 
-    // Enterprise-ready UX: Show loading state to prevent double-clicks
     setIsLoading(true);
 
-try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // 1. Send description to Gemini to parse
+      const describeRes = await axios.post('http://localhost:8000/event/describe', {
+        description: description
+      });
 
-      // NEW MOCK DATA: Simulating an incomplete description!
-      const mockParsedConfig = {
-        isComplete: false, 
-        clarificationQuestions: [
-          "What is the maximum team size allowed for this hackathon?",
-          "Will the 'Final Pitch' stage require video submissions or live presentations?"
-        ] 
-      };
+      if (describeRes.data.status === 'incomplete') {
+        // 2. If incomplete, ask Gemini to generate specific follow-up questions
+        setMissingFields(describeRes.data.missing_fields);
+        const clarifyRes = await axios.post('http://localhost:8000/event/clarify', {
+          description: description,
+          missing_fields: describeRes.data.missing_fields
+        });
 
-      if (!mockParsedConfig.isComplete) {
-        // If incomplete, show the modal with the questions
-        setClarificationQuestions(mockParsedConfig.clarificationQuestions);
+        // Extract just the question text for the dialog
+        const questions = clarifyRes.data.questions.map(q => q.question);
+        setClarificationQuestions(questions);
         setShowClarification(true);
-      } else if (onConfigExtracted) {
-        onConfigExtracted(mockParsedConfig);
+      } else {
+        // 3. If complete, save it to the database
+        await axios.post('http://localhost:8000/event/configure', {
+          description: description
+        });
+        alert("Event configured successfully!");
+        if (onConfigExtracted) onConfigExtracted(describeRes.data.config);
+        setDescription(''); // Clear form on success
       }
-
-    
     } catch (err) {
-      setError('Failed to process the event configuration. Please try again later.');
+      setError('Failed to process the event configuration. Please ensure the backend is running.');
       console.error("API Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClarificationSubmit = async (answers) => {
+    setIsLoading(true);
+    try {
+      // Map array of answers back to the missing fields
+      const answersDict = {};
+      missingFields.forEach((field, index) => {
+        answersDict[field] = answers[index];
+      });
+
+      // 4. Combine original description with answers
+      const resubmitRes = await axios.post('http://localhost:8000/event/clarify/resubmit', {
+        original_description: description,
+        answers: answersDict
+      });
+
+      // 5. Save the newly combined description to the database
+      const newDescription = resubmitRes.data.combined_description;
+      setDescription(newDescription);
+      
+      await axios.post('http://localhost:8000/event/configure', {
+        description: newDescription
+      });
+      
+      setShowClarification(false);
+      alert("Event configured successfully with your clarifications!");
+      if (onConfigExtracted) onConfigExtracted();
+    } catch (err) {
+      setError('Failed to submit clarifications.');
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +113,6 @@ try {
             onChange={(e) => setDescription(e.target.value)}
             disabled={isLoading}
           />
-          {/* Error Message Display */}
           {error && <p className="mt-2 text-sm text-red-600 font-medium">{error}</p>}
         </div>
 
@@ -84,29 +124,15 @@ try {
               isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
             }`}
           >
-            {isLoading ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </>
-            ) : (
-              'Generate Pipeline'
-            )}
+            {isLoading ? 'Processing with AI...' : 'Generate Pipeline'}
           </button>
         </div>
       </form>
+
       {showClarification && (
         <ClarificationDialog 
           questions={clarificationQuestions}
-          onSubmitAnswers={(answers) => {
-            console.log("Answers submitted:", answers);
-            setShowClarification(false);
-            // Here is where you would trigger the final save to the DB later
-            alert("Configuration updated successfully!"); 
-          }}
+          onSubmitAnswers={handleClarificationSubmit}
           onCancel={() => setShowClarification(false)}
         />
       )}
