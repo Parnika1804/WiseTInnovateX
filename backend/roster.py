@@ -18,12 +18,28 @@ async def upload_roster(file: UploadFile = File(...), db: Session = Depends(get_
     
     added = 0
     for row in reader:
+        # Safely convert prior_hackathons to an integer
+        hackathons_count = row.get("prior_hackathons", "0")
+        try:
+            hackathons_count = int(hackathons_count) if hackathons_count.strip() else 0
+        except ValueError:
+            hackathons_count = 0
+
         participant = Participant(
             name=row.get("name"),
             email=row.get("email"),
             skill=row.get("skill"),
             background=row.get("background", ""),
-            institution=row.get("institution", "")
+            institution=row.get("institution", ""),
+            
+            # --- NEW EXTENDED PROFILE COLUMNS ---
+            study_year=row.get("study_year", ""),
+            experience_level=row.get("experience_level", ""),
+            prior_hackathons=hackathons_count,
+            domain_interest=row.get("domain_interest", ""),
+            tools_known=row.get("tools_known", ""),
+            availability=row.get("availability", ""),
+            role_preference=row.get("role_preference", "")
         )
         db.add(participant)
         added += 1
@@ -42,7 +58,21 @@ def get_roster(db: Session = Depends(get_db)):
             "email": p.email,
             "skill": p.skill,
             "background": p.background,
-            "institution": p.institution
+            "institution": p.institution,
+            
+            # --- NEW EXTENDED PROFILE COLUMNS ---
+            "study_year": p.study_year,
+            "experience_level": p.experience_level,
+            "prior_hackathons": p.prior_hackathons,
+            "domain_interest": p.domain_interest,
+            "tools_known": p.tools_known,
+            "availability": p.availability,
+            "role_preference": p.role_preference,
+            
+            # Include the portfolio data in case the frontend needs it
+            "tech_stack": p.tech_stack,
+            "project_link": p.project_link,
+            "resume_link": p.resume_link
         }
         for p in participants
     ]

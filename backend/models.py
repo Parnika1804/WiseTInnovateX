@@ -13,9 +13,22 @@ class Participant(Base):
     skill = Column(String, nullable=False)
     background = Column(String, nullable=True)
     institution = Column(String, nullable=True)
+    
+    # --- NEW EXTENDED PROFILE COLUMNS ---
+    study_year = Column(String, nullable=True)
+    experience_level = Column(String, nullable=True)
+    prior_hackathons = Column(Integer, nullable=True) # Changed to Integer for counting
+    domain_interest = Column(String, nullable=True)
+    tools_known = Column(String, nullable=True)
+    availability = Column(String, nullable=True)
+    role_preference = Column(String, nullable=True)
+    
+    # --- PORTFOLIO COLUMNS (from our previous update) ---
+    tech_stack = Column(String, nullable=True)
+    project_link = Column(String, nullable=True)
+    resume_link = Column(String, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
-
-
 class Team(Base):
     __tablename__ = "teams"
 

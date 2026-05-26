@@ -6,7 +6,7 @@ import { AuthProvider } from './components/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import Layout from './components/Layout';
-
+import AITeamGenerator from './components/AITeamGenerator';
 // Component Imports
 import CommitteeDashboard from './components/CommitteeDashboard';
 import DynamicTeamConfig from './components/DynamicTeamConfig';
@@ -14,23 +14,24 @@ import GenerateTeamsButton from './components/GenerateTeamsButton';
 import TeamList from './components/TeamList';
 import CommsDraftForm from './components/CommsDraftForm';
 import CommsLogTable from './components/CommsLogTable';
-import ScoreSubmitForm from './components/ScoreSubmitForm';
 import Leaderboard from './components/Leaderboard';
-import ActivityLog from './components/ActivityLog';
 import DynamicLeaderboard from './components/DynamicLeaderboard';
 import ParticipantPortal from './components/ParticipantPortal';
 import JudgePortal from './components/JudgePortal';
 import EventDescriptionForm from './components/EventDescriptionForm';
 
-// --- INLINE PAGE COMPONENTS ---
+// --- INLINE PAGE COMPONENTS (COMMITTEE ONLY) ---
+// --- INLINE PAGE COMPONENTS (COMMITTEE ONLY) ---
 const TeamView = () => {
   const [refreshTeams, setRefreshTeams] = useState(0);
-  const mockExtractedRules = { minSize: 2, maxSize: 5, allowCrossCollege: true };
+  
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Team Formation & Approval</h2>
-      <DynamicTeamConfig suggestedRules={mockExtractedRules} onRulesConfirmed={(finalRules) => console.log("Database updated with:", finalRules)} />
-      <GenerateTeamsButton onGenerated={() => setRefreshTeams(prev => prev + 1)} />
+      
+      {/* The New AI Generator Component! */}
+      <AITeamGenerator onTeamsGenerated={() => setRefreshTeams(prev => prev + 1)} />
+      
       <TeamList refreshTrigger={refreshTeams} />
     </div>
   );
@@ -47,7 +48,8 @@ const CommsLog = () => {
   );
 };
 
-const EvaluationView = () => {
+// Committee's view of the evaluation (Read-Only results, NO score submission)
+const EvaluationResultsView = () => {
   const [refreshScores, setRefreshScores] = useState(0);
 
   const mockDynamicCategories = ["Innovation", "Technical Depth", "Presentation"];
@@ -59,8 +61,8 @@ const EvaluationView = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Evaluation & Results</h2>
-      <ScoreSubmitForm onScoreSubmitted={() => setRefreshScores(prev => prev + 1)} />
+      <h2 className="text-2xl font-bold mb-6">Evaluation Results & Anomaly Monitor</h2>
+      {/* Committee only sees the leaderboard and anomalies. They CANNOT submit scores here. */}
       <Leaderboard refreshTrigger={refreshScores} />
       <DynamicLeaderboard scoringCategories={mockDynamicCategories} teamData={mockTeamData} />
     </div>
@@ -85,11 +87,13 @@ function App() {
             <Route path="/setup" element={<EventDescriptionForm onConfigExtracted={(data) => console.log("Config:", data)} />} />
             <Route path="/teams" element={<TeamView />} />
             <Route path="/comms" element={<CommsLog />} />
-            <Route path="/evaluation" element={<EvaluationView />} />
+            {/* The Committee checks the results, but doesn't grade */}
+            <Route path="/evaluation" element={<EvaluationResultsView />} /> 
           </Route>
 
           {/* === JUDGE ONLY ROUTES === */}
           <Route element={<ProtectedRoute allowedRoles={['Judge']}><Layout /></ProtectedRoute>}>
+            {/* The JudgePortal handles reading the AI Rubric and Submitting Scores */}
             <Route path="/judge-dashboard" element={<JudgePortal />} />
           </Route>
 

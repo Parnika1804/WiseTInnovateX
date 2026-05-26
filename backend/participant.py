@@ -5,6 +5,32 @@ from models import Participant, Team
 from scores import Score
 from config import PIPELINE_STAGES, CURRENT_STAGE
 import json
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db
+from pydantic import BaseModel
+from models import Participant
+
+router = APIRouter(prefix="/participant", tags=["Participant"])
+
+class ProfileUpdateRequest(BaseModel):
+    tech_stack: str
+    project_link: str = ""
+    resume_link: str = ""
+
+@router.put("/{participant_id}/profile")
+def update_profile(participant_id: int, profile: ProfileUpdateRequest, db: Session = Depends(get_db)):
+    db_participant = db.query(Participant).filter(Participant.id == participant_id).first()
+    if not db_participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+        
+    db_participant.tech_stack = profile.tech_stack
+    db_participant.project_link = profile.project_link
+    db_participant.resume_link = profile.resume_link
+    
+    db.commit()
+    db.refresh(db_participant)
+    return {"message": "Profile updated successfully"}
 
 router = APIRouter()
 

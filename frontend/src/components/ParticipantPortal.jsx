@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import ParticipantProfileForm from './ParticipantProfileForm';
 
 const ParticipantPortal = () => {
   const [searchParams] = useSearchParams();
@@ -42,11 +43,11 @@ const ParticipantPortal = () => {
       
       {/* Progression Invite Alert */}
       {true && (
-  <div style={{ padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', color: '#155724' }}>
-    <h4 style={{ margin: '0 0 5px 0' }}>🎉 Phase 2 Invitation</h4>
-    <p style={{ margin: 0 }}>Congratulations! Team 1 has qualified for the Prototyping round.</p>
-  </div>
-)}
+        <div style={{ padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', color: '#155724' }}>
+          <h4 style={{ margin: '0 0 5px 0' }}>🎉 Phase 2 Invitation</h4>
+          <p style={{ margin: 0 }}>Congratulations! Team 1 has qualified for the Prototyping round.</p>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #eee' }}>
@@ -67,6 +68,10 @@ const ParticipantPortal = () => {
           )}
         </div>
       </div>
+
+      {/* --- NEW PROFILE FORM ADDED HERE --- */}
+      <ParticipantProfileForm participantId={data.participant.id} />
+
     </div>
   );
 };
