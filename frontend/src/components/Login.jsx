@@ -9,6 +9,11 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [skill, setSkill] = useState('');
+  const [background, setBackground] = useState('');
+  const [institution, setInstitution] = useState('');
 
   // Your VIP Admin Emails
   const allowedEmails = [
@@ -17,6 +22,41 @@ const Login = () => {
     'ankitaak2312@gmail.com',
     'tweetdiaries935@gmail.com'
   ];
+
+  const handleSignup = async (e) => {
+  e.preventDefault();
+
+  try {
+    const response = await fetch('http://127.0.0.1:8000/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        skill,
+        background,
+        institution
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.detail || 'Signup failed');
+      return;
+    }
+
+    alert('Signup successful!');
+    setError('');
+    setIsAuthenticated(true);
+
+    } catch (err) {
+      setError('Server error');
+    }
+  };
 
   const handleEmailSubmit = (e) => {
     e.preventDefault();
@@ -59,23 +99,70 @@ const Login = () => {
       {!isAuthenticated ? (
         <div className="w-full max-w-md mt-6">
           <p className="text-gray-500 mb-4 text-center">Please enter your authorized email to access the system.</p>
-          <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button 
-              type="submit" 
-              className="px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900 transition-colors"
-            >
-              Verify Email
-            </button>
-          </form>
+          <form onSubmit={handleSignup} className="flex flex-col gap-4">
+
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-lg"
+                required
+              />
+
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="px-4 py-3 border border-gray-300 rounded-lg"
+                required
+              />
+
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="px-4 py-3 border border-gray-300 rounded-lg"
+                required
+              />
+
+              <input
+                type="text"
+                value={skill}
+                onChange={(e) => setSkill(e.target.value)}
+                placeholder="Skill"
+                className="px-4 py-3 border border-gray-300 rounded-lg"
+                required
+              />
+
+              <input
+                type="text"
+                value={background}
+                onChange={(e) => setBackground(e.target.value)}
+                placeholder="Background"
+                className="px-4 py-3 border border-gray-300 rounded-lg"
+              />
+
+              <input
+                type="text"
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
+                placeholder="Institution"
+                className="px-4 py-3 border border-gray-300 rounded-lg"
+              />
+
+              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+              <button
+                type="submit"
+                className="px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg"
+              >
+                Sign Up
+              </button>
+
+            </form>
         </div>
       ) : (
         <div className="flex flex-col items-center mt-6 w-full animate-fade-in">

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import User
+from models import User, Participant
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -19,6 +19,9 @@ class RegisterRequest(BaseModel):
     name: str
     email: str
     password: str
+    skill: str
+    background: str = ""
+    institution: str = ""
 
 class LoginRequest(BaseModel):
     email: str
@@ -57,7 +60,18 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         password=hash_password(request.password),
         role=role
     )
+    participant = Participant(
+    name=request.name,
+    email=request.email,
+    skill=request.skill,
+    background=request.background,
+    institution=request.institution
+    )
     db.add(user)
+
+    if role == "Participant":
+        db.add(participant)
+
     db.commit()
     db.refresh(user)
 
