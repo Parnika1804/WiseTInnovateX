@@ -12,6 +12,7 @@ import uvicorn
 from event_description import router as event_description_router
 from dynamic_pipeline import router as dynamic_pipeline_router
 from clarification import router as clarification_router
+from auth import router as auth_router
 
 app = FastAPI(title="EventFlow API")
 
@@ -35,6 +36,7 @@ app.include_router(participant_router)
 app.include_router(event_description_router)
 app.include_router(dynamic_pipeline_router)
 app.include_router(clarification_router)
+app.include_router(auth_router) 
 
 @app.get("/")
 def root():

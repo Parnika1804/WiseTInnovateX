@@ -1,45 +1,38 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Participant, Team
-from scores import Score
+from models import Participant, Team, Score
+from pydantic import BaseModel
 from config import PIPELINE_STAGES, CURRENT_STAGE
 import json
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from database import get_db
-from pydantic import BaseModel
-from models import Participant
 
-router = APIRouter(prefix="/participant", tags=["Participant"])
+router = APIRouter()
 
 class ProfileUpdateRequest(BaseModel):
     tech_stack: str
     project_link: str = ""
     resume_link: str = ""
 
-@router.put("/{participant_id}/profile")
+@router.put("/participant/{participant_id}/profile")
 def update_profile(participant_id: int, profile: ProfileUpdateRequest, db: Session = Depends(get_db)):
-    db_participant = db.query(Participant).filter(Participant.id == participant_id).first()
-    if not db_participant:
+    participant = db.query(Participant).filter(Participant.id == participant_id).first()
+    if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
-        
-    db_participant.tech_stack = profile.tech_stack
-    db_participant.project_link = profile.project_link
-    db_participant.resume_link = profile.resume_link
-    
+
+    participant.tech_stack = profile.tech_stack
+    participant.project_link = profile.project_link
+    participant.resume_link = profile.resume_link
+
     db.commit()
-    db.refresh(db_participant)
+    db.refresh(participant)
     return {"message": "Profile updated successfully"}
 
-router = APIRouter()
 
-@router.get("/participant/{participant_id}")
-def get_participant_status(participant_id: int, db: Session = Depends(get_db)):
+def get_participant_data(participant_id: int, db: Session):
     participant = db.query(Participant).filter(Participant.id == participant_id).first()
 
     if not participant:
-        raise HTTPException(status_code=404, detail="Participant not found")
+        return None
 
     participant_team = None
     team_members = []
@@ -49,7 +42,6 @@ def get_participant_status(participant_id: int, db: Session = Depends(get_db)):
         member_ids = json.loads(team.member_ids)
         if participant_id in member_ids:
             participant_team = team
-
             for mid in member_ids:
                 member = db.query(Participant).filter(Participant.id == mid).first()
                 if member:
@@ -63,7 +55,6 @@ def get_participant_status(participant_id: int, db: Session = Depends(get_db)):
     current_index = next(
         (i for i, s in enumerate(PIPELINE_STAGES) if s["name"] == CURRENT_STAGE), 0
     )
-
     current_stage_info = PIPELINE_STAGES[current_index]
 
     evaluator = None
@@ -107,6 +98,25 @@ def get_participant_status(participant_id: int, db: Session = Depends(get_db)):
             "message": "Congratulations! You have been invited to the next round." if is_qualified else "Results are being processed."
         }
     }
+
+
+@router.get("/participant/{participant_id}")
+def get_participant_status(participant_id: int, db: Session = Depends(get_db)):
+    data = get_participant_data(participant_id, db)
+    if not data:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    return data
+
+
+@router.get("/participant/me/{email}")
+def get_participant_by_email(email: str, db: Session = Depends(get_db)):
+    participant = db.query(Participant).filter(Participant.email == email).first()
+    if not participant:
+        return {
+            "status": "not_found",
+            "message": "No participant profile found for this email"
+        }
+    return get_participant_data(participant.id, db)
 
 
 @router.get("/participants/portal")
