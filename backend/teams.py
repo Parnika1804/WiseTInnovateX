@@ -112,6 +112,11 @@ def configure_teams(config: TeamConfig, db: Session = Depends(get_db)):
 
 @router.post("/teams/generate")
 def generate_teams(config: Optional[TeamConfig] = None, db: Session = Depends(get_db)):
+    # Resolve the active event config
+    active_event = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    if not active_event:
+        raise HTTPException(status_code=400, detail="No active event found. Please configure an event first.")
+
     # 1. PRIORITY: Always use the AI Rubric from the UI if it exists!
     if config:
         team_size = config.team_size
@@ -136,7 +141,8 @@ def generate_teams(config: Optional[TeamConfig] = None, db: Session = Depends(ge
     if len(participants) < team_size:
         raise HTTPException(status_code=400, detail="Not enough participants to form teams.")
 
-    db.query(Team).delete()
+    # Only delete teams belonging to the current active event (not other events)
+    db.query(Team).filter(Team.event_config_id == active_event.id).delete()
     db.commit()
 
     # ADVANCED SORTING
@@ -187,7 +193,8 @@ Focus specifically on how their different experience levels, study years, domain
             name=f"Team {team_number}",
             member_ids=json.dumps(member_ids),
             rationale=rationale,
-            status="PENDING"
+            status="PENDING",
+            event_config_id=active_event.id
         )
         db.add(team)
         teams.append(team)
@@ -217,9 +224,25 @@ def approve_team(request: ApproveRequest, db: Session = Depends(get_db)):
     if request.action not in ["APPROVED", "REJECTED"]: raise HTTPException(status_code=400, detail="Action must be APPROVED or REJECTED")
     team.status = request.action
     db.commit()
+
+    # Auto-send team assignment emails when a team is approved
+    if request.action == "APPROVED":
+        try:
+            from email_triggers import send_team_assignment_emails
+            config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+            event_name = config.event_name if config else "the event"
+            member_ids = json.loads(team.member_ids)
+            members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+            send_team_assignment_emails(team, members, event_name, db)
+        except Exception as e:
+            print(f"[TEAM ASSIGNMENT EMAIL ERROR] {e}")
+
     return {"message": f"Team {team.name} has been {request.action}", "team_id": team.id, "status": team.status}
 
 @router.get("/teams")
 def get_teams(db: Session = Depends(get_db)):
-    teams = db.query(Team).all()
+    active_event = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    if not active_event:
+        return []
+    teams = db.query(Team).filter(Team.event_config_id == active_event.id).all()
     return [{"id": t.id, "name": t.name, "member_ids": json.loads(t.member_ids), "rationale": t.rationale, "status": t.status} for t in teams]

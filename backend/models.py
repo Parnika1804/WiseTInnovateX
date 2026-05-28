@@ -37,6 +37,7 @@ class Team(Base):
     member_ids = Column(String, nullable=False)
     rationale = Column(String, nullable=True)
     status = Column(String, default="PENDING")
+    event_config_id = Column(Integer, ForeignKey("event_configs.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -58,6 +59,10 @@ class CommunicationLog(Base):
     subject = Column(String, nullable=False)
     message = Column(String, nullable=False)
     status = Column(String, default="DRAFT")
+    # comm_type tracks what triggered this email:
+    # WELCOME | TEAM_ASSIGNMENT | EVALUATION_REMINDER | RESULTS_QUALIFIED |
+    # RESULTS_NOT_QUALIFIED | ANNOUNCEMENT | STAGE_* | MANUAL
+    comm_type = Column(String, default="MANUAL", nullable=True)
     sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

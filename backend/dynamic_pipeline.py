@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import EventConfig
+from models import EventConfig, Team
 from pydantic import BaseModel
 from datetime import datetime
 from gemini_parser import parse_event_description
@@ -28,6 +28,8 @@ def configure_event(request: SaveConfigRequest, db: Session = Depends(get_db)):
     existing = db.query(EventConfig).filter(EventConfig.is_active == True).all()
     for e in existing:
         e.is_active = False
+        # Clear teams from the old event so they don't bleed into the new one
+        db.query(Team).filter(Team.event_config_id == e.id).delete()
     db.commit()
 
     config = EventConfig(

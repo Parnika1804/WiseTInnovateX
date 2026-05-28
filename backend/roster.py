@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Participant
+from models import Participant, EventConfig
 import csv
 import io
 
@@ -45,7 +45,38 @@ async def upload_roster(file: UploadFile = File(...), db: Session = Depends(get_
         added += 1
     
     db.commit()
-    return {"message": f"{added} participants uploaded successfully"}
+
+    # Fire welcome emails to all newly uploaded participants
+    try:
+        from email_triggers import send_welcome_emails
+        config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+        event_name = config.event_name if config else "the event"
+        new_participants = db.query(Participant).order_by(Participant.id.desc()).limit(added).all()
+        send_welcome_emails(new_participants, event_name, db)
+    except Exception as e:
+        print(f"[WELCOME EMAIL ERROR] {e}")  # Don't fail the upload if email fails
+
+    return {"message": f"{added} participants uploaded successfully. Welcome emails sent."}
+
+
+@router.delete("/roster/clear")
+def clear_roster(db: Session = Depends(get_db)):
+    """Delete all participants from the database."""
+    count = db.query(Participant).count()
+    db.query(Participant).delete()
+    db.commit()
+    return {"message": f"All {count} participants deleted successfully"}
+
+
+@router.delete("/roster/{participant_id}")
+def delete_participant(participant_id: int, db: Session = Depends(get_db)):
+    """Delete a single participant by ID."""
+    participant = db.query(Participant).filter(Participant.id == participant_id).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    db.delete(participant)
+    db.commit()
+    return {"message": f"Participant {participant.name} deleted successfully"}
 
 
 @router.get("/roster")

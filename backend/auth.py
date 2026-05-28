@@ -5,7 +5,8 @@ from models import User, Participant
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
+import hashlib
 
 router = APIRouter()
 
@@ -13,7 +14,31 @@ SECRET_KEY = "eventflow-secret-key-2026"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ---------------------------------------------------------------------------
+# Password helpers — uses bcrypt directly (no passlib) to avoid the
+# "password cannot be longer than 72 bytes" crash in bcrypt v4+.
+# Pre-hashing with SHA-256 keeps the input to bcrypt at exactly 32 bytes,
+# safely under the limit regardless of what the user types.
+# ---------------------------------------------------------------------------
+
+def _pre_hash(password: str) -> bytes:
+    """SHA-256 digest of the password — always 32 bytes, safe for bcrypt."""
+    return hashlib.sha256(password.encode("utf-8")).digest()
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(_pre_hash(password), bcrypt.gensalt()).decode("utf-8")
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(_pre_hash(plain), hashed.encode("utf-8"))
+
+
+def create_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 class RegisterRequest(BaseModel):
     name: str
@@ -32,18 +57,6 @@ class CreateJudgeRequest(BaseModel):
     email: str
     password: str
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
-
-def create_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
 
 @router.post("/auth/register")
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
@@ -61,11 +74,11 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         role=role
     )
     participant = Participant(
-    name=request.name,
-    email=request.email,
-    skill=request.skill,
-    background=request.background,
-    institution=request.institution
+        name=request.name,
+        email=request.email,
+        skill=request.skill,
+        background=request.background,
+        institution=request.institution
     )
     db.add(user)
 
