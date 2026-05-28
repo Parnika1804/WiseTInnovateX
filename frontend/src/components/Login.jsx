@@ -9,11 +9,7 @@ const Login = () => {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [skill, setSkill] = useState('');
-  const [background, setBackground] = useState('');
-  const [institution, setInstitution] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -23,42 +19,7 @@ const Login = () => {
   const [background, setBackground] = useState('');
   const [institution, setInstitution] = useState('');
 
-  const handleSignup = async (e) => {
-  e.preventDefault();
-
-  try {
-    const response = await fetch('http://127.0.0.1:8000/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        skill,
-        background,
-        institution
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(data.detail || 'Signup failed');
-      return;
-    }
-
-    alert('Signup successful!');
-    setError('');
-    setIsAuthenticated(true);
-
-    } catch (err) {
-      setError('Server error');
-    }
-  };
-
-  const handleEmailSubmit = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -132,72 +93,73 @@ const Login = () => {
       <p className="text-gray-400 text-sm mb-6">InnovateX 2025 — Event Management Platform</p>
 
       {!isAuthenticated ? (
-        <div className="w-full max-w-md mt-6">
-          <p className="text-gray-500 mb-4 text-center">Please enter your authorized email to access the system.</p>
-          <form onSubmit={handleSignup} className="flex flex-col gap-4">
+        <div className="w-full max-w-md">
 
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-lg"
-                required
-              />
+          {/* ── Toggle tabs ── */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-6">
+            <button
+              onClick={() => { setMode('login'); setError(''); }}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${mode === 'login' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => { setMode('signup'); setError(''); }}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${mode === 'signup' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            >
+              Sign Up
+            </button>
+          </div>
 
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="px-4 py-3 border border-gray-300 rounded-lg"
-                required
-              />
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="px-4 py-3 border border-gray-300 rounded-lg"
-                required
-              />
-
-              <input
-                type="text"
-                value={skill}
-                onChange={(e) => setSkill(e.target.value)}
-                placeholder="Skill"
-                className="px-4 py-3 border border-gray-300 rounded-lg"
-                required
-              />
-
-              <input
-                type="text"
-                value={background}
-                onChange={(e) => setBackground(e.target.value)}
-                placeholder="Background"
-                className="px-4 py-3 border border-gray-300 rounded-lg"
-              />
-
-              <input
-                type="text"
-                value={institution}
-                onChange={(e) => setInstitution(e.target.value)}
-                placeholder="Institution"
-                className="px-4 py-3 border border-gray-300 rounded-lg"
-              />
-
+          {/* ── Login form ── */}
+          {mode === 'login' && (
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <input type="email" placeholder="Email address" value={email}
+                onChange={e => setEmail(e.target.value)} className={inputCls} required />
+              <input type="password" placeholder="Password" value={password}
+                onChange={e => setPassword(e.target.value)} className={inputCls} required />
               {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
-              <button
-                type="submit"
-                className="px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg"
-              >
-                Sign Up
+              <button type="submit" disabled={loading}
+                className="px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 disabled:opacity-50">
+                {loading ? 'Logging in...' : 'Log In'}
               </button>
-
+              <p className="text-center text-sm text-gray-400">
+                Don't have an account?{' '}
+                <span className="text-blue-500 cursor-pointer hover:underline" onClick={() => setMode('signup')}>
+                  Sign up
+                </span>
+              </p>
             </form>
+          )}
+
+          {/* ── Signup form ── */}
+          {mode === 'signup' && (
+            <form onSubmit={handleSignup} className="flex flex-col gap-4">
+              <input type="text" placeholder="Full Name" value={name}
+                onChange={e => setName(e.target.value)} className={inputCls} required />
+              <input type="email" placeholder="Email address" value={email}
+                onChange={e => setEmail(e.target.value)} className={inputCls} required />
+              <input type="password" placeholder="Password" value={password}
+                onChange={e => setPassword(e.target.value)} className={inputCls} required />
+              <input type="text" placeholder="Skill (e.g. Backend Developer)" value={skill}
+                onChange={e => setSkill(e.target.value)} className={inputCls} required />
+              <input type="text" placeholder="Background (e.g. Computer Science)" value={background}
+                onChange={e => setBackground(e.target.value)} className={inputCls} />
+              <input type="text" placeholder="Institution (e.g. IIT Goa)" value={institution}
+                onChange={e => setInstitution(e.target.value)} className={inputCls} />
+              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+              <button type="submit" disabled={loading}
+                className="px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 disabled:opacity-50">
+                {loading ? 'Creating account...' : 'Sign Up'}
+              </button>
+              <p className="text-center text-sm text-gray-400">
+                Already have an account?{' '}
+                <span className="text-blue-500 cursor-pointer hover:underline" onClick={() => setMode('login')}>
+                  Log in
+                </span>
+              </p>
+            </form>
+          )}
         </div>
 
       ) : (
