@@ -74,11 +74,11 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         role=role
     )
     participant = Participant(
-        name=request.name,
-        email=request.email,
-        skill=request.skill,
-        background=request.background,
-        institution=request.institution
+    name=request.name,
+    email=request.email,
+    skill=request.skill,
+    background=request.background,
+    institution=request.institution
     )
     db.add(user)
 
