@@ -4,10 +4,12 @@ import Navbar from './Navbar';
 
 const Layout = () => {
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/40 font-sans antialiased text-slate-800">
+      {/* Sticky and responsive Navbar */}
       <Navbar />
-      <main className="max-w-6xl mx-auto px-6 pb-12">
-        {/* Outlet is where the specific page content (like Dashboard or Teams) will render */}
+      
+      {/* Centered, standard-width core layout block */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <Outlet />
       </main>
     </div>
