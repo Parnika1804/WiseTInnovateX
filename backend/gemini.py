@@ -1,7 +1,7 @@
 import requests
 import os
 
-GEMINI_API_KEY = "AIzaSyAb3GMoJPMM7HOKk7pi3X9XlkbrzgXEFRY"
+GEMINI_API_KEY = ""
 
 
 
