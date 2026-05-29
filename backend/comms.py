@@ -15,6 +15,17 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Request models
 # ---------------------------------------------------------------------------
+@router.delete("/comms/log/{log_id}")
+def delete_log(log_id: int, db: Session = Depends(get_db)):
+    """Deletes a specific communication log entry."""
+    log_entry = db.query(CommunicationLog).filter(CommunicationLog.id == log_id).first()
+    
+    if not log_entry:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+        
+    db.delete(log_entry)
+    db.commit()
+    return {"message": "Log entry deleted successfully"}
 
 class DraftRequest(BaseModel):
     recipient_email: str

@@ -17,7 +17,19 @@ async def upload_roster(file: UploadFile = File(...), db: Session = Depends(get_
     reader = csv.DictReader(io.StringIO(decoded))
     
     added = 0
+    skipped = 0 # Keep track of how many we skipped
+    new_participants_for_email = [] # Store them here to email later
+
     for row in reader:
+        email = row.get("email")
+        
+        # --- THE FIX: DEDUPLICATION CHECK ---
+        # Check if a participant with this email already exists
+        existing = db.query(Participant).filter(Participant.email == email).first()
+        if existing:
+            skipped += 1
+            continue # Skip this row and move to the next one
+            
         # Safely convert prior_hackathons to an integer
         hackathons_count = row.get("prior_hackathons", "0")
         try:
@@ -27,12 +39,11 @@ async def upload_roster(file: UploadFile = File(...), db: Session = Depends(get_
 
         participant = Participant(
             name=row.get("name"),
-            email=row.get("email"),
+            email=email,
             skill=row.get("skill"),
             background=row.get("background", ""),
             institution=row.get("institution", ""),
             
-            # --- NEW EXTENDED PROFILE COLUMNS ---
             study_year=row.get("study_year", ""),
             experience_level=row.get("experience_level", ""),
             prior_hackathons=hackathons_count,
@@ -42,10 +53,24 @@ async def upload_roster(file: UploadFile = File(...), db: Session = Depends(get_
             role_preference=row.get("role_preference", "")
         )
         db.add(participant)
+        new_participants_for_email.append(participant) # Add to our email list
         added += 1
     
     db.commit()
 
+    # Fire welcome emails ONLY to the newly added participants
+    if added > 0:
+        try:
+            from email_triggers import send_welcome_emails
+            config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+            event_name = config.event_name if config else "the event"
+            
+            # Use the list we built instead of querying the database backward
+            send_welcome_emails(new_participants_for_email, event_name, db)
+        except Exception as e:
+            print(f"[WELCOME EMAIL ERROR] {e}")  
+
+    return {"message": f"{added} participants uploaded successfully. {skipped} duplicates skipped."}
     # Fire welcome emails to all newly uploaded participants
     try:
         from email_triggers import send_welcome_emails

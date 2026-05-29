@@ -1,8 +1,6 @@
 from database import SessionLocal, init_db
 from models import User
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from auth import hash_password # <-- Importing your custom hashing function!
 
 def seed():
     init_db()
@@ -17,7 +15,7 @@ def seed():
     committee = User(
         name="Committee Admin",
         email="admin@eventflow.com",
-        password=pwd_context.hash("admin123"),
+        password=hash_password("admin123"), # <-- Using the new function here!
         role="Committee"
     )
     db.add(committee)

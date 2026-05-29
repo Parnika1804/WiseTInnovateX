@@ -50,17 +50,38 @@ def translate_rubric(request: FormationPrompt):
         json_rubric = json.loads(cleaned.strip())
         return json_rubric
         
+    # --- Update inside translate_rubric ---
     except Exception as e:
-        # Fallback to a safe default if the AI fails
         print(f"AI parsing failed: {e}")
         return {
-            "team_size": 4,
+            "team_size": 0, # Changed from 4 to 0 so the frontend knows it failed to parse
             "skill_diversity": True,
             "same_institution_allowed": True,
-            "balance_by": ["skill"],
-            "constraints": ""
+            "balance_by": [], # Empty list instead of forcing 'skill'
+            "constraints": f"Error parsing: {e}"
         }
 
+# --- Replace your current calculate_participant_weight with this ---
+def calculate_participant_weight(p: Participant, config_balance_by: list = None):
+    """Assigns a numeric weight dynamically based on what the rubric actually asked for."""
+    weight = 0
+    
+    # If the user didn't specify what to balance by, fall back to basic defaults
+    balance_criteria = config_balance_by if config_balance_by else ["skill", "experience", "study_year"]
+    
+    if "study_year" in balance_criteria and p.study_year:
+        year_str = p.study_year.lower()
+        if any(x in year_str for x in ["4", "senior", "final"]): weight += 3
+        elif any(x in year_str for x in ["3", "junior"]): weight += 2
+        elif any(x in year_str for x in ["2", "sophomore"]): weight += 1
+    
+    if "experience" in balance_criteria and p.experience_level:
+        exp_str = p.experience_level.lower()
+        if any(x in exp_str for x in ["expert", "advanced", "high", "pro"]): weight += 3
+        elif any(x in exp_str for x in ["intermediate", "medium", "some"]): weight += 2
+        elif any(x in exp_str for x in ["beginner", "novice", "low"]): weight += 1
+        
+    return weight
 from typing import Optional, List
 
 class TeamConfig(BaseModel):
@@ -117,6 +138,8 @@ def generate_teams(config: Optional[TeamConfig] = None, db: Session = Depends(ge
     if not active_event:
         raise HTTPException(status_code=400, detail="No active event found. Please configure an event first.")
 
+    # ... inside generate_teams function ...
+    
     # 1. PRIORITY: Always use the AI Rubric from the UI if it exists!
     if config:
         team_size = config.team_size
@@ -127,13 +150,18 @@ def generate_teams(config: Optional[TeamConfig] = None, db: Session = Depends(ge
         dynamic_config = get_dynamic_team_config(db)
         if dynamic_config:
             team_size = dynamic_config.get("team_size", 4)
-            # Safely check for both old and new naming conventions
             skill_balance = dynamic_config.get("skill_diversity", dynamic_config.get("skill_balance", True))
             constraints = dynamic_config.get("constraints", None)
         else:
             raise HTTPException(status_code=400, detail="No team config found.")
 
+    # --- ADD THIS SAFEGUARD ---
+    if not team_size or team_size <= 0:
+        team_size = 4 # Fallback to a safe default if it's 0 or invalid
+    # --------------------------
+
     participants = db.query(Participant).all()
+    # ... rest of the function ...
 
     if not participants:
         raise HTTPException(status_code=400, detail="No participants found. Upload a roster first.")

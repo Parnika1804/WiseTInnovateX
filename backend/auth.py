@@ -142,6 +142,36 @@ def create_judge(request: CreateJudgeRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # --- THE MISSING EMAIL LOGIC ---
+    # --- THE MISSING EMAIL LOGIC ---
+    try:
+        # Import the CORRECT function from the CORRECT file
+        from email_service import send_email 
+        
+        subject = "Welcome to the Judging Panel!"
+        body = f"""
+        Hello {request.name},
+        
+        You have been registered as a Judge for the upcoming event.
+        Here are your login credentials:
+        
+        Email: {request.email}
+        Password: {request.password}
+        
+        Please log in to the portal to view the teams.
+        """
+        
+        # Call your actual SMTP function!
+        result = send_email(to_email=request.email, subject=subject, body=body)
+        
+        if result.get("success"):
+            print(f"✅ Judge email actually sent to {request.email}")
+        else:
+            print(f"❌ Email failed to send: {result.get('error')}")
+            
+    except Exception as e:
+        print(f"❌ Failed to send Judge email: {e}")
+    # -------------------------------
     return {
         "message": f"Judge account created for {request.name}",
         "user": {
@@ -151,7 +181,6 @@ def create_judge(request: CreateJudgeRequest, db: Session = Depends(get_db)):
             "role": user.role
         }
     }
-
 
 @router.get("/auth/users")
 def get_all_users(db: Session = Depends(get_db)):
