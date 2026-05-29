@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react';
 
 const DynamicLeaderboard = ({ scoringCategories = [], teamData = [] }) => {
-  // Enterprise-ready UX: Handle state before event has started or scored
+  // Empty State Layout
   if (!scoringCategories || scoringCategories.length === 0) {
     return (
-      <div className="w-full p-10 bg-white border border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-500 shadow-sm mt-6">
-        <svg className="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-        <p className="font-semibold text-gray-700">Waiting for Scoring Configuration</p>
-        <p className="text-sm mt-1">The leaderboard will appear once the event description is parsed and scores are submitted.</p>
+      <div className="w-full p-12 bg-white border border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-slate-500 shadow-sm mt-6">
+        <div className="w-16 h-16 mb-4 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100">
+          <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+        </div>
+        <p className="text-lg font-bold text-slate-800">Awaiting Telemetry</p>
+        <p className="text-sm mt-1 text-slate-400">The leaderboard will render once event schema is parsed and scores arrive.</p>
       </div>
     );
   }
@@ -16,67 +20,161 @@ const DynamicLeaderboard = ({ scoringCategories = [], teamData = [] }) => {
   const rankedTeams = useMemo(() => {
     return [...teamData]
       .map(team => {
-        // Calculate total score based on dynamic categories
         const totalScore = scoringCategories.reduce((sum, category) => {
           return sum + (team.scores[category] || 0);
         }, 0);
         return { ...team, totalScore };
       })
-      .sort((a, b) => b.totalScore - a.totalScore); // Sort descending
+      .sort((a, b) => b.totalScore - a.totalScore);
   }, [teamData, scoringCategories]);
 
+  // Max score calculation to scale progress bars relative to the leader
+  const maxPossibleScore = rankedTeams.length > 0 ? rankedTeams[0].totalScore || 100 : 100;
+
   return (
-    <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-6">
-      <div className="bg-gray-50 border-b border-gray-200 p-5">
-        <h3 className="text-lg font-bold text-gray-800">Live Leaderboard</h3>
-        <p className="text-sm text-gray-500 mt-1">Rankings based on dynamically configured evaluation criteria.</p>
+    <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden mt-6">
+      
+      {/* Header Container */}
+      <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200/80 p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h3 className="text-xl font-black text-slate-900 tracking-tight">Live Leaderboard</h3>
+          <p className="text-sm text-slate-500 mt-1 font-medium">Rankings based on dynamic evaluation criteria.</p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-center px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold uppercase tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+          Audit Engine Active
+        </div>
       </div>
 
+      {/* Main Scoring Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-gray-600">
-          <thead className="bg-gray-100 text-gray-700 uppercase font-semibold text-xs border-b border-gray-200">
+        <table className="w-full text-left text-sm text-slate-600 border-collapse">
+          <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-xs border-b border-slate-200/80">
             <tr>
-              <th className="px-6 py-4 w-16 text-center">Rank</th>
-              <th className="px-6 py-4">Team Name</th>
+              <th className="px-6 py-4 w-20 text-center tracking-wider">Rank</th>
+              <th className="px-6 py-4 tracking-wider">Participant</th>
               
-              {/* DYNAMIC COLUMNS: Render a column for each category the AI found */}
+              {/* Dynamic Columns generated by ingestion schema */}
               {scoringCategories.map((category, index) => (
-                <th key={index} className="px-6 py-4 text-center">{category}</th>
+                <th key={index} className="px-6 py-4 text-center tracking-wider">{category}</th>
               ))}
               
-              <th className="px-6 py-4 text-center bg-gray-200">Total Score</th>
+              <th className="px-6 py-4 text-center tracking-wider w-36">Integrity Status</th>
+              <th className="px-6 py-4 text-left bg-slate-100/50 tracking-wider w-48">Total Score</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100">
             {rankedTeams.length === 0 ? (
               <tr>
-                <td colSpan={scoringCategories.length + 3} className="px-6 py-8 text-center text-gray-500">
-                  No teams have been scored yet.
+                <td colSpan={scoringCategories.length + 4} className="px-6 py-12 text-center text-slate-400 font-medium">
+                  No evaluations submitted yet.
                 </td>
               </tr>
             ) : (
-              rankedTeams.map((team, index) => (
-                <tr key={team.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-center font-bold text-gray-900">
-                    {index === 0 ? '🥇 1' : index === 1 ? '🥈 2' : index === 2 ? '🥉 3' : index + 1}
-                  </td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{team.name}</td>
-                  
-                  {/* DYNAMIC SCORES: Match the scores to the dynamic columns */}
-                  {scoringCategories.map((category, i) => (
-                    <td key={i} className="px-6 py-4 text-center">
-                      {team.scores[category] !== undefined ? team.scores[category] : '-'}
+              rankedTeams.map((team, index) => {
+                const isAnomaly = team.results_on_hold;
+                const isFirst = index === 0;
+                const isSecond = index === 1;
+                const isThird = index === 2;
+                
+                // Establish Row & Rank Badge Baseline themes
+                let rowBg = "hover:bg-slate-50/70 transition-colors";
+                let rankBadge = "bg-slate-100 text-slate-600";
+                let progressBarColor = "bg-blue-500";
+                let scoreTextColor = "text-blue-600";
+                
+                // 1. Check for suspicious scoring anomalies first
+                if (isAnomaly) {
+                  rowBg = "bg-rose-50/40 hover:bg-rose-50/70 border-l-4 border-l-rose-500 transition-colors";
+                  rankBadge = "bg-rose-100 text-rose-700 border border-rose-200 shadow-sm font-bold";
+                  progressBarColor = "bg-rose-400";
+                  scoreTextColor = "text-rose-600";
+                } 
+                // 2. 🥇 GOLD: Vibrant Amber Tone
+                else if (isFirst) {
+                  rowBg = "bg-gradient-to-r from-amber-50/40 to-transparent hover:from-amber-50/80 transition-colors border-l-4 border-l-amber-500/30";
+                  rankBadge = "bg-amber-100 text-amber-700 border border-amber-200 shadow-sm font-bold";
+                  progressBarColor = "bg-amber-400";
+                  scoreTextColor = "text-amber-600";
+                } 
+                // 3. 🥈 SILVER: Neutral Clean Slate Slate
+                else if (isSecond) {
+                  rowBg = "bg-gradient-to-r from-slate-100/40 to-transparent hover:from-slate-100/80 transition-colors border-l-4 border-l-slate-400/30";
+                  rankBadge = "bg-slate-200 text-slate-700 border border-slate-300 shadow-sm font-bold";
+                  progressBarColor = "bg-slate-400";
+                  scoreTextColor = "text-slate-600";
+                } 
+                // 4. 🥉 BRONZE: Dark Metallic Copper Tone
+                else if (isThird) {
+                  rowBg = "bg-gradient-to-r from-amber-950/[0.02] to-transparent hover:from-amber-950/[0.05] transition-colors border-l-4 border-l-orange-700/40";
+                  rankBadge = "bg-orange-100/80 text-orange-900 border border-orange-300/60 shadow-xs font-bold";
+                  progressBarColor = "bg-orange-700";
+                  scoreTextColor = "text-orange-900";
+                }
+
+                return (
+                  <tr key={team.id || team.team_id} className={rowBg}>
+                    {/* Rank Badge */}
+                    <td className="px-6 py-4 text-center">
+                      <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-black text-xs ${rankBadge}`}>
+                        {isAnomaly ? '⚠️' : isFirst ? '🥇' : isSecond ? '🥈' : isThird ? '🥉' : index + 1}
+                      </div>
                     </td>
-                  ))}
-                  
-                  <td className="px-6 py-4 text-center font-bold text-blue-600 bg-blue-50/30">
-                    {team.totalScore}
-                  </td>
-                </tr>
-              ))
+                    
+                    {/* Participant Name */}
+                    <td className="px-6 py-4 font-bold text-slate-900">
+                      {team.name || team.team_name}
+                    </td>
+                    
+                    {/* Dynamic Metrics Columns */}
+                    {scoringCategories.map((category, i) => (
+                      <td key={i} className="px-6 py-4 text-center font-medium text-slate-600">
+                        {team.scores?.[category] !== undefined ? team.scores[category] : <span className="text-slate-300">-</span>}
+                      </td>
+                    ))}
+                    
+                    {/* Integrity Checking Status Column */}
+                    <td className="px-6 py-4 text-center">
+                      {isAnomaly ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 shadow-xs animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                          On Hold
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200/60">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                          Verified
+                        </span>
+                      )}
+                    </td>
+                    
+                    {/* Total Score & Progress Meter */}
+                    <td className="px-6 py-4 bg-slate-50/30">
+                      <div className="flex items-center gap-3">
+                        <span className={`font-black text-base w-8 text-right ${scoreTextColor}`}>
+                          {team.totalScore}
+                        </span>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5 hidden sm:block overflow-hidden">
+                          <div 
+                            className={`h-1.5 rounded-full transition-all duration-500 ${progressBarColor}`}
+                            style={{ width: `${(team.totalScore / maxPossibleScore) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
+      </div>
+      
+      {/* Footer System Disclaimer */}
+      <div className="bg-slate-50 p-4 border-t border-slate-100 px-6">
+        <p className="text-xs text-slate-400 font-medium">
+          * Deviance Guard: Submissions are frozen if a unique evaluator variant metric shifts &gt; 2.0 total points away from consensus arrays.
+        </p>
       </div>
     </div>
   );
