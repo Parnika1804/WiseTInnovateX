@@ -3,6 +3,7 @@ import PipelineBar from './PipelineBar';
 import CSVUpload from './CSVUpload';
 import ParticipantTable from './ParticipantTable';
 import ActivityLog from './ActivityLog';
+import CreateJudge from '../components/CreateJudge';
 
 const CommitteeDashboard = () => {
   const [refresh, setRefresh] = useState(0);
@@ -29,6 +30,7 @@ const CommitteeDashboard = () => {
           <ActivityLog />
         </div>
       </div>
+      <CreateJudge />
     </div>
   );
 };

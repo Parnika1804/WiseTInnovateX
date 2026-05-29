@@ -1,91 +1,96 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const TYPE_LABELS = {
-  WELCOME: { label: '👋 Welcome', color: '#d1ecf1' },
-  TEAM_ASSIGNMENT: { label: '👥 Team Assignment', color: '#d4edda' },
-  EVALUATION_REMINDER: { label: '⏰ Eval Reminder', color: '#fff3cd' },
-  RESULTS_QUALIFIED: { label: '🏆 Results – Qualified', color: '#d4edda' },
-  RESULTS_NOT_QUALIFIED: { label: '📋 Results – Thanks', color: '#f8f9fa' },
-  ANNOUNCEMENT: { label: '📢 Announcement', color: '#fde8d8' },
-  MANUAL: { label: '✏️ Manual', color: '#e9ecef' },
-};
-
-const SendButton = ({ logId, onSent }) => {
-  const [sending, setSending] = useState(false);
-  const handleSend = async () => {
-    setSending(true);
-    try {
-      await axios.post('http://localhost:8000/comms/send', { log_id: logId });
-      if (onSent) onSent();
-    } catch (err) {
-      console.error('Send error:', err);
-      alert(err.response?.data?.detail || 'Send failed');
-    } finally {
-      setSending(false);
-    }
-  };
-  return (
-    <button
-      onClick={handleSend} disabled={sending}
-      style={{ backgroundColor: sending ? '#aaa' : '#17a2b8', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
-    >
-      {sending ? 'Sending...' : '✉️ Send via SendGrid'}
-    </button>
-  );
-};
-
 const CommsLogTable = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
 
+  useEffect(() => {
+    fetchLogs();
+  }, [refreshTrigger]);
+
   const fetchLogs = async () => {
-    const res = await axios.get('http://localhost:8000/comms/log');
-    setLogs(res.data);
+    try {
+      const response = await axios.get('http://localhost:8000/comms/log');
+      setLogs(response.data);
+    } catch (error) {
+      console.error("Failed to fetch logs", error);
+    }
   };
 
-  useEffect(() => { fetchLogs(); }, [refreshTrigger]);
+  // --- THE DELETE FUNCTION ---
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm("Are you sure you want to delete this communication log?")) return;
+    
+    try {
+      await axios.delete(`http://localhost:8000/comms/log/${logId}`);
+      // Remove the deleted log from the screen instantly
+      setLogs(logs.filter(log => log.id !== logId)); 
+    } catch (error) {
+      console.error("Failed to delete log", error);
+      alert("Failed to delete log. Check backend console.");
+    }
+  };
 
-  const typeInfo = (type) => TYPE_LABELS[type] || { label: type || 'AUTO', color: '#e9ecef' };
+  // Helper to format the pill badges nicely
+  const getTypeBadge = (type) => {
+    if (type.includes('WELCOME')) return '👋 Welcome';
+    if (type.includes('TEAM_ASSIGN')) return '👥 Team Assignment';
+    if (type.includes('EVAL')) return '⏱️ Eval Reminder';
+    if (type.includes('ANNOUNCEMENT')) return '📢 Announcement';
+    if (type.includes('RESULT')) return '🏆 Results';
+    return type;
+  };
 
   return (
-    <div>
-      <h3>Communications Log</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f4f4f9' }}>
-            <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>To</th>
-            <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Subject</th>
-            <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Type</th>
-            <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Status</th>
-            <th style={{ padding: '10px', borderBottom: '1px solid #ddd' }}>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.map(log => {
-            const ti = typeInfo(log.comm_type);
-            return (
-              <tr key={log.id}>
-                <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>{log.recipient_email}</td>
-                <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>{log.subject}</td>
-                <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', backgroundColor: ti.color }}>{ti.label}</span>
-                </td>
-                <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', backgroundColor: log.status === 'SENT' ? '#d4edda' : log.status === 'FAILED' ? '#f8d7da' : '#e2e3e5' }}>
-                    {log.status}
-                  </span>
-                </td>
-                <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                  {log.status === 'DRAFT' && <SendButton logId={log.id} onSent={fetchLogs} />}
-                </td>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50 text-sm">
+              <th className="p-4 font-semibold text-gray-700">To</th>
+              <th className="p-4 font-semibold text-gray-700">Subject</th>
+              <th className="p-4 font-semibold text-gray-700">Type</th>
+              <th className="p-4 font-semibold text-gray-700">Status</th>
+              <th className="p-4 font-semibold text-gray-700 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="p-6 text-center text-gray-500">No communication logs found.</td>
               </tr>
-            );
-          })}
-          {logs.length === 0 && (
-            <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No emails yet</td></tr>
-          )}
-        </tbody>
-      </table>
+            ) : (
+              logs.map((log) => (
+                <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors text-sm">
+                  <td className="p-4 text-gray-800">{log.recipient_email}</td>
+                  <td className="p-4 text-gray-600 truncate max-w-md" title={log.subject}>{log.subject}</td>
+                  <td className="p-4">
+                    <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                      {getTypeBadge(log.comm_type)}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                      {log.status}
+                    </span>
+                  </td>
+                  
+                  {/* --- THE DELETE BUTTON --- */}
+                  <td className="p-4 text-center">
+                    <button 
+                      onClick={() => handleDeleteLog(log.id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-md transition-colors text-sm font-semibold"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                  
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
