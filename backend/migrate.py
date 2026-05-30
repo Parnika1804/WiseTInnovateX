@@ -14,9 +14,17 @@ cursor = conn.cursor()
 
 migrations = [
     # (table, column, column_definition)
-    ("teams",               "event_config_id", "INTEGER REFERENCES event_configs(id)"),
-    ("communication_logs",  "comm_type",        "TEXT DEFAULT 'MANUAL'"),
-    ("communication_logs",  "sent_at",          "DATETIME"),
+    ("teams",               "event_config_id",     "INTEGER REFERENCES event_configs(id)"),
+    ("communication_logs",  "comm_type",            "TEXT DEFAULT 'MANUAL'"),
+    ("communication_logs",  "sent_at",              "DATETIME"),
+    # registration tracking — added for self-registration flow
+    ("participants",        "source",               "TEXT NOT NULL DEFAULT 'csv'"),
+    ("participants",        "registration_status",  "TEXT NOT NULL DEFAULT 'approved'"),
+    # persistent pipeline stage tracking
+    ("event_configs",       "current_stage_index",  "INTEGER NOT NULL DEFAULT 0"),
+    # approval gate — fix #3: results/progression comms draft-before-send
+    ("communication_logs",  "batch_id",             "TEXT"),
+    ("communication_logs",  "approved_by",          "TEXT"),
 ]
 
 for table, column, definition in migrations:

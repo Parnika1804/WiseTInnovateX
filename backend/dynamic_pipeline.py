@@ -28,7 +28,6 @@ def configure_event(request: SaveConfigRequest, db: Session = Depends(get_db)):
     existing = db.query(EventConfig).filter(EventConfig.is_active == True).all()
     for e in existing:
         e.is_active = False
-        # Clear teams from the old event so they don't bleed into the new one
         db.query(Team).filter(Team.event_config_id == e.id).delete()
     db.commit()
 
@@ -39,7 +38,8 @@ def configure_event(request: SaveConfigRequest, db: Session = Depends(get_db)):
         scoring=json.dumps(parsed["scoring"]),
         communication_touchpoints=json.dumps(parsed["communication_touchpoints"]),
         approval_requirements=json.dumps(parsed["approval_requirements"]),
-        is_active=True
+        is_active=True,
+        current_stage_index=0,
     )
     db.add(config)
     db.commit()
@@ -89,10 +89,23 @@ def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
         }
 
     stages = json.loads(config.stages)
+    
+    # FIX: Safeguard against empty stages saved during API failures
+    if not stages:
+        return {
+            "status": "not_configured",
+            "message": "Event configuration is incomplete due to a previous AI generation error. Please re-configure your event."
+        }
+
+    current_index = config.current_stage_index if config.current_stage_index is not None else 0
+    # Clamp in case stages were reduced after saving
+    current_index = min(current_index, len(stages) - 1)
 
     stages_with_status = []
     for i, stage in enumerate(stages):
-        if i == 0:
+        if i < current_index:
+            status = "COMPLETED"
+        elif i == current_index:
             status = "ACTIVE"
         else:
             status = "UPCOMING"
@@ -105,10 +118,67 @@ def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
             "status": status
         })
 
+    current_stage = stages[current_index]
+
     return {
         "event_name": config.event_name,
-        "current_stage": stages[0]["name"] if stages else None,
+        "current_stage": current_stage["name"],
+        "current_stage_index": current_index,
+        "total_stages": len(stages),
+        "is_final_stage": current_index >= len(stages) - 1,
         "stages": stages_with_status,
         "team_formation": json.loads(config.team_formation),
         "scoring": json.loads(config.scoring)
+    }
+
+
+@router.post("/pipeline/advance")
+def advance_pipeline_stage(db: Session = Depends(get_db)):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+
+    if not config:
+        raise HTTPException(status_code=404, detail="No active event config found.")
+
+    stages = json.loads(config.stages)
+    current_index = config.current_stage_index if config.current_stage_index is not None else 0
+
+    if current_index >= len(stages) - 1:
+        raise HTTPException(status_code=400, detail="Already at the final stage. Cannot advance further.")
+
+    prev_stage_name = stages[current_index]["name"]
+    config.current_stage_index = current_index + 1
+    next_stage_name = stages[config.current_stage_index]["name"]
+    db.commit()
+
+    # Fire stage-transition emails for the newly active stage
+    try:
+        from email_triggers import trigger_stage_emails
+        trigger_result = trigger_stage_emails(next_stage_name, db)
+    except Exception as e:
+        trigger_result = {"triggered": False, "error": str(e)}
+
+    return {
+        "message": f"Pipeline advanced: '{prev_stage_name}' → '{next_stage_name}'",
+        "previous_stage": prev_stage_name,
+        "current_stage": next_stage_name,
+        "current_stage_index": config.current_stage_index,
+        "email_trigger": trigger_result
+    }
+
+
+@router.post("/pipeline/reset")
+def reset_pipeline_stage(db: Session = Depends(get_db)):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+
+    if not config:
+        raise HTTPException(status_code=404, detail="No active event config found.")
+
+    config.current_stage_index = 0
+    db.commit()
+
+    stages = json.loads(config.stages)
+    return {
+        "message": "Pipeline reset to the first stage.",
+        "current_stage": stages[0]["name"] if stages else None,
+        "current_stage_index": 0
     }

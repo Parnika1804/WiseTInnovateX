@@ -1,83 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const API = 'http://localhost:8000';
+
 const ParticipantTable = ({ refreshTrigger }) => {
   const [participants, setParticipants] = useState([]);
+  const [loadingId, setLoadingId] = useState(null);
 
-  const fetchParticipants = () => {
-    axios.get('http://localhost:8000/roster')
-      .then(res => setParticipants(res.data))
-      .catch(err => console.error("Error fetching participants:", err));
-  };
+  useEffect(() => {
+    fetchParticipants();
+  }, [refreshTrigger]);
 
-  useEffect(() => { fetchParticipants(); }, [refreshTrigger]);
-
-  const handleClearAll = async () => {
-    if (!window.confirm(`Delete all ${participants.length} participants? This cannot be undone.`)) return;
+  const fetchParticipants = async () => {
     try {
-      await axios.delete('http://localhost:8000/roster/clear');
-      setParticipants([]);
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to clear roster');
+      const res = await axios.get(`${API}/roster`);
+      setParticipants(res.data);
+    } catch (error) {
+      console.error("Failed to fetch roster", error);
     }
   };
 
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete ${name}?`)) return;
+    if (!window.confirm(`Remove ${name} from the roster?`)) return;
+    setLoadingId(id);
     try {
-      await axios.delete(`http://localhost:8000/roster/${id}`);
-      setParticipants(prev => prev.filter(p => p.id !== id));
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete participant');
+      await axios.delete(`${API}/roster/${id}`);
+      fetchParticipants();
+    } catch (error) {
+      alert("Failed to delete participant.");
+    } finally {
+      setLoadingId(null);
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm("Are you sure you want to clear the entire roster? This cannot be undone.")) return;
+    try {
+      await axios.delete(`${API}/roster/clear`);
+      fetchParticipants();
+    } catch (error) {
+      alert("Failed to clear roster.");
+    }
+  };
+
+  if (participants.length === 0) {
+    return (
+      <div className="text-center p-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+        <p className="text-slate-500 font-medium">No participants uploaded yet. Upload a CSV to populate the roster.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
-        <h3 style={{ margin: 0 }}>Participant Roster ({participants.length})</h3>
-        {participants.length > 0 && (
-          <button
-            onClick={handleClearAll}
-            style={{ backgroundColor: '#e53e3e', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
-          >
-            🗑 Clear All
-          </button>
-        )}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold text-slate-800">Active Roster ({participants.length})</h3>
+        <button
+          onClick={handleClearAll}
+          className="text-sm px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors border border-red-200"
+        >
+          Clear All
+        </button>
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', textAlign: 'left' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f8f9fa' }}>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>ID</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Name</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Email</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Skills</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {participants.length === 0 ? (
-            <tr><td colSpan="5" style={{ padding: '12px', textAlign: 'center', color: '#999' }}>No participants loaded.</td></tr>
-          ) : (
-            participants.map(p => (
-              <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '12px' }}>{p.id}</td>
-                <td style={{ padding: '12px', fontWeight: 'bold' }}>{p.name}</td>
-                <td style={{ padding: '12px' }}>{p.email}</td>
-                <td style={{ padding: '12px' }}>{p.skill}</td>
-                <td style={{ padding: '8px' }}>
+      
+      <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
+        <table className="w-full text-left border-collapse bg-white">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Hacker</th>
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Skill Track</th>
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Institution</th>
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Experience</th>
+              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {participants.map(p => (
+              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                <td className="p-4">
+                  <div className="font-bold text-slate-800">{p.name}</div>
+                  <div className="text-xs text-slate-500">{p.email}</div>
+                </td>
+                <td className="p-4">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                    {p.skill}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <div className="text-sm text-slate-700 font-medium">{p.institution || 'N/A'}</div>
+                </td>
+                <td className="p-4">
+                  <div className="text-sm text-slate-700">
+                    {p.experience_level ? (
+                      <span className="font-medium">{p.experience_level}</span>
+                    ) : (
+                      <span className="text-slate-400 italic">Level Not Provided</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">
+                    {p.prior_hackathons} Prior Hackathon{p.prior_hackathons !== 1 && 's'}
+                  </div>
+                </td>
+                <td className="p-4 text-right">
                   <button
                     onClick={() => handleDelete(p.id, p.name)}
-                    style={{ backgroundColor: 'transparent', color: '#e53e3e', border: '1px solid #e53e3e', padding: '3px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                    disabled={loadingId === p.id}
+                    className="text-xs px-3 py-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md font-bold transition-colors border border-slate-200 hover:border-red-200 disabled:opacity-50"
                   >
-                    Delete
+                    {loadingId === p.id ? 'Removing...' : 'Remove'}
                   </button>
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

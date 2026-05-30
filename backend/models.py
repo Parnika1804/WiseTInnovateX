@@ -13,22 +13,30 @@ class Participant(Base):
     skill = Column(String, nullable=False)
     background = Column(String, nullable=True)
     institution = Column(String, nullable=True)
-    
-    # --- NEW EXTENDED PROFILE COLUMNS ---
+
+    # Extended profile
     study_year = Column(String, nullable=True)
     experience_level = Column(String, nullable=True)
-    prior_hackathons = Column(Integer, nullable=True) # Changed to Integer for counting
+    prior_hackathons = Column(Integer, nullable=True)
     domain_interest = Column(String, nullable=True)
     tools_known = Column(String, nullable=True)
     availability = Column(String, nullable=True)
     role_preference = Column(String, nullable=True)
-    
-    # --- PORTFOLIO COLUMNS (from our previous update) ---
+
+    # Portfolio
     tech_stack = Column(String, nullable=True)
     project_link = Column(String, nullable=True)
     resume_link = Column(String, nullable=True)
-    
+
+    # Registration tracking
+    # source: "csv" = uploaded by committee | "self" = self-registered via signup
+    source = Column(String, default="csv", nullable=False)
+    # registration_status: "approved" (csv default) | "pending" (self-reg) | "rejected"
+    registration_status = Column(String, default="approved", nullable=False)
+
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Team(Base):
     __tablename__ = "teams"
 
@@ -58,12 +66,14 @@ class CommunicationLog(Base):
     recipient_email = Column(String, nullable=False)
     subject = Column(String, nullable=False)
     message = Column(String, nullable=False)
+    # status values: DRAFT | PENDING_APPROVAL | SENT | REJECTED
     status = Column(String, default="DRAFT")
-    # comm_type tracks what triggered this email:
-    # WELCOME | TEAM_ASSIGNMENT | EVALUATION_REMINDER | RESULTS_QUALIFIED |
-    # RESULTS_NOT_QUALIFIED | ANNOUNCEMENT | STAGE_* | MANUAL
     comm_type = Column(String, default="MANUAL", nullable=True)
     sent_at = Column(DateTime, nullable=True)
+    # batch_id groups all emails from one trigger action so committee can
+    # preview and approve/reject the whole batch at once
+    batch_id = Column(String, nullable=True)
+    approved_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -88,6 +98,7 @@ class ActivityLog(Base):
     performed_by = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class EventConfig(Base):
     __tablename__ = "event_configs"
 
@@ -99,7 +110,10 @@ class EventConfig(Base):
     communication_touchpoints = Column(String, nullable=False)
     approval_requirements = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    current_stage_index = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
 

@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Participant, Team, Score
+from models import Participant, Team, Score, EventConfig
 from pydantic import BaseModel
-from config import PIPELINE_STAGES, CURRENT_STAGE
 import json
 
 router = APIRouter()
@@ -28,44 +27,50 @@ def update_profile(participant_id: int, profile: ProfileUpdateRequest, db: Sessi
     return {"message": "Profile updated successfully"}
 
 
+def _get_current_stage_info(db: Session):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    if not config:
+        return {"name": "INTAKE", "label": "Participant Intake"}
+    
+    stages = json.loads(config.stages)
+    idx = config.current_stage_index if config.current_stage_index is not None else 0
+    if not stages:
+        return {"name": "INTAKE", "label": "Participant Intake"}
+        
+    idx = min(idx, len(stages) - 1)
+    return stages[idx]
+
+
 def get_participant_data(participant_id: int, db: Session):
     participant = db.query(Participant).filter(Participant.id == participant_id).first()
+    if not participant: return None
 
-    if not participant:
-        return None
-
-    participant_team = None
-    team_members = []
-
-    all_teams = db.query(Team).all()
-    for team in all_teams:
-        member_ids = json.loads(team.member_ids)
-        if participant_id in member_ids:
-            participant_team = team
-            for mid in member_ids:
-                member = db.query(Participant).filter(Participant.id == mid).first()
-                if member:
-                    team_members.append({
-                        "id": member.id,
-                        "name": member.name,
-                        "skill": member.skill
-                    })
+    # Find team assignment
+    teams = db.query(Team).all()
+    my_team = None
+    for t in teams:
+        members = json.loads(t.member_ids)
+        if participant_id in members:
+            my_team = t
             break
 
-    current_index = next(
-        (i for i, s in enumerate(PIPELINE_STAGES) if s["name"] == CURRENT_STAGE), 0
-    )
-    current_stage_info = PIPELINE_STAGES[current_index]
+    team_members = []
+    if my_team:
+        member_ids = json.loads(my_team.member_ids)
+        team_members_db = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        team_members = [{"name": m.name, "skill": m.skill} for m in team_members_db]
 
-    evaluator = None
+    # Calculate Scores and Progression
     is_qualified = False
-
-    if participant_team:
-        scores = db.query(Score).filter(Score.team_id == participant_team.id).all()
+    avg_score = 0.0
+    if my_team:
+        scores = db.query(Score).filter(Score.team_id == my_team.id).all()
         if scores:
-            evaluator = scores[0].judge_name
-            average = sum(s.score for s in scores) / len(scores)
-            is_qualified = average >= 7.0
+            avg_score = sum([s.score for s in scores]) / len(scores)
+            # MVP Rule: Teams averaging 6.0 or higher advance to the next round
+            is_qualified = avg_score >= 6.0
+
+    current_stage = _get_current_stage_info(db)
 
     return {
         "participant": {
@@ -73,39 +78,18 @@ def get_participant_data(participant_id: int, db: Session):
             "name": participant.name,
             "email": participant.email,
             "skill": participant.skill,
-            "institution": participant.institution
+            "institution": participant.institution,
+            "registration_status": participant.registration_status
         },
-        "current_stage": {
-            "name": current_stage_info["name"],
-            "label": current_stage_info["label"],
-            "description": current_stage_info["description"]
-        },
-        "team": {
-            "id": participant_team.id if participant_team else None,
-            "name": participant_team.name if participant_team else None,
-            "status": participant_team.status if participant_team else None,
-            "members": team_members
-        } if participant_team else None,
-        "evaluator": evaluator,
-        "key_dates": {
-            "event_start": "2026-06-01",
-            "team_announcement": "2026-06-02",
-            "evaluation_date": "2026-06-03",
-            "results_date": "2026-06-04"
-        },
+        "team": {"id": my_team.id, "name": my_team.name} if my_team else None,
+        "team_members": team_members,
+        "current_stage": current_stage,
         "progression": {
             "is_qualified": is_qualified,
-            "message": "Congratulations! You have been invited to the next round." if is_qualified else "Results are being processed."
+            "average_score": avg_score,
+            "message": "Congratulations! You have scored high enough to advance to the next phase." if is_qualified else "Results are currently being processed."
         }
     }
-
-
-@router.get("/participant/{participant_id}")
-def get_participant_status(participant_id: int, db: Session = Depends(get_db)):
-    data = get_participant_data(participant_id, db)
-    if not data:
-        raise HTTPException(status_code=404, detail="Participant not found")
-    return data
 
 
 @router.get("/participant/me/{email}")
@@ -116,19 +100,24 @@ def get_participant_by_email(email: str, db: Session = Depends(get_db)):
             "status": "not_found",
             "message": "No participant profile found for this email"
         }
-    return get_participant_data(participant.id, db)
+    
+    data = get_participant_data(participant.id, db)
+    return data
 
 
-@router.get("/participants/portal")
-def get_all_participant_portals(db: Session = Depends(get_db)):
-    participants = db.query(Participant).all()
-    return [
-        {
-            "id": p.id,
-            "name": p.name,
-            "email": p.email,
-            "skill": p.skill,
-            "institution": p.institution
-        }
-        for p in participants
-    ]
+@router.post("/participant/{participant_id}/confirm")
+def confirm_progression(participant_id: int, db: Session = Depends(get_db)):
+    from activity import log_action
+    participant = db.query(Participant).filter(Participant.id == participant_id).first()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    # Securely log the confirmation in the system's audit trail
+    log_action(
+        db, 
+        action="PROGRESSION_ACCEPTED", 
+        description=f"Participant {participant.name} confirmed their spot in the next round.", 
+        performed_by=participant.name
+    )
+
+    return {"message": "Progression confirmed successfully. See you in the next round!"}

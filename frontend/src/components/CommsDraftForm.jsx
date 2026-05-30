@@ -78,12 +78,13 @@ const CommsDraftForm = ({ onDraftSaved }) => {
   };
 
   const handleTriggerStage = async () => {
-    if (!window.confirm(`This will send ${triggerStage} emails to all relevant participants. Continue?`)) return;
+    if (!window.confirm(`This will draft ${triggerStage} emails for all relevant participants and queue them for your approval. Continue?`)) return;
     setIsTriggering(true);
     setTriggerResult(null);
     try {
       const res = await axios.post(`${API}/comms/trigger-stage?stage=${triggerStage}`);
       setTriggerResult(res.data);
+      if (onDraftSaved) onDraftSaved(); // refresh the log table to show pending items
     } catch (err) {
       alert(err.response?.data?.detail || 'Stage trigger failed.');
     } finally {
@@ -106,7 +107,7 @@ const CommsDraftForm = ({ onDraftSaved }) => {
       }}>
         <h3 style={{ margin: '0 0 4px 0', color: '#1a5fa8' }}>⚡ Stage Email Trigger</h3>
         <p style={{ margin: '0 0 14px 0', fontSize: '13px', color: '#555' }}>
-          Advance to a pipeline stage and auto-send emails to all participants based on event config.
+          Draft stage emails for all participants — emails go to <strong>Awaiting Approval</strong> queue. Review them in the log below before they're sent.
         </p>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
@@ -129,18 +130,19 @@ const CommsDraftForm = ({ onDraftSaved }) => {
               fontWeight: '600', fontSize: '13px',
             }}
           >
-            {isTriggering ? 'Sending...' : '🚀 Trigger & Send All'}
+            {isTriggering ? 'Drafting...' : '📝 Draft Emails for Approval'}
           </button>
         </div>
 
         {triggerResult && (
           <div style={{
             marginTop: '12px', padding: '10px',
-            backgroundColor: '#e6ffed', border: '1px solid #68d391',
+            backgroundColor: triggerResult.triggered ? '#fffbeb' : '#e6ffed',
+            border: `1px solid ${triggerResult.triggered ? '#f6c23e' : '#68d391'}`,
             borderRadius: '6px', fontSize: '13px',
           }}>
             {triggerResult.triggered
-              ? `✅ Triggered! ${JSON.stringify(triggerResult)}`
+              ? `⏳ ${triggerResult.evaluation_reminder_emails_drafted ?? triggerResult.results_emails_drafted ?? triggerResult.stage_emails_drafted ?? 0} email(s) queued for your approval — scroll down to the log and approve the batch.`
               : `ℹ️ ${triggerResult.reason}`}
           </div>
         )}

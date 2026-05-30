@@ -3,112 +3,162 @@ import axios from 'axios';
 
 const Leaderboard = ({ refreshTrigger }) => {
   const [leaderboard, setLeaderboard] = useState([]);
-  const [expandedTeamId, setExpandedTeamId] = useState(null); // Tracks which row is open
+  const [anomalies, setAnomalies] = useState([]);
+  const [expandedTeamId, setExpandedTeamId] = useState(null);
+  const [resolvingId, setResolvingId] = useState(null);
 
-  useEffect(() => {
+  const fetchData = () => {
+    // 1. Fetch standard leaderboard rankings
     axios.get('http://localhost:8000/scores/leaderboard')
       .then(res => setLeaderboard(res.data))
       .catch(err => console.error("Error fetching leaderboard:", err));
+
+    // 2. Fetch active anomalies to populate the resolution dashboard
+    axios.get('http://localhost:8000/scores/anomalies')
+      .then(res => setAnomalies(res.data.anomalies || []))
+      .catch(err => console.error("Error fetching anomalies:", err));
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [refreshTrigger]);
 
+  const handleResolve = async (scoreId) => {
+    if (!window.confirm("Mark this anomaly as reviewed and resolved? This will release the team's results.")) return;
+    
+    setResolvingId(scoreId);
+    try {
+      await axios.post(`http://localhost:8000/scores/resolve/${scoreId}`);
+      fetchData(); // Refresh both the anomalies list and the leaderboard
+    } catch (error) {
+      alert(error.response?.data?.detail || "Failed to resolve anomaly.");
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
   const toggleRow = (teamId) => {
-    // If it's already open, close it. Otherwise, open the clicked row.
     setExpandedTeamId(expandedTeamId === teamId ? null : teamId);
   };
 
   return (
-    <div>
-      <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Live Leaderboard
-      </h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f4f4f9' }}>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Rank</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Team Name</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Average Score</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>Status</th>
-            <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'center' }}>Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {leaderboard.length === 0 ? (
-            <tr><td colSpan="5" style={{ padding: '12px', textAlign: 'center' }}>No scores submitted yet.</td></tr>
-          ) : (
-            leaderboard.map((team, index) => (
-              <React.Fragment key={team.team_id}>
-                {/* --- MAIN ROW --- */}
-                <tr 
-                  onClick={() => toggleRow(team.team_id)}
-                  style={{ 
-                    backgroundColor: team.results_on_hold ? '#fff3cd' : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s'
-                  }}
-                  className="hover:bg-gray-50"
+    <div className="w-full">
+      {/* 🔴 ANOMALY RESOLUTION DASHBOARD 🔴 */}
+      {anomalies.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8 shadow-sm">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-2xl">⚠️</span>
+            <h3 className="text-xl font-bold text-red-800 m-0">Action Required: Anomaly Resolution</h3>
+          </div>
+          <p className="text-red-700 text-sm mb-5">
+            The evaluation engine has paused the pipeline. The following scores deviate significantly from the panel average (&gt; 20% variance). Review the judge's notes and resolve the discrepancies to unlock the leaderboard.
+          </p>
+          
+          <div className="space-y-4">
+            {anomalies.map(anomaly => (
+              <div key={anomaly.id} className="bg-white border border-red-200 rounded-lg p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
+                <div className="flex-1">
+                  <h4 className="font-bold text-gray-800 text-lg mb-1">Team #{anomaly.team_id}</h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    <strong>Evaluator:</strong> {anomaly.judge_name} <span className="mx-2">|</span> 
+                    <strong>Flagged Score:</strong> <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">{anomaly.score}</span>
+                  </p>
+                  <div className="text-sm text-gray-700 italic bg-slate-50 p-3 rounded-md border border-slate-100 relative">
+                    <span className="absolute -left-2 -top-2 text-xl opacity-50">❝</span>
+                    {anomaly.notes}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleResolve(anomaly.id)}
+                  disabled={resolvingId === anomaly.id}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 shadow-sm"
                 >
-                  <td style={{ padding: '12px', borderBottom: '1px solid #eee', fontWeight: 'bold' }}>#{index + 1}</td>
-                  <td style={{ padding: '12px', borderBottom: '1px solid #eee' }}>{team.team_name}</td>
-                  <td style={{ padding: '12px', borderBottom: '1px solid #eee', color: team.average_score >= 7.0 ? '#28a745' : '#dc3545', fontWeight: 'bold' }}>
-                    {team.average_score.toFixed(2)}
-                  </td>
-                  <td style={{ padding: '12px', borderBottom: '1px solid #eee' }}>
-                    {team.results_on_hold ? (
-                      <span style={{ backgroundColor: '#dc3545', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
-                        ⚠️ ANOMALY ON HOLD
-                      </span>
-                    ) : (
-                      <span style={{ color: '#28a745', fontSize: '12px', fontWeight: 'bold' }}>VERIFIED</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px', borderBottom: '1px solid #eee', textAlign: 'center', color: '#007bff' }}>
-                    {expandedTeamId === team.team_id ? '▼ Hide' : '▶ View'}
-                  </td>
-                </tr>
+                  {resolvingId === anomaly.id ? 'Processing...' : '✓ Review & Resolve'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-                {/* --- EXPANDED DETAILS ROW --- */}
-                {expandedTeamId === team.team_id && (
-                  <tr style={{ backgroundColor: '#f8f9fa' }}>
-                    <td colSpan="5" style={{ padding: '16px', borderBottom: '2px solid #ddd' }}>
-                      <div style={{ padding: '16px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#4a5568' }}>Detailed Judge Evaluations</h4>
-                        
-                        {team.scores && team.scores.length > 0 ? (
-                          <div style={{ display: 'grid', gap: '12px' }}>
-                            {team.scores.map((score, sIdx) => (
-                              <div key={sIdx} style={{ 
-                                padding: '12px', 
-                                borderLeft: `4px solid ${score.is_anomaly ? '#ef4444' : '#3b82f6'}`,
-                                backgroundColor: '#f8fafc',
-                                borderRadius: '4px'
-                              }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{score.judge_name}</span>
-                                  <span style={{ fontWeight: 'bold', color: score.is_anomaly ? '#ef4444' : '#0f172a' }}>
-                                    Score: {score.score.toFixed(2)} 
-                                    {score.is_anomaly && " (⚠️ Anomaly)"}
-                                  </span>
-                                </div>
-                                <p style={{ margin: 0, fontSize: '14px', color: '#475569', fontStyle: 'italic' }}>
-                                  "{score.feedback}"
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>No detailed scores available for this team.</p>
-                        )}
-                      </div>
+      {/* 🏆 LIVE LEADERBOARD 🏆 */}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
+      </div>
+      
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-gray-200">
+              <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500">Rank</th>
+              <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500">Team Name</th>
+              <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 text-right">Avg Score</th>
+              <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {leaderboard.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="p-8 text-center text-gray-400 font-medium">No evaluations submitted yet.</td>
+              </tr>
+            ) : (
+              leaderboard.map((team, index) => (
+                <React.Fragment key={team.team_id}>
+                  <tr 
+                    onClick={() => toggleRow(team.team_id)} 
+                    className={`hover:bg-slate-50 cursor-pointer transition-colors ${expandedTeamId === team.team_id ? 'bg-slate-50' : ''}`}
+                  >
+                    <td className="p-4 font-bold text-gray-700">#{index + 1}</td>
+                    <td className="p-4 font-semibold text-blue-700">{team.team_name}</td>
+                    <td className="p-4 font-black text-gray-800 text-right text-lg">{team.average_score.toFixed(2)}</td>
+                    <td className="p-4 text-center">
+                      {team.results_on_hold ? (
+                        <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold border border-amber-200">
+                          ON HOLD (Anomaly)
+                        </span>
+                      ) : (
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
+                          CLEARED
+                        </span>
+                      )}
                     </td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))
-          )}
-        </tbody>
-      </table>
-      <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
-        * Teams flagged with an anomaly have a judge score deviating &gt; 2.0 points from the panel average. Click any row to view individual judge scores.
+                  
+                  {/* Expandable Judge Breakdown */}
+                  {expandedTeamId === team.team_id && (
+                    <tr className="bg-slate-50 border-b-2 border-slate-200">
+                      <td colSpan="4" className="p-6">
+                        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-inner">
+                          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Evaluation Breakdown</h4>
+                          {team.scores.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {team.scores.map((score, idx) => (
+                                <div key={idx} className={`p-4 rounded-lg border ${score.anomaly_flagged ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                  <div className="flex justify-between mb-2">
+                                    <span className="font-bold text-slate-800">{score.judge_name}</span>
+                                    <span className={`font-bold ${score.anomaly_flagged ? 'text-red-600' : 'text-blue-600'}`}>
+                                      {score.score.toFixed(2)} {score.anomaly_flagged && " (⚠️ Flagged)"}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-slate-600 italic m-0">"{score.notes}"</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-500 m-0">No detailed scores available for this team yet.</p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-gray-400 mt-3 font-medium">
+        * Teams flagged with an anomaly have a judge score deviating &gt; 20% from the panel average. Click any row to view individual judge scores.
       </p>
     </div>
   );

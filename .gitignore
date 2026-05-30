@@ -1,0 +1,20 @@
+# Environment secrets — never commit these
+backend/.env
+
+# Python cache
+backend/__pycache__/
+backend/*.pyc
+
+# Database (has live data)
+backend/eventflow.db
+
+# Virtual environment
+backend/venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Virtual environment
+.venv/
+venv/

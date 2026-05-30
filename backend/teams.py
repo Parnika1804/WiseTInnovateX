@@ -5,11 +5,18 @@ from models import Team, Participant, EventConfig
 from pydantic import BaseModel
 from typing import Optional
 from gemini import call_gemini
+from tasks import generate_team_rationale
 import json
 
 router = APIRouter()
+
 class FormationPrompt(BaseModel):
     prompt: str
+
+class ManualConfig(BaseModel):
+    team_size: int = 4
+    skill_balance: bool = True
+    constraints: Optional[str] = None
 
 @router.post("/teams/translate-rubric")
 def translate_rubric(request: FormationPrompt):
@@ -35,203 +42,117 @@ def translate_rubric(request: FormationPrompt):
     """
     
     try:
-        # Call your existing Gemini setup
-        raw_response = call_gemini(system_prompt)
+        raw_text = call_gemini(system_prompt).strip()
+        if "```" in raw_text:
+            raw_text = raw_text.split("```")[1]
+            if raw_text.startswith("json"):
+                raw_text = raw_text[4:]
         
-        # Clean the response in case Gemini includes markdown like ```json
-        cleaned = raw_response.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        if cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-            
-        json_rubric = json.loads(cleaned.strip())
-        return json_rubric
-        
-    # --- Update inside translate_rubric ---
+        start = raw_text.find("{")
+        end = raw_text.rfind("}") + 1
+        return json.loads(raw_text[start:end])
     except Exception as e:
-        print(f"AI parsing failed: {e}")
-        return {
-            "team_size": 0, # Changed from 4 to 0 so the frontend knows it failed to parse
-            "skill_diversity": True,
-            "same_institution_allowed": True,
-            "balance_by": [], # Empty list instead of forcing 'skill'
-            "constraints": f"Error parsing: {e}"
-        }
-
-# --- Replace your current calculate_participant_weight with this ---
-def calculate_participant_weight(p: Participant, config_balance_by: list = None):
-    """Assigns a numeric weight dynamically based on what the rubric actually asked for."""
-    weight = 0
-    
-    # If the user didn't specify what to balance by, fall back to basic defaults
-    balance_criteria = config_balance_by if config_balance_by else ["skill", "experience", "study_year"]
-    
-    if "study_year" in balance_criteria and p.study_year:
-        year_str = p.study_year.lower()
-        if any(x in year_str for x in ["4", "senior", "final"]): weight += 3
-        elif any(x in year_str for x in ["3", "junior"]): weight += 2
-        elif any(x in year_str for x in ["2", "sophomore"]): weight += 1
-    
-    if "experience" in balance_criteria and p.experience_level:
-        exp_str = p.experience_level.lower()
-        if any(x in exp_str for x in ["expert", "advanced", "high", "pro"]): weight += 3
-        elif any(x in exp_str for x in ["intermediate", "medium", "some"]): weight += 2
-        elif any(x in exp_str for x in ["beginner", "novice", "low"]): weight += 1
-        
-    return weight
-from typing import Optional, List
-
-class TeamConfig(BaseModel):
-    team_size: int = 4
-    skill_diversity: bool = True
-    same_institution_allowed: bool = True
-    balance_by: Optional[List[str]] = None
-    constraints: Optional[str] = None
-
-class ApproveRequest(BaseModel):
-    team_id: int
-    action: str
-
-def get_dynamic_team_config(db: Session):
-    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    if config:
-        team_formation = json.loads(config.team_formation)
-        return team_formation
-    return None
-
-def calculate_participant_weight(p: Participant):
-    """Assigns a numeric weight for advanced sorting and balancing"""
-    weight = 0
-    # Add weight for study year
-    if p.study_year:
-        year_str = p.study_year.lower()
-        if "4" in year_str or "senior" in year_str: weight += 3
-        elif "3" in year_str or "junior" in year_str: weight += 2
-        elif "2" in year_str or "sophomore" in year_str: weight += 1
-    
-    # Add weight for experience
-    if p.experience_level:
-        exp_str = p.experience_level.lower()
-        if "expert" in exp_str or "advanced" in exp_str: weight += 3
-        elif "intermediate" in exp_str: weight += 2
-        
-    return weight
-
-@router.post("/teams/configure")
-def configure_teams(config: TeamConfig, db: Session = Depends(get_db)):
-    return {
-        "message": "Team configuration saved",
-        "config": {
-            "team_size": config.team_size,
-            "skill_balance":config.skill_diversity,
-            "constraints": config.constraints
-        }
-    }
+        print(f"Error translating rubric: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse rubric using AI")
 
 @router.post("/teams/generate")
-def generate_teams(config: Optional[TeamConfig] = None, db: Session = Depends(get_db)):
-    # Resolve the active event config
-    active_event = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    if not active_event:
-        raise HTTPException(status_code=400, detail="No active event found. Please configure an event first.")
-
-    # ... inside generate_teams function ...
+def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = Depends(get_db)):
+    # 1. Determine active configuration
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     
-    # 1. PRIORITY: Always use the AI Rubric from the UI if it exists!
-    if config:
-        team_size = config.team_size
-        skill_balance = config.skill_diversity
-        constraints = config.constraints
-    # 2. FALLBACK: Use the saved dashboard config
-    else:
-        dynamic_config = get_dynamic_team_config(db)
-        if dynamic_config:
-            team_size = dynamic_config.get("team_size", 4)
-            skill_balance = dynamic_config.get("skill_diversity", dynamic_config.get("skill_balance", True))
-            constraints = dynamic_config.get("constraints", None)
-        else:
-            raise HTTPException(status_code=400, detail="No team config found.")
+    team_size = 4
+    skill_balance = True
+    config_source = "manual"
+    event_config_id = None
 
-    # --- ADD THIS SAFEGUARD ---
-    if not team_size or team_size <= 0:
-        team_size = 4 # Fallback to a safe default if it's 0 or invalid
-    # --------------------------
+    if config and config.team_formation:
+        rules = json.loads(config.team_formation)
+        team_size = rules.get("team_size", 4)
+        skill_balance = rules.get("skill_balance", True)
+        config_source = "dynamic"
+        event_config_id = config.id
+    elif manual_config:
+        team_size = manual_config.team_size
+        skill_balance = manual_config.skill_balance
 
-    participants = db.query(Participant).all()
-    # ... rest of the function ...
+    # 2. Get unassigned, approved participants
+    existing_teams = db.query(Team).all()
+    assigned_ids = set()
+    for t in existing_teams:
+        assigned_ids.update(json.loads(t.member_ids))
 
-    if not participants:
-        raise HTTPException(status_code=400, detail="No participants found. Upload a roster first.")
+    available_participants = db.query(Participant).filter(
+        Participant.registration_status == 'approved',
+        ~Participant.id.in_(assigned_ids)
+    ).all()
 
-    if len(participants) < team_size:
-        raise HTTPException(status_code=400, detail="Not enough participants to form teams.")
+    if not available_participants:
+        raise HTTPException(status_code=400, detail="No unassigned approved participants available to form teams.")
 
-    # Only delete teams belonging to the current active event (not other events)
-    db.query(Team).filter(Team.event_config_id == active_event.id).delete()
-    db.commit()
-
-    # ADVANCED SORTING
+    # 3. Algorithmic Sorting Engine
+    formed_teams = []
     if skill_balance:
-        sorted_participants = sorted(participants, key=calculate_participant_weight)
+        # Group by skill for balanced distribution
+        skill_buckets = {}
+        for p in available_participants:
+            skill_buckets.setdefault(p.skill, []).append(p)
+        
+        while any(skill_buckets.values()):
+            current_team = []
+            # Pull one from each skill bucket until team is full
+            for skill in list(skill_buckets.keys()):
+                if len(current_team) >= team_size:
+                    break
+                if skill_buckets[skill]:
+                    current_team.append(skill_buckets[skill].pop(0))
+            
+            # If team is not full but buckets are running dry, fill with whoever is left
+            if len(current_team) < team_size:
+                for skill in list(skill_buckets.keys()):
+                    while skill_buckets[skill] and len(current_team) < team_size:
+                        current_team.append(skill_buckets[skill].pop(0))
+            
+            if current_team:
+                formed_teams.append(current_team)
     else:
-        sorted_participants = participants
+        # Simple chunking if diversity isn't requested
+        for i in range(0, len(available_participants), team_size):
+            formed_teams.append(available_participants[i:i + team_size])
 
-    teams = []
-    team_number = 1
+    # 4. Save to DB and trigger asynchronous AI rationale tasks
+    created_team_records = []
+    base_team_number = db.query(Team).count() + 1
 
-    # SNAKE DRAFT (Safeguarded against division by zero)
-    num_teams = max(1, len(sorted_participants) // team_size)
-    team_buckets = [[] for _ in range(num_teams)]
-    
-    for i, p in enumerate(sorted_participants):
-        bucket_index = i % num_teams
-        if (i // num_teams) % 2 != 0:
-            bucket_index = num_teams - 1 - bucket_index
-        
-        if bucket_index >= len(team_buckets): 
-            team_buckets[-1].append(p)
-        else:
-            team_buckets[bucket_index].append(p)
+    for idx, team_members in enumerate(formed_teams):
+        member_ids = [p.id for p in team_members]
+        member_names = [p.name for p in team_members]
+        member_skills = [p.skill for p in team_members]
+        institutions = [p.institution for p in team_members if p.institution]
 
-    for chunk in team_buckets:
-        if not chunk: continue
-        
-        member_ids = [p.id for p in chunk]
-        
-        member_profiles = []
-        for p in chunk:
-            profile = f"{p.name} ({p.skill}, {p.study_year or 'Unknown Year'}, {p.experience_level or 'Unknown Exp'})"
-            if p.domain_interest: profile += f" - Interest: {p.domain_interest}"
-            if p.role_preference: profile += f" - Prefers: {p.role_preference}"
-            member_profiles.append(profile)
-
-        # GEMINI RATIONALE PROMPT
-        prompt = f"""You are an expert event organizer AI for a hackathon. A team has been formed with the following members:
-{chr(10).join(member_profiles)}
-
-Write a concise, 3-sentence rationale explaining why this is a highly effective and balanced team composition. 
-Focus specifically on how their different experience levels, study years, domain interests, and role preferences complement each other to build a strong product."""
-
-        rationale = call_gemini(prompt)
-
-        team = Team(
-            name=f"Team {team_number}",
+        new_team = Team(
+            name=f"Team {base_team_number + idx}",
             member_ids=json.dumps(member_ids),
-            rationale=rationale,
+            rationale="AI is generating rationale...",
             status="PENDING",
-            event_config_id=active_event.id
+            event_config_id=event_config_id
         )
-        db.add(team)
-        teams.append(team)
-        team_number += 1
+        db.add(new_team)
+        db.commit()
+        db.refresh(new_team)
+        created_team_records.append(new_team)
 
-    db.commit()
+        # Dispatch Celery background task
+        generate_team_rationale.delay(
+            team_id=new_team.id,
+            team_name=new_team.name,
+            member_names=member_names,
+            member_skills=member_skills,
+            institutions=institutions
+        )
 
     return {
-        "message": f"{len(teams)} teams generated successfully",
+        "message": f"{len(created_team_records)} teams generated successfully",
+        "config_source": config_source,
         "teams": [
             {
                 "id": t.id,
@@ -239,14 +160,16 @@ Focus specifically on how their different experience levels, study years, domain
                 "member_ids": json.loads(t.member_ids),
                 "rationale": t.rationale,
                 "status": t.status
-            }
-            for t in teams
+            } for t in created_team_records
         ]
     }
 
+class ApproveRejectRequest(BaseModel):
+    team_id: int
+    action: str
 
 @router.post("/teams/approve")
-def approve_team(request: ApproveRequest, db: Session = Depends(get_db)):
+def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get_db)):
     team = db.query(Team).filter(Team.id == request.team_id).first()
     if not team: raise HTTPException(status_code=404, detail="Team not found")
     if request.action not in ["APPROVED", "REJECTED"]: raise HTTPException(status_code=400, detail="Action must be APPROVED or REJECTED")
@@ -256,12 +179,29 @@ def approve_team(request: ApproveRequest, db: Session = Depends(get_db)):
     # Auto-send team assignment emails when a team is approved
     if request.action == "APPROVED":
         try:
-            from email_triggers import send_team_assignment_emails
+            from email_triggers import _save_and_send
             config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
             event_name = config.event_name if config else "the event"
+            
             member_ids = json.loads(team.member_ids)
             members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
-            send_team_assignment_emails(team, members, event_name, db)
+            
+            member_names = [m.name for m in members]
+            member_skills = [m.skill for m in members]
+
+            for member in members:
+                prompt = f"""You are an event coordinator. Write a warm and professional team assignment email for a participant.
+Event: {event_name}
+Team Name: {team.name}
+Team Members: {', '.join(member_names)}
+Team Skills: {', '.join(member_skills)}
+
+Write a concise welcome email (3-4 sentences) that announces their assignment, lists members, and encourages connection. Do not include a subject line."""
+                
+                body = call_gemini(prompt)
+                subject = f"Your Team Assignment — {team.name} | {event_name}"
+                _save_and_send(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_ASSIGNMENT")
+                
         except Exception as e:
             print(f"[TEAM ASSIGNMENT EMAIL ERROR] {e}")
 
@@ -269,8 +209,21 @@ def approve_team(request: ApproveRequest, db: Session = Depends(get_db)):
 
 @router.get("/teams")
 def get_teams(db: Session = Depends(get_db)):
-    active_event = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    if not active_event:
-        return []
-    teams = db.query(Team).filter(Team.event_config_id == active_event.id).all()
-    return [{"id": t.id, "name": t.name, "member_ids": json.loads(t.member_ids), "rationale": t.rationale, "status": t.status} for t in teams]
+    teams = db.query(Team).all()
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "member_ids": json.loads(t.member_ids),
+            "rationale": t.rationale,
+            "status": t.status,
+            "event_config_id": t.event_config_id
+        } for t in teams
+    ]
+
+@router.delete("/teams/clear")
+def clear_teams(db: Session = Depends(get_db)):
+    count = db.query(Team).count()
+    db.query(Team).delete()
+    db.commit()
+    return {"message": f"{count} teams cleared successfully"}

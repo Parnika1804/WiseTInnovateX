@@ -1,8 +1,16 @@
 """
 email_triggers.py
 Auto-email helpers called by roster, teams, scores, and pipeline routers.
-Each function drafts an email via Gemini, saves it to CommunicationLog, and
-fires it via SendGrid.
+
+SEND POLICY
+-----------
+Operational emails  (WELCOME, TEAM_ASSIGNMENT)
+  → _save_and_send()  – fires immediately; no approval needed.
+
+Results / progression emails (EVALUATION_REMINDER, RESULTS_*, stage triggers)
+  → _save_as_draft()  – saved as PENDING_APPROVAL; committee must approve
+    before SendGrid delivers them.  Use the /comms/pending,
+    /comms/approve/{id}, and /comms/approve-batch endpoints.
 """
 
 from sqlalchemy.orm import Session
@@ -11,6 +19,7 @@ from email_service import send_email
 from gemini import call_gemini
 from datetime import datetime
 import json
+import uuid
 
 
 # ---------------------------------------------------------------------------
@@ -23,6 +32,7 @@ def _save_and_send(
     subject: str,
     body: str,
     comm_type: str = "AUTO",
+    batch_id: str = None,
 ) -> CommunicationLog:
     """Persist a CommunicationLog entry and fire the email immediately."""
     log = CommunicationLog(
@@ -32,17 +42,44 @@ def _save_and_send(
         comm_type=comm_type,
         status="SENT",
         sent_at=datetime.utcnow(),
+        batch_id=batch_id,
     )
     db.add(log)
     db.commit()
     db.refresh(log)
-
     send_email(to_email, subject, body)
     return log
 
 
+def _save_as_draft(
+    db: Session,
+    to_email: str,
+    subject: str,
+    body: str,
+    comm_type: str = "AUTO",
+    batch_id: str = None,
+) -> CommunicationLog:
+    """
+    Persist a CommunicationLog entry as PENDING_APPROVAL.
+    Does NOT fire any email – committee must approve via /comms/approve/{id}.
+    """
+    log = CommunicationLog(
+        recipient_email=to_email,
+        subject=subject,
+        message=body,
+        comm_type=comm_type,
+        status="PENDING_APPROVAL",
+        sent_at=None,
+        batch_id=batch_id,
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return log
+
+
 # ---------------------------------------------------------------------------
-# 1. Welcome email — fired when committee uploads CSV
+# 1. Welcome email — fired when committee uploads CSV  (IMMEDIATE)
 # ---------------------------------------------------------------------------
 
 def send_welcome_emails(participants: list, event_name: str, db: Session) -> dict:
@@ -75,7 +112,7 @@ Do not include a subject line. Just the email body."""
 
 
 # ---------------------------------------------------------------------------
-# 2. Team assignment email — fired when a team is APPROVED
+# 2. Team assignment email — fired when a team is APPROVED  (IMMEDIATE)
 # ---------------------------------------------------------------------------
 
 def send_team_assignment_emails(team: Team, members: list, event_name: str, db: Session) -> dict:
@@ -111,22 +148,27 @@ Do not include a subject line. Just the email body."""
 
 
 # ---------------------------------------------------------------------------
-# 3. Evaluation reminder — fired when evaluation stage activates
+# 3. Evaluation reminder — PENDING_APPROVAL (progression comm)
 # ---------------------------------------------------------------------------
 
-def send_evaluation_reminder_emails(db: Session) -> dict:
-    """Send evaluation reminder to members of approved teams only."""
+def send_evaluation_reminder_emails(db: Session, batch_id: str = None) -> dict:
+    """
+    Draft evaluation reminder emails for approved team members.
+    Saved as PENDING_APPROVAL — committee must approve before delivery.
+    """
+    if batch_id is None:
+        batch_id = str(uuid.uuid4())
+
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
 
-    # Only participants who are in an APPROVED team
     approved_teams = db.query(Team).filter(Team.status == "APPROVED").all()
     approved_member_ids = set()
     for team in approved_teams:
         approved_member_ids.update(json.loads(team.member_ids))
 
     participants = db.query(Participant).filter(Participant.id.in_(approved_member_ids)).all()
-    sent_count = 0
+    drafted_count = 0
 
     for p in participants:
         prompt = f"""You are an event coordinator. Write a concise evaluation reminder email (3-4 sentences).
@@ -145,22 +187,30 @@ Do not include a subject line. Just the email body."""
         body = call_gemini(prompt)
         subject = f"Evaluation Round Starting — {event_name}"
 
-        _save_and_send(db, p.email, subject, body, comm_type="EVALUATION_REMINDER")
-        sent_count += 1
+        _save_as_draft(db, p.email, subject, body,
+                       comm_type="EVALUATION_REMINDER", batch_id=batch_id)
+        drafted_count += 1
 
-    return {"evaluation_reminder_emails_sent": sent_count}
+    return {
+        "evaluation_reminder_emails_drafted": drafted_count,
+        "status": "PENDING_APPROVAL",
+        "batch_id": batch_id,
+        "note": "Emails are queued for committee approval. Approve via /comms/approve-batch or /comms/approve/{id}.",
+    }
 
 
 # ---------------------------------------------------------------------------
-# 4. Results email — fired when results stage activates
+# 4. Results email — PENDING_APPROVAL (results comm)
 # ---------------------------------------------------------------------------
 
-def send_results_emails(db: Session) -> dict:
+def send_results_emails(db: Session, batch_id: str = None) -> dict:
     """
-    Send results emails to all participants.
-    Teams with scores above the advancement threshold get a 'qualified' email;
-    others get a 'thank you for participating' email.
+    Draft results emails for all participants.
+    Saved as PENDING_APPROVAL — committee must approve before delivery.
     """
+    if batch_id is None:
+        batch_id = str(uuid.uuid4())
+
     from models import Score, Team
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
@@ -174,10 +224,7 @@ def send_results_emails(db: Session) -> dict:
     team_scores = {}
     for team in teams:
         scores = db.query(Score).filter(Score.team_id == team.id).all()
-        if scores:
-            avg = sum(s.score for s in scores) / len(scores)
-        else:
-            avg = 0.0
+        avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores[team.id] = {"team": team, "avg": avg}
 
     # Determine advancement cutoff: top 50% qualify
@@ -188,15 +235,14 @@ def send_results_emails(db: Session) -> dict:
     else:
         qualified_team_ids = set()
 
-    # Build participant → team map
+    # Participant → team map
     participant_team_map = {}
     for team in teams:
-        member_ids = json.loads(team.member_ids)
-        for pid in member_ids:
+        for pid in json.loads(team.member_ids):
             participant_team_map[pid] = team
 
     participants = db.query(Participant).all()
-    sent_count = 0
+    drafted_count = 0
 
     for p in participants:
         team = participant_team_map.get(p.id)
@@ -236,38 +282,44 @@ Do not include a subject line. Just the email body."""
             comm_type = "RESULTS_NOT_QUALIFIED"
 
         body = call_gemini(prompt)
-        _save_and_send(db, p.email, subject, body, comm_type=comm_type)
-        sent_count += 1
+        _save_as_draft(db, p.email, subject, body,
+                       comm_type=comm_type, batch_id=batch_id)
+        drafted_count += 1
 
-    return {"results_emails_sent": sent_count}
+    return {
+        "results_emails_drafted": drafted_count,
+        "status": "PENDING_APPROVAL",
+        "batch_id": batch_id,
+        "note": "Emails are queued for committee approval. Approve via /comms/approve-batch or /comms/approve/{id}.",
+    }
 
 
 # ---------------------------------------------------------------------------
-# 5. Dynamic stage-triggered emails — reads event config touchpoints
+# 5. Dynamic stage-triggered emails — PENDING_APPROVAL for results/progression
 # ---------------------------------------------------------------------------
 
 def trigger_stage_emails(stage_name: str, db: Session) -> dict:
     """
     Called whenever a pipeline stage activates.
-    Directly dispatches to the right email function based on stage name keywords.
-    No longer relies on fragile touchpoint string matching.
+    Evaluation and Results stages save as PENDING_APPROVAL.
+    Generic stage notifications also save as PENDING_APPROVAL.
     """
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     if not config:
         return {"triggered": False, "reason": "No active event config"}
 
+    batch_id = str(uuid.uuid4())
     stage_upper = stage_name.upper().replace(" ", "_")
 
-    # Direct dispatch by stage keyword — no string matching needed
     if any(k in stage_upper for k in ["EVALUATION", "JUDGING", "ASSESS"]):
-        results = send_evaluation_reminder_emails(db)
+        results = send_evaluation_reminder_emails(db, batch_id=batch_id)
         return {"triggered": True, "stage": stage_name, **results}
 
     if any(k in stage_upper for k in ["RESULT", "FINAL", "WINNER"]):
-        results = send_results_emails(db)
+        results = send_results_emails(db, batch_id=batch_id)
         return {"triggered": True, "stage": stage_name, **results}
 
-    # Generic stage notification to approved team members only
+    # Generic stage notification — draft, don't send
     approved_teams = db.query(Team).filter(Team.status == "APPROVED").all()
     approved_member_ids = set()
     for team in approved_teams:
@@ -278,7 +330,7 @@ def trigger_stage_emails(stage_name: str, db: Session) -> dict:
         return {"triggered": False, "reason": "No approved team members to notify"}
 
     event_name = config.event_name
-    sent_count = 0
+    drafted_count = 0
     for p in participants:
         prompt = f"""You are an event coordinator. Write a brief stage update email (2-3 sentences).
 
@@ -290,7 +342,15 @@ Notify them that this stage is now active and what they should do next.
 Do not include a subject line. Just the email body."""
         body = call_gemini(prompt)
         subject = f"{stage_name.replace('_', ' ').title()} Stage Started — {event_name}"
-        _save_and_send(db, p.email, subject, body, comm_type=f"STAGE_{stage_upper}")
-        sent_count += 1
+        _save_as_draft(db, p.email, subject, body,
+                       comm_type=f"STAGE_{stage_upper}", batch_id=batch_id)
+        drafted_count += 1
 
-    return {"triggered": True, "stage": stage_name, "stage_emails_sent": sent_count}
+    return {
+        "triggered": True,
+        "stage": stage_name,
+        "stage_emails_drafted": drafted_count,
+        "status": "PENDING_APPROVAL",
+        "batch_id": batch_id,
+        "note": "Emails are queued for committee approval.",
+    }

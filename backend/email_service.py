@@ -2,32 +2,28 @@ import smtplib
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
-# SMTP Configuration — set these as environment variables, or fill defaults:
+# SMTP Configuration — set all values in your .env file:
 #
-#   For Gmail:
-#     SMTP_HOST=smtp.gmail.com
-#     SMTP_PORT=587
-#     SMTP_USER=yourname@gmail.com
-#     SMTP_PASSWORD=your_app_password   <-- use an App Password, not your real password
-#     FROM_EMAIL=yourname@gmail.com
+#   SMTP_HOST=smtp.gmail.com
+#   SMTP_PORT=587
+#   SMTP_USER=yourname@gmail.com
+#   SMTP_PASSWORD=your_16_char_app_password
+#   FROM_EMAIL=yourname@gmail.com        (optional, defaults to SMTP_USER)
+#   FROM_NAME=WiseTInnovateX Team        (optional)
 #
-#   For Outlook/Hotmail:
-#     SMTP_HOST=smtp.office365.com
-#     SMTP_PORT=587
-#     SMTP_USER=yourname@outlook.com
-#     SMTP_PASSWORD=your_password
-#
-#   NOTE for Gmail: enable 2FA on your Google account, then generate an
-#   "App Password" at https://myaccount.google.com/apppasswords
-#   Use that 16-char password as SMTP_PASSWORD — not your Gmail login password.
+#   Gmail note: enable 2FA, then generate an App Password at
+#   https://myaccount.google.com/apppasswords — use that, NOT your login password.
 # ---------------------------------------------------------------------------
 
 SMTP_HOST     = os.environ.get("SMTP_HOST",     "smtp.gmail.com")
 SMTP_PORT     = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER     = os.environ.get("SMTP_USER",     "wisetinnovatex@gmail.com")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "dioa ejij jdqo zwiy")        # <-- fill this in
+SMTP_USER     = os.environ.get("SMTP_USER",     "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 FROM_EMAIL    = os.environ.get("FROM_EMAIL",    SMTP_USER)
 FROM_NAME     = os.environ.get("FROM_NAME",     "WiseTInnovateX Team")
 
@@ -35,12 +31,12 @@ FROM_NAME     = os.environ.get("FROM_NAME",     "WiseTInnovateX Team")
 def send_email(to_email: str, subject: str, body: str) -> dict:
     """
     Sends an email via SMTP (TLS).
-    Falls back to console logging if SMTP_PASSWORD is not set (safe for dev).
+    Falls back to console logging if SMTP credentials are not set (safe for dev).
     Returns {"success": True} or {"success": False, "error": "..."}.
     """
-    if not SMTP_PASSWORD:
-        print(f"\n[EMAIL LOG — no SMTP password set]\nTo: {to_email}\nSubject: {subject}\n{body}\n{'-'*60}")
-        return {"success": False, "error": "SMTP_PASSWORD not set — email logged to console only"}
+    if not SMTP_PASSWORD or not SMTP_USER:
+        print(f"\n[EMAIL LOG — SMTP credentials not set]\nTo: {to_email}\nSubject: {subject}\n{body}\n{'-'*60}")
+        return {"success": False, "error": "SMTP_USER or SMTP_PASSWORD not set in .env — email logged to console only"}
 
     # Build HTML body from plain text
     html_body = (

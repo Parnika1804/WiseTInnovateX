@@ -1,29 +1,41 @@
-import requests
 import os
+from google import genai
+from dotenv import load_dotenv
 
-GEMINI_API_KEY = ""
+# Force reload of environment variables
+load_dotenv(override=True)
 
-
-
-# Switched to the universally available 'gemini-pro' model
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+# Load keys
+GEMINI_KEYS = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3"),
+    os.getenv("GEMINI_API_KEY_4")
+]
+AVAILABLE_KEYS = [key.strip() for key in GEMINI_KEYS if key and key.strip()]
 
 def call_gemini(prompt: str) -> str:
-    try:
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}]
-        }
-        response = requests.post(GEMINI_URL, json=payload)
-        
-        # If it fails, print the EXACT reason from Google
-        if response.status_code != 200:
-            print(f"❌ Google API Rejected Request: {response.status_code}")
-            print(f"❌ Reason: {response.text}")
+    if not AVAILABLE_KEYS:
+        raise ValueError("No valid Gemini API keys found in .env file.")
+
+    for idx, key in enumerate(AVAILABLE_KEYS):
+        try:
+            # Initialize the new GenAI Client
+            client = genai.Client(api_key=key)
             
-        response.raise_for_status()
-        data = response.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-        
-    except Exception as e:
-        print(f"Gemini API error: {e}")
-        return "Gemini API call failed"
+            # Using the latest model
+            response = client.models.generate_content(
+                model='gemini-3.5-flash', 
+                contents=prompt
+            )
+            
+            return response.text
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f"❌ [GEMINI] Key #{idx + 1} failed: {error_msg}")
+            
+            # If we've tried all keys, raise the error
+            if idx == len(AVAILABLE_KEYS) - 1:
+                raise Exception(f"All Gemini API keys failed. Last error: {error_msg}")
+            continue

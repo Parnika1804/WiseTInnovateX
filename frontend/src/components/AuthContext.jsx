@@ -5,9 +5,19 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
-  // Simulating a login by storing the role and a fake JWT token
-  const login = (role) => {
-    setUser({ role, token: `mock-jwt-token-${role.toLowerCase()}` });
+  /**
+   * Call this after a successful /auth/login or /auth/register response.
+   * Pass the full response object: { token, user: { id, name, email, role } }
+   *
+   * Stores both the JWT and the user profile so any component can access:
+   *   user.token   → real JWT for authenticated API calls (?token=...)
+   *   user.id      → participant / judge ID
+   *   user.name    → display name
+   *   user.email
+   *   user.role    → "Committee" | "Judge" | "Participant"
+   */
+  const login = ({ token, user: profile }) => {
+    setUser({ token, ...profile });
   };
 
   const logout = () => {

@@ -1,9 +1,11 @@
 from celery_app import celery_app
 from gemini import call_gemini
+from database import SessionLocal
+from models import Team
 import json
 
 @celery_app.task(name="generate_team_rationale")
-def generate_team_rationale(team_name: str, member_names: list, member_skills: list, institutions: list) -> str:
+def generate_team_rationale(team_id: int, team_name: str, member_names: list, member_skills: list, institutions: list) -> str:
     prompt = f"""You are an event organizer AI. A team has been formed with the following members:
 Names: {', '.join(member_names)}
 Skills: {', '.join(member_skills)}
@@ -11,7 +13,21 @@ Institutions: {', '.join(institutions)}
 
 Write a 2-3 sentence rationale explaining why this is a good team composition for a hackathon. Be specific about the skills and diversity."""
 
-    return call_gemini(prompt)
+    rationale_text = call_gemini(prompt)
+    
+    # Save the generated rationale directly to the database
+    db = SessionLocal()
+    try:
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if team:
+            team.rationale = rationale_text
+            db.commit()
+    except Exception as e:
+        print(f"Error saving team rationale to DB: {e}")
+    finally:
+        db.close()
+
+    return rationale_text
 
 
 @celery_app.task(name="draft_communication")
@@ -28,7 +44,7 @@ Write a concise welcome email (3-4 sentences) that:
 - Announces their team assignment
 - Lists their team members and skills
 - Encourages them to connect with teammates
-- Mentions the hackathon is starting soon
+- Mentions the event is starting soon
 
 Do not include subject line, just the email body."""
 
@@ -74,6 +90,6 @@ Generate a concise assessment guide with the following sections:
 2. What to look for in their presentation
 3. Scoring breakdown suggestion (out of 10)
 
-Keep it practical and specific to this team's skill set."""
+Keep the guide practical and directly related to their skill mix."""
 
     return call_gemini(prompt)

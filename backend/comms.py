@@ -306,6 +306,8 @@ Do not include a subject line. Just the email body."""
     }
 
 
+
+
 # ---------------------------------------------------------------------------
 # Stage-trigger endpoint — committee advances a stage from the dashboard
 # ---------------------------------------------------------------------------
@@ -314,11 +316,146 @@ Do not include a subject line. Just the email body."""
 def trigger_stage_email(stage: str, db: Session = Depends(get_db)):
     """
     Called when the committee moves to a new pipeline stage.
-    Automatically sends the right emails based on event config.
+    Results / progression emails are saved as PENDING_APPROVAL, not sent immediately.
     """
     from email_triggers import trigger_stage_emails
     result = trigger_stage_emails(stage, db)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Approval gate — list / approve / reject pending comms
+# ---------------------------------------------------------------------------
+
+@router.get("/comms/pending")
+def get_pending_comms(db: Session = Depends(get_db)):
+    """Return all communications awaiting committee approval."""
+    logs = (
+        db.query(CommunicationLog)
+        .filter(CommunicationLog.status == "PENDING_APPROVAL")
+        .order_by(CommunicationLog.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": log.id,
+            "recipient_email": log.recipient_email,
+            "subject": log.subject,
+            "message": log.message,
+            "status": log.status,
+            "comm_type": log.comm_type,
+            "batch_id": log.batch_id,
+            "created_at": log.created_at,
+        }
+        for log in logs
+    ]
+
+
+@router.post("/comms/approve/{log_id}")
+def approve_communication(log_id: int, db: Session = Depends(get_db)):
+    """Approve a single pending communication and send it via SendGrid."""
+    log = db.query(CommunicationLog).filter(CommunicationLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Communication log not found")
+    if log.status != "PENDING_APPROVAL":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot approve — current status is '{log.status}'",
+        )
+
+    result = send_email(log.recipient_email, log.subject, log.message)
+
+    log.status = "SENT"
+    log.sent_at = datetime.utcnow()
+    db.commit()
+
+    resp = {
+        "message": f"Approved and sent to {log.recipient_email}",
+        "email_delivery": result,
+        "log_id": log.id,
+    }
+    if not result["success"]:
+        resp["warning"] = "SendGrid delivery failed. Check SENDGRID_API_KEY."
+    return resp
+
+
+class ApproveBatchRequest(BaseModel):
+    batch_id: str
+
+
+@router.post("/comms/approve-batch")
+def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
+    """Approve and send all PENDING_APPROVAL emails in a given batch."""
+    logs = (
+        db.query(CommunicationLog)
+        .filter(
+            CommunicationLog.batch_id == request.batch_id,
+            CommunicationLog.status == "PENDING_APPROVAL",
+        )
+        .all()
+    )
+    if not logs:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No pending emails found for batch '{request.batch_id}'",
+        )
+
+    sent_count = 0
+    failed_count = 0
+    for log in logs:
+        result = send_email(log.recipient_email, log.subject, log.message)
+        log.status = "SENT"
+        log.sent_at = datetime.utcnow()
+        if result["success"]:
+            sent_count += 1
+        else:
+            failed_count += 1
+    db.commit()
+
+    return {
+        "message": f"Batch '{request.batch_id}' approved",
+        "sent": sent_count,
+        "failed": failed_count,
+    }
+
+
+@router.post("/comms/reject/{log_id}")
+def reject_communication(log_id: int, db: Session = Depends(get_db)):
+    """Reject (discard) a single pending communication without sending it."""
+    log = db.query(CommunicationLog).filter(CommunicationLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Communication log not found")
+    if log.status != "PENDING_APPROVAL":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reject — current status is '{log.status}'",
+        )
+    log.status = "REJECTED"
+    db.commit()
+    return {"message": f"Communication {log_id} rejected and will not be sent."}
+
+
+@router.post("/comms/reject-batch")
+def reject_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
+    """Reject all PENDING_APPROVAL emails in a given batch."""
+    logs = (
+        db.query(CommunicationLog)
+        .filter(
+            CommunicationLog.batch_id == request.batch_id,
+            CommunicationLog.status == "PENDING_APPROVAL",
+        )
+        .all()
+    )
+    if not logs:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No pending emails found for batch '{request.batch_id}'",
+        )
+    count = len(logs)
+    for log in logs:
+        log.status = "REJECTED"
+    db.commit()
+    return {"message": f"Batch '{request.batch_id}' rejected", "rejected": count}
 
 
 # ---------------------------------------------------------------------------
@@ -336,6 +473,7 @@ def get_communication_log(db: Session = Depends(get_db)):
             "message": log.message,
             "status": log.status,
             "comm_type": log.comm_type,
+            "batch_id": log.batch_id,
             "sent_at": log.sent_at,
             "created_at": log.created_at,
         }

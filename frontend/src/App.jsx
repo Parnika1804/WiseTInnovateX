@@ -91,16 +91,15 @@ function App() {
             <Route path="/evaluation" element={<EvaluationResultsView />} /> 
           </Route>
 
-          {/* === JUDGE ONLY ROUTES === */}
-          <Route element={<ProtectedRoute allowedRoles={['Judge']}><Layout /></ProtectedRoute>}>
-            {/* The JudgePortal handles reading the AI Rubric and Submitting Scores */}
-            <Route path="/judge-dashboard" element={<JudgePortal />} />
-          </Route>
+          {/* === JUDGE MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
+          {/* Must be outside ProtectedRoute: the judge arrives from an email link with no
+              session yet. JudgePortal decodes the JWT from ?token= and calls login() itself. */}
+          <Route path="/judge-dashboard" element={<JudgePortal />} />
 
-          {/* === PARTICIPANT ONLY ROUTES === */}
-          <Route element={<ProtectedRoute allowedRoles={['Participant']}><Layout /></ProtectedRoute>}>
-            <Route path="/participant-portal" element={<ParticipantPortal />} />
-          </Route>
+          {/* === PARTICIPANT MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
+          {/* Must be outside ProtectedRoute: participant arrives from an email link with no
+              session yet. ParticipantPortal decodes the JWT from ?token= and calls login() itself. */}
+          <Route path="/participant-portal" element={<ParticipantPortal />} />
 
         </Routes>
       </Router>
