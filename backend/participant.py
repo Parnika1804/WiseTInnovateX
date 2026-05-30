@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Participant, Team, Score, EventConfig
 from pydantic import BaseModel
+from activity import log_action
 import json
 
 router = APIRouter()
@@ -118,6 +119,14 @@ def confirm_progression(participant_id: int, db: Session = Depends(get_db)):
         action="PROGRESSION_ACCEPTED", 
         description=f"Participant {participant.name} confirmed their spot in the next round.", 
         performed_by=participant.name
+    )
+    log_action(
+    db=db,
+    action="PARTICIPANTS_UPLOADED",
+    description="Committee uploaded a new participant roster via CSV",
+    performed_by="committee",
+    target_entity="Participant",
+    target_id=None 
     )
 
     return {"message": "Progression confirmed successfully. See you in the next round!"}

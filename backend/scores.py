@@ -5,6 +5,7 @@ from models import Team, Score, Participant, EventConfig
 from pydantic import BaseModel
 from datetime import datetime
 from gemini import call_gemini
+from activity import log_action
 import json
 
 router = APIRouter()
@@ -127,6 +128,14 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
             "created_at": score.created_at
         }
     }
+    log_action(
+    db=db,
+    action="SCORE_SUBMITTED",
+    description=f"Score of {score.score} submitted for team {score.team_id}", 
+    performed_by="judge",
+    target_entity="Score",
+    target_id=score.id
+    )
 
     if is_anomaly:
         response["warning"] = f"Anomaly detected — this score deviates more than 20% of {max_score} points from the panel average. Results are on hold."

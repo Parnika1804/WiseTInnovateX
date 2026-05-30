@@ -18,6 +18,7 @@ from models import CommunicationLog, Participant, Team, EventConfig
 from email_service import send_email
 from gemini import call_gemini
 from datetime import datetime
+from activity import log_action
 import json
 import uuid
 
@@ -48,6 +49,16 @@ def _save_and_send(
     db.commit()
     db.refresh(log)
     send_email(to_email, subject, body)
+
+    # Centralized Addition: Log every out-going operational email automatically
+    log_action(
+        db=db,
+        action="EMAIL_SENT",
+        description=f"Sent {comm_type} email to {to_email}: '{subject}'",
+        performed_by="system",
+        target_entity="CommunicationLog",
+        target_id=log.id
+    )
     return log
 
 
@@ -75,6 +86,17 @@ def _save_as_draft(
     db.add(log)
     db.commit()
     db.refresh(log)
+
+    # Centralized Addition: Log every progression/results draft generated
+    log_action(
+        db=db,
+        action=f"EMAIL_DRAFTED_{comm_type}", # e.g., EMAIL_DRAFTED_RESULTS
+        description=f"Drafted a {comm_type.lower().replace('_', ' ')} email for {to_email}. Awaiting committee approval.",
+        performed_by="system",
+        target_entity="CommunicationLog",
+        target_id=log.id
+    )
+
     return log
 
 

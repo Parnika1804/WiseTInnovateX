@@ -6,6 +6,7 @@ import csv
 import io
 from auth import create_token, hash_password
 from email_triggers import _save_and_send
+from activity import log_action
 
 router = APIRouter()
 
@@ -136,6 +137,14 @@ def clear_roster(db: Session = Depends(get_db)):
     count = db.query(Participant).count()
     db.query(Participant).delete()
     db.commit()
+    log_action(
+        db=db,
+        action="ROSTER_CLEARED",
+        description=f"The entire participant roster was cleared ({count} participants removed).",
+        performed_by="committee",
+        target_entity="Participant",
+        target_id=None
+    )
     return {"message": f"All {count} participants deleted successfully"}
 
 
@@ -147,6 +156,14 @@ def delete_participant(participant_id: int, db: Session = Depends(get_db)):
     db.query(User).filter(User.email == participant.email).delete()
     db.delete(participant)
     db.commit()
+    log_action(
+        db=db,
+        action="PARTICIPANT_DELETED",
+        description=f"Participant '{participant.name}' ({participant.email}) was removed from the roster.",
+        performed_by="committee",
+        target_entity="Participant",
+        target_id=participant_id
+    )
     return {"message": f"Participant {participant.name} deleted successfully"}
 
 

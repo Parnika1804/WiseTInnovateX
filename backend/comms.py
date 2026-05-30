@@ -7,6 +7,7 @@ from typing import Optional, List
 from datetime import datetime
 from gemini import call_gemini
 from email_service import send_email
+from activity import log_action
 import json
 
 router = APIRouter()
@@ -22,9 +23,18 @@ def delete_log(log_id: int, db: Session = Depends(get_db)):
     
     if not log_entry:
         raise HTTPException(status_code=404, detail="Log entry not found")
+    
+    recipient = log_entry.recipient_email
+    subject = log_entry.subject
         
     db.delete(log_entry)
     db.commit()
+    log_action(
+        db=db,
+        action="COMM_LOG_DELETED",
+        description=f"Communication history log item ID {log_id} to {recipient} ('{subject}') was permanently removed.",
+        performed_by="committee"
+    )
     return {"message": "Log entry deleted successfully"}
 
 class DraftRequest(BaseModel):
@@ -68,6 +78,12 @@ def draft_communication(request: DraftRequest, db: Session = Depends(get_db)):
     db.add(log)
     db.commit()
     db.refresh(log)
+    log_action(
+        db=db,
+        action="EMAIL_DRAFTED_MANUAL",
+        description=f"Manually created a custom communication draft for {log.recipient_email}. Subject: '{log.subject}'.",
+        performed_by="committee"
+    )
 
     return {
         "message": "Communication drafted successfully",
@@ -158,6 +174,12 @@ Do not include subject line, just the email body."""
     db.add(log)
     db.commit()
     db.refresh(log)
+    log_action(
+        db=db,
+        action=f"EMAIL_DRAFTED_{log.comm_type}",
+        description=f"Generated an AI-powered email draft template for {log.recipient_email} targeting the context of {request.stage.lower().replace('_', ' ')}.",
+        performed_by="committee"
+    )
 
     return {
         "message": "Gemini drafted communication ready for preview",
@@ -192,6 +214,12 @@ def send_communication(request: SendRequest, db: Session = Depends(get_db)):
     log.status = "SENT"
     log.sent_at = datetime.utcnow()
     db.commit()
+    log_action(
+        db=db,
+        action=f"EMAIL_SENT_{log.comm_type}",
+        description=f"Dispatched direct transmission message item ID {log.id} to recipient {log.recipient_email}. Status: {'SUCCESS' if result['success'] else 'FAILED'}.",
+        performed_by="committee"
+    )
 
     response = {
         "message": f"Communication sent successfully to {log.recipient_email}",
@@ -296,6 +324,12 @@ Do not include a subject line. Just the email body."""
             failed_count += 1
 
     db.commit()
+    log_action(
+        db=db,
+        action="ANNOUNCEMENT_DISPATCHED",
+        description=f"Broadcasted live announcement update to {target_label}. Successfully dispatched: {sent_count} deliveries. Brief context: '{request.announcement[:60]}...'",
+        performed_by="committee"
+    )
 
     return {
         "message": f"Announcement dispatched to {target_label}",
@@ -368,6 +402,12 @@ def approve_communication(log_id: int, db: Session = Depends(get_db)):
     log.status = "SENT"
     log.sent_at = datetime.utcnow()
     db.commit()
+    log_action(
+        db=db,
+        action="APPROVAL_GRANTED",
+        description=f"Single transmission authorization granted for item ID {log.id} to recipient {log.recipient_email}.",
+        performed_by="committee"
+    )
 
     resp = {
         "message": f"Approved and sent to {log.recipient_email}",
@@ -399,6 +439,22 @@ def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
             status_code=404,
             detail=f"No pending emails found for batch '{request.batch_id}'",
         )
+    is_results_batch = any(log.comm_type in ["RESULTS_QUALIFIED", "RESULTS_NOT_QUALIFIED"] for log in logs)
+
+    if is_results_batch:
+        log_action(
+            db=db,
+            action="RESULTS_APPROVED",
+            description=f"The evaluation results pipeline clearance was granted for communication batch ID: {request.batch_id}.",
+            performed_by="committee"
+        )
+    else:
+        log_action(
+            db=db,
+            action="APPROVAL_GRANTED",
+            description=f"Batch dispatch authorization granted for processing container ID: {request.batch_id}.",
+            performed_by="committee"
+        )
 
     sent_count = 0
     failed_count = 0
@@ -411,7 +467,20 @@ def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
         else:
             failed_count += 1
     db.commit()
-
+    if is_results_batch:
+        log_action(
+            db=db,
+            action="RESULTS_PUBLISHED",
+            description=f"Leaderboard progression outcomes successfully published. {sent_count} official notification dispatches sent to participants.",
+            performed_by="committee"
+        )
+    else:
+        log_action(
+            db=db,
+            action="BATCH_COMMUNICATION_SENT",
+            description=f"Successfully transmitted a collection of {sent_count} queued pipeline messages for batch {request.batch_id}.",
+            performed_by="committee"
+        )
     return {
         "message": f"Batch '{request.batch_id}' approved",
         "sent": sent_count,
@@ -432,6 +501,12 @@ def reject_communication(log_id: int, db: Session = Depends(get_db)):
         )
     log.status = "REJECTED"
     db.commit()
+    log_action(
+        db=db,
+        action="APPROVAL_REJECTED",
+        description=f"Discarded communication request item ID {log_id} intended for recipient {log.recipient_email}.",
+        performed_by="committee"
+    )
     return {"message": f"Communication {log_id} rejected and will not be sent."}
 
 
@@ -455,6 +530,12 @@ def reject_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
     for log in logs:
         log.status = "REJECTED"
     db.commit()
+    log_action(
+        db=db,
+        action="APPROVAL_REJECTED",
+        description=f"Rejected batch dispatch approval request container '{request.batch_id}'. Dropped {count} queued transmission log elements.",
+        performed_by="committee"
+    )
     return {"message": f"Batch '{request.batch_id}' rejected", "rejected": count}
 
 

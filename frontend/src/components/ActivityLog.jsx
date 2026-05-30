@@ -16,13 +16,34 @@ const ActivityLog = ({ refreshTrigger }) => {
       {logs.length === 0 ? (
         <p className="text-sm text-gray-400">No activity logged yet.</p>
       ) : (
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto pr-2">
           {logs.map(log => (
             <li key={log.id} className="py-3 text-sm">
-              <span className="font-semibold text-blue-700">[{log.action}]</span>
-              <span className="ml-2 text-gray-700">{log.description}</span>
-              <div className="text-xs text-gray-400 mt-1">
-                {log.performed_by} · {new Date(log.created_at).toLocaleString()}
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="font-semibold text-blue-700">[{log.action}]</span>
+                
+                {/* NEW: Conditionally render Target Entity and ID if they exist */}
+                {log.target_entity && (
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200">
+                    Target: {log.target_entity} {log.target_id ? `#${log.target_id}` : ''}
+                  </span>
+                )}
+              </div>
+              
+              <span className="text-gray-700 block mb-1">{log.description}</span>
+              
+              <div className="text-xs text-gray-400 flex flex-wrap items-center gap-2">
+                <span>👤 {log.performed_by}</span>
+                <span>•</span>
+                <span>🕒 {new Date(log.created_at).toLocaleString()}</span>
+                
+                {/* NEW: Conditionally render IP Address if it exists */}
+                {log.ip_address && (
+                  <>
+                    <span>•</span>
+                    <span title="Source IP">🌐 {log.ip_address}</span>
+                  </>
+                )}
               </div>
             </li>
           ))}

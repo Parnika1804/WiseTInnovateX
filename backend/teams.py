@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from gemini import call_gemini
 from tasks import generate_team_rationale
+from activity import log_action
 import json
 
 router = APIRouter()
@@ -149,7 +150,6 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
             member_skills=member_skills,
             institutions=institutions
         )
-
     return {
         "message": f"{len(created_team_records)} teams generated successfully",
         "config_source": config_source,
@@ -175,7 +175,14 @@ def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get
     if request.action not in ["APPROVED", "REJECTED"]: raise HTTPException(status_code=400, detail="Action must be APPROVED or REJECTED")
     team.status = request.action
     db.commit()
-
+    log_action(
+        db=db,
+        action=f"TEAM_{request.action}",
+        description=f"Team '{team.name}' was {request.action.lower()} by the committee.",
+        performed_by="committee",
+        target_entity="Team",
+        target_id=team.id
+    )
     # Auto-send team assignment emails when a team is approved
     if request.action == "APPROVED":
         try:
