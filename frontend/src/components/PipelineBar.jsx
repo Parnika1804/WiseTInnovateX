@@ -22,7 +22,18 @@ const PipelineBar = () => {
       .catch(() => setError('Could not load pipeline status.'));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // NEW: Setup HTTP Polling to refresh pipeline status every 5 seconds
+  useEffect(() => { 
+    load(); // Initial fetch on mount
+    
+    // Set up the interval for silent background polling
+    const intervalId = setInterval(() => {
+      load();
+    }, 5000); 
+
+    // Cleanup interval when component unmounts to prevent memory leaks
+    return () => clearInterval(intervalId);
+  }, [load]);
 
   const handleAdvance = async () => {
     if (!window.confirm(

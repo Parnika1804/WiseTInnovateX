@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+
+const API = 'http://localhost:8000';
 
 const Leaderboard = ({ refreshTrigger }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [resolvingId, setResolvingId] = useState(null);
+  const [finalizing, setFinalizing] = useState(false);
+  
+  const navigate = useNavigate();
 
   const fetchData = () => {
-    // 1. Fetch standard leaderboard rankings
-    axios.get('http://localhost:8000/scores/leaderboard')
+    axios.get(`${API}/scores/leaderboard`)
       .then(res => setLeaderboard(res.data))
       .catch(err => console.error("Error fetching leaderboard:", err));
 
-    // 2. Fetch active anomalies to populate the resolution dashboard
-    axios.get('http://localhost:8000/scores/anomalies')
+    axios.get(`${API}/scores/anomalies`)
       .then(res => setAnomalies(res.data.anomalies || []))
       .catch(err => console.error("Error fetching anomalies:", err));
   };
@@ -25,15 +29,49 @@ const Leaderboard = ({ refreshTrigger }) => {
 
   const handleResolve = async (scoreId) => {
     if (!window.confirm("Mark this anomaly as reviewed and resolved? This will release the team's results.")) return;
-    
     setResolvingId(scoreId);
     try {
-      await axios.post(`http://localhost:8000/scores/resolve/${scoreId}`);
-      fetchData(); // Refresh both the anomalies list and the leaderboard
+      await axios.post(`${API}/scores/resolve/${scoreId}`);
+      fetchData(); 
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to resolve anomaly.");
     } finally {
       setResolvingId(null);
+    }
+  };
+
+  const handleReject = async (scoreId, judgeName) => {
+    if (!window.confirm(`Are you sure? This will delete the score and automatically email ${judgeName} to re-evaluate the team.`)) return;
+    setResolvingId(scoreId);
+    try {
+      await axios.post(`${API}/scores/reject/${scoreId}`);
+      alert(`Score rejected. ${judgeName} has been notified to re-evaluate.`);
+      fetchData(); 
+    } catch (error) {
+      alert(error.response?.data?.detail || "Failed to reject anomaly.");
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const handleFinalizeEvaluation = async () => {
+    if (anomalies.length > 0) {
+      alert("You must resolve all scoring anomalies before ending the evaluation.");
+      return;
+    }
+
+    if (!window.confirm("End the evaluation phase? The AI will now calculate winners based on your configuration rules and draft the progression emails.")) return;
+
+    setFinalizing(true);
+    try {
+      await axios.post(`${API}/scores/finalize`);
+      alert("Evaluation ended successfully! Taking you to the Communications tab to review and send the drafted results.");
+      navigate('/comms'); // Redirect to Communications log to approve the drafts!
+    } catch (error) {
+      alert(error.response?.data?.detail || "Failed to finalize evaluation.");
+      console.error(error);
+    } finally {
+      setFinalizing(false);
     }
   };
 
@@ -68,13 +106,23 @@ const Leaderboard = ({ refreshTrigger }) => {
                     {anomaly.notes}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleResolve(anomaly.id)}
-                  disabled={resolvingId === anomaly.id}
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 shadow-sm"
-                >
-                  {resolvingId === anomaly.id ? 'Processing...' : '✓ Review & Resolve'}
-                </button>
+                
+                <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+                  <button
+                    onClick={() => handleResolve(anomaly.id)}
+                    disabled={resolvingId === anomaly.id}
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors disabled:opacity-50 shadow-sm w-full"
+                  >
+                    {resolvingId === anomaly.id ? 'Processing...' : '✓ Accept & Resolve'}
+                  </button>
+                  <button
+                    onClick={() => handleReject(anomaly.id, anomaly.judge_name)}
+                    disabled={resolvingId === anomaly.id}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors disabled:opacity-50 shadow-sm w-full"
+                  >
+                    {resolvingId === anomaly.id ? 'Processing...' : '❌ Reject & Re-score'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -84,6 +132,15 @@ const Leaderboard = ({ refreshTrigger }) => {
       {/* 🏆 LIVE LEADERBOARD 🏆 */}
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
+        
+        {/* NEW END EVALUATION BUTTON */}
+        <button
+          onClick={handleFinalizeEvaluation}
+          disabled={finalizing || leaderboard.length === 0}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+        >
+          {finalizing ? 'Drafting Emails...' : '✅ End Evaluation & Draft Results'}
+        </button>
       </div>
       
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

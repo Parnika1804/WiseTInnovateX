@@ -1,59 +1,118 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import AssessmentGuide from './AssessmentGuide'; // Importing our new AI component
 
-const ScoreSubmitForm = ({ onScoreSubmitted }) => {
-  const [teamId, setTeamId] = useState('');
-  const [judgeName, setJudgeName] = useState('');
+export default function ScoreSubmitForm({ teamId, judgeName, maxScore, onScoreSubmitted }) {
   const [score, setScore] = useState('');
   const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Fallback to 100 if maxScore isn't immediately available to prevent NaN errors
+  const dynamicMax = maxScore || 100;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const numericScore = parseFloat(score);
+
+    // Dynamic validation against the event config's max score
+    if (isNaN(numericScore) || numericScore < 0 || numericScore > dynamicMax) {
+      setError(`Please enter a valid score between 0 and ${dynamicMax}.`);
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const res = await axios.post('http://localhost:8000/scores/submit', {
-        team_id: parseInt(teamId),
-        judge_name: judgeName,
-        score: parseFloat(score),
-        notes: notes
+      const response = await fetch('http://localhost:8000/scores/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          team_id: teamId,
+          judge_name: judgeName,
+          score: numericScore,
+          notes: notes,
+        }),
       });
-      
-      if (res.data.warning) {
-        alert(res.data.warning); // Alerts the judge if their score triggers the anomaly threshold
-      } else {
-        alert("Score submitted successfully!");
+
+      if (!response.ok) {
+        throw new Error('Failed to submit score. Please try again.');
       }
+
+      const data = await response.json();
       
-      setTeamId(''); setScore(''); setNotes('');
-      if (onScoreSubmitted) onScoreSubmitted();
-    } catch (error) {
-      console.error("Error submitting score:", error);
-      alert(error.response?.data?.detail || "Failed to submit score.");
+      // Clear form on success
+      setScore('');
+      setNotes('');
+      
+      if (onScoreSubmitted) {
+        onScoreSubmitted(data);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Submit Evaluation</h3>
       
-      {/* Left Column: The Submission Form */}
-      <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' }}>
-        <h3>Submit Judge Evaluation</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <input type="number" placeholder="Team ID (e.g. 1)" value={teamId} onChange={e => setTeamId(e.target.value)} required style={{ padding: '8px' }} />
-          <input type="text" placeholder="Judge Name" value={judgeName} onChange={e => setJudgeName(e.target.value)} required style={{ padding: '8px' }} />
-          <input type="number" step="0.1" min="0" max="10" placeholder="Score (0-10)" value={score} onChange={e => setScore(e.target.value)} required style={{ padding: '8px' }} />
-          <textarea placeholder="Evaluation Notes..." value={notes} onChange={e => setNotes(e.target.value)} style={{ padding: '8px', minHeight: '60px' }} />
-          <button type="submit" style={{ backgroundColor: '#28a745', color: 'white', padding: '10px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>Submit Score</button>
-        </form>
-      </div>
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+          {error}
+        </div>
+      )}
 
-      {/* Right Column: The AI Assessment Guide */}
-      <div>
-        <AssessmentGuide teamId={teamId} />
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="score" className="block text-sm font-medium text-gray-700 mb-1">
+            Score (Out of {dynamicMax})
+          </label>
+          <input
+            type="number"
+            id="score"
+            name="score"
+            min="0"
+            max={dynamicMax}
+            step="0.5" // Allows half-points. Adjust to "1" if you only want whole numbers.
+            value={score}
+            onChange={(e) => setScore(e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder={`0 - ${dynamicMax}`}
+          />
+        </div>
 
+        <div>
+          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+            Evaluation Notes & Feedback
+          </label>
+          <textarea
+            id="notes"
+            name="notes"
+            rows="4"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Provide context for this score..."
+          ></textarea>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+            isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors`}
+        >
+          {isSubmitting ? 'Submitting...' : 'Submit Score'}
+        </button>
+      </form>
     </div>
   );
-};
-
-export default ScoreSubmitForm;
+}

@@ -173,8 +173,10 @@ def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get
     team = db.query(Team).filter(Team.id == request.team_id).first()
     if not team: raise HTTPException(status_code=404, detail="Team not found")
     if request.action not in ["APPROVED", "REJECTED"]: raise HTTPException(status_code=400, detail="Action must be APPROVED or REJECTED")
+    
     team.status = request.action
     db.commit()
+    
     log_action(
         db=db,
         action=f"TEAM_{request.action}",
@@ -183,16 +185,17 @@ def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get
         target_entity="Team",
         target_id=team.id
     )
-    # Auto-send team assignment emails when a team is approved
-    if request.action == "APPROVED":
-        try:
-            from email_triggers import _save_and_send
-            config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-            event_name = config.event_name if config else "the event"
-            
-            member_ids = json.loads(team.member_ids)
-            members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
-            
+    
+    # Auto-send team assignment or rejection emails when status changes
+    try:
+        from email_triggers import _save_and_send
+        config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+        event_name = config.event_name if config else "the event"
+        
+        member_ids = json.loads(team.member_ids)
+        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        
+        if request.action == "APPROVED":
             member_names = [m.name for m in members]
             member_skills = [m.skill for m in members]
 
@@ -209,24 +212,53 @@ Write a concise welcome email (3-4 sentences) that announces their assignment, l
                 subject = f"Your Team Assignment — {team.name} | {event_name}"
                 _save_and_send(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_ASSIGNMENT")
                 
-        except Exception as e:
-            print(f"[TEAM ASSIGNMENT EMAIL ERROR] {e}")
+        # NEW FIX: Dispatch automated emails to REJECTED teams as well
+        elif request.action == "REJECTED":
+            for member in members:
+                prompt = f"""You are an event coordinator. Write a polite and reassuring email to a hackathon participant informing them that their proposed team was not approved by the committee.
+Event: {event_name}
+Team Name: {team.name}
+Recipient Name: {member.name}
+
+Write a concise email (2-3 sentences) explaining that their team formation was rejected, and they should await re-assignment or further instructions from the organizers. Keep the tone positive and reassuring. Do not include a subject line."""
+                
+                body = call_gemini(prompt)
+                subject = f"Update on Your Team Assignment | {event_name}"
+                _save_and_send(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_REJECTED")
+                
+    except Exception as e:
+        print(f"[TEAM STATUS EMAIL ERROR] {e}")
 
     return {"message": f"Team {team.name} has been {request.action}", "team_id": team.id, "status": team.status}
 
 @router.get("/teams")
 def get_teams(db: Session = Depends(get_db)):
     teams = db.query(Team).all()
-    return [
-        {
+    result = []
+    for t in teams:
+        member_ids = json.loads(t.member_ids)
+        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        
+        # We attach the full profile including the submitted project links here
+        result.append({
             "id": t.id,
             "name": t.name,
-            "member_ids": json.loads(t.member_ids),
+            "member_ids": member_ids,
+            "members": [
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "skill": m.skill,
+                    "tech_stack": m.tech_stack,
+                    "project_link": m.project_link,
+                    "resume_link": m.resume_link
+                } for m in members
+            ],
             "rationale": t.rationale,
             "status": t.status,
             "event_config_id": t.event_config_id
-        } for t in teams
-    ]
+        })
+    return result
 
 @router.delete("/teams/clear")
 def clear_teams(db: Session = Depends(get_db)):

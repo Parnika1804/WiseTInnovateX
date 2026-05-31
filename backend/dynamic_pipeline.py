@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import EventConfig, Team
+from models import EventConfig, Team, Score, CommunicationLog, Participant, ActivityLog, User
 from pydantic import BaseModel
 from datetime import datetime
 from gemini_parser import parse_event_description
 import json
+
 
 router = APIRouter()
 
@@ -182,3 +183,31 @@ def reset_pipeline_stage(db: Session = Depends(get_db)):
         "current_stage": stages[0]["name"] if stages else None,
         "current_stage_index": 0
     }
+@router.delete("/system/reset")
+def reset_system(db: Session = Depends(get_db)):
+    try:
+        # 1. Delete event data (Order matters to avoid foreign key constraint errors)
+        db.query(Score).delete()
+        db.query(CommunicationLog).delete()
+        db.query(Team).delete()
+        db.query(Participant).delete()
+        db.query(ActivityLog).delete()
+        db.query(EventConfig).delete()
+        
+        # 2. Delete ALL Judges from the User table (Keeps Committee intact)
+        db.query(User).filter(User.role == "Judge").delete()
+        
+        # 3. Log the reset action so there is a record of who did it
+        from activity import log_action
+        log_action(
+            db, 
+            action="SYSTEM_RESET", 
+            description="The committee triggered a hard factory reset to start a new event. All previous data and judges were wiped.", 
+            performed_by="committee"
+        )
+        
+        db.commit()
+        return {"message": "System successfully reset for a new event. All old data and judges cleared."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")

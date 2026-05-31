@@ -82,7 +82,8 @@ def get_participant_data(participant_id: int, db: Session):
             "institution": participant.institution,
             "registration_status": participant.registration_status
         },
-        "team": {"id": my_team.id, "name": my_team.name} if my_team else None,
+        # THE FIX: Added my_team.status so the frontend knows if it was rejected
+        "team": {"id": my_team.id, "name": my_team.name, "status": my_team.status} if my_team else None,
         "team_members": team_members,
         "current_stage": current_stage,
         "progression": {
