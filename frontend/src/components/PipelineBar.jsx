@@ -8,6 +8,15 @@ const PipelineBar = () => {
   const [error, setError] = useState('');
   const [advancing, setAdvancing] = useState(false);
   const [toast, setToast] = useState('');
+  const [rosterCount, setRosterCount] = useState(0);
+  const [teams, setTeams] = useState([]);
+  const [hasScores, setHasScores] = useState(false);
+
+  const loadSideData = useCallback(() => {
+    axios.get(`${API}/roster`).then(res => setRosterCount(res.data.length)).catch(() => {});
+    axios.get(`${API}/teams`).then(res => setTeams(res.data)).catch(() => {});
+    axios.get(`${API}/scores/leaderboard`).then(res => setHasScores(res.data.length > 0)).catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     axios.get(`${API}/pipeline/dynamic/status`)
@@ -20,18 +29,12 @@ const PipelineBar = () => {
         }
       })
       .catch(() => setError('Could not load pipeline status.'));
-  }, []);
+    loadSideData();
+  }, [loadSideData]);
 
-  // NEW: Setup HTTP Polling to refresh pipeline status every 5 seconds
-  useEffect(() => { 
-    load(); // Initial fetch on mount
-    
-    // Set up the interval for silent background polling
-    const intervalId = setInterval(() => {
-      load();
-    }, 5000); 
-
-    // Cleanup interval when component unmounts to prevent memory leaks
+  useEffect(() => {
+    load();
+    const intervalId = setInterval(() => { load(); }, 5000);
     return () => clearInterval(intervalId);
   }, [load]);
 
@@ -53,6 +56,26 @@ const PipelineBar = () => {
     } finally {
       setAdvancing(false);
     }
+  };
+
+  // Visual override logic — determines pill color based on system state
+  const getVisualStatus = (stage, dbStatus) => {
+    const label = stage.label?.toLowerCase() || '';
+    const name = stage.name?.toLowerCase() || '';
+
+    const isRegistration = label.includes('registr') || name.includes('registr');
+    const isTeamFormation = label.includes('team') || name.includes('team');
+    const isEvaluation = label.includes('eval') || label.includes('judg') || label.includes('round') || name.includes('eval') || name.includes('round');
+
+    if (isRegistration && rosterCount > 0 && dbStatus !== 'ACTIVE') return 'COMPLETED';
+    if (isTeamFormation) {
+      const approvedTeams = teams.filter(t => t.status === 'APPROVED');
+      if (approvedTeams.length > 0 && dbStatus !== 'ACTIVE') return 'COMPLETED';
+      if (teams.length > 0 && dbStatus === 'UPCOMING') return 'ACTIVE';
+    }
+    if (isEvaluation && hasScores && dbStatus === 'UPCOMING') return 'ACTIVE';
+
+    return dbStatus;
   };
 
   if (error) return (
@@ -113,26 +136,29 @@ const PipelineBar = () => {
 
       {/* Stage pills */}
       <div className="flex gap-3 overflow-x-auto pb-1">
-        {data.stages?.map((stage) => (
-          <div
-            key={stage.order}
-            title={stage.description}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              stage.status === 'ACTIVE'
-                ? 'bg-blue-600 text-white shadow-md'
-                : stage.status === 'COMPLETED'
-                ? 'bg-green-100 text-green-800 border border-green-200'
-                : 'bg-gray-100 text-gray-400 border border-gray-200'
-            }`}
-          >
-            {stage.status === 'COMPLETED' && (
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            )}
-            {stage.order}. {stage.label}
-          </div>
-        ))}
+        {data.stages?.map((stage) => {
+          const visualStatus = getVisualStatus(stage, stage.status);
+          return (
+            <div
+              key={stage.order}
+              title={stage.description}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                visualStatus === 'ACTIVE'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : visualStatus === 'COMPLETED'
+                  ? 'bg-green-100 text-green-800 border border-green-200'
+                  : 'bg-gray-100 text-gray-400 border border-gray-200'
+              }`}
+            >
+              {visualStatus === 'COMPLETED' && (
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+              {stage.order}. {stage.label}
+            </div>
+          );
+        })}
       </div>
 
       {/* Toast */}
