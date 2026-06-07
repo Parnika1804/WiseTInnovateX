@@ -24,8 +24,16 @@ const Leaderboard = ({ refreshTrigger }) => {
       .catch(err => console.error("Error fetching anomalies:", err));
   };
 
-  useEffect(() => {
-    fetchData();
+ useEffect(() => {
+    axios.get(`${API}/scores/finalized`)
+      .then(res => {
+        if (res.data.finalized) {
+          setPodium(res.data.podium);
+        } else {
+          fetchData();
+        }
+      })
+      .catch(() => fetchData());
   }, [refreshTrigger]);
 
   const handleResolve = async (scoreId) => {

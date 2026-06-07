@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from models import Team, Score, Participant, EventConfig, User, CommunicationLog, ActivityLog
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Team, Score, Participant, EventConfig, User, CommunicationLog
@@ -179,7 +180,32 @@ def get_leaderboard(db: Session = Depends(get_db)):
 
     leaderboard.sort(key=lambda x: x["average_score"], reverse=True)
     return leaderboard
+@router.get("/scores/finalized")
+def get_finalized_podium(db: Session = Depends(get_db)):
+    log = db.query(ActivityLog).filter(ActivityLog.action == "EVALUATION_FINALIZED").first()
+    if not log:
+        return {"finalized": False, "podium": None}
 
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    current_round = (config.current_stage_index or 0) + 1 if config else 1
+    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
+
+    teams = db.query(Team).filter(Team.status == "APPROVED").all()
+    team_scores = []
+    for team in teams:
+        scores = db.query(Score).filter(Score.team_id == team.id, Score.round_number == current_round).all()
+        avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
+        team_scores.append({"team": team, "avg": round(avg, 2)})
+
+    team_scores.sort(key=lambda x: x["avg"], reverse=True)
+    medals = {0: "🥇 1st Place", 1: "🥈 2nd Place", 2: "🥉 3rd Place"}
+
+    podium = [
+        {"rank": idx + 1, "medal": medals.get(idx), "team_name": e["team"].name, "team_id": e["team"].id, "final_score": e["avg"]}
+        for idx, e in enumerate(team_scores[:3])
+    ]
+
+    return {"finalized": True, "podium": podium}
 # ---------------------------------------------------------
 # Anomalies
 # ---------------------------------------------------------
@@ -254,13 +280,19 @@ def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # ---------------------------------------------------------
 # Finalize Evaluation
-# ---------------------------------------------------------
 @router.post("/scores/finalize")
 def finalize_evaluation(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
     max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
     current_round = (config.current_stage_index or 0) + 1 if config else 1
+    if config:
+        stages = json.loads(config.stages)
+        if config.current_stage_index < len(stages) - 1:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot finalize yet. Currently on stage {config.current_stage_index + 1} of {len(stages)}. Advance to the final stage first."
+            )
 
     # 1. Get all qualified approved teams
     teams = db.query(Team).filter(
