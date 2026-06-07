@@ -5,10 +5,14 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
-  
-  // State to hold conversational clarification data
-  const [clarificationData, setClarificationData] = useState(null); 
+  const [clarificationData, setClarificationData] = useState(null);
   const [answers, setAnswers] = useState({});
+
+  // Per-round advancement rules state
+  const [showAdvancementRules, setShowAdvancementRules] = useState(false);
+  const [advancementRules, setAdvancementRules] = useState([]);
+  const [savingRules, setSavingRules] = useState(false);
+  const [rulesSaved, setRulesSaved] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,35 +26,32 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
     setIsLoading(true);
 
     try {
-      // 1. Send the initial description to the parser
       const describeRes = await axios.post('http://localhost:8000/event/describe', { description });
 
       if (describeRes.data.status === 'incomplete') {
         setStatus({ type: 'info', message: 'Analyzing missing information...' });
-        
-        // 2. If incomplete, ask Gemini to generate specific follow-up questions
+
         const clarifyRes = await axios.post('http://localhost:8000/event/clarify', {
           description: description,
           missing_fields: describeRes.data.missing_fields
         });
-        
+
         setClarificationData({
           message: clarifyRes.data.message,
           questions: clarifyRes.data.questions
         });
-        
-        // 3. Initialize the answer state for the dynamic form
+
         const initialAnswers = {};
         clarifyRes.data.questions.forEach(q => { initialAnswers[q.field] = ''; });
         setAnswers(initialAnswers);
-        setStatus({ type: '', message: '' }); 
+        setStatus({ type: '', message: '' });
 
       } else {
-        // Success! Complete on the first try. Save configuration.
-        await axios.post('http://localhost:8000/event/configure', { description });
+        const configRes = await axios.post('http://localhost:8000/event/configure', { description });
         setStatus({ type: 'success', message: '✅ Event configured successfully!' });
         if (onConfigExtracted) onConfigExtracted(describeRes.data.config);
-        setDescription(''); 
+        setDescription('');
+        setupAdvancementRules(configRes.data.config);
       }
     } catch (error) {
       console.error(error);
@@ -66,30 +67,76 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
     setStatus({ type: 'info', message: 'Processing your answers and configuring event...' });
 
     try {
-      // 4. Combine original description with answers via the backend
       const resubmitRes = await axios.post('http://localhost:8000/event/clarify/resubmit', {
         original_description: description,
         answers: answers
       });
 
       const combinedDescription = resubmitRes.data.combined_description;
-
-      // 5. Finalize the configuration with the complete combined description
       const configRes = await axios.post('http://localhost:8000/event/configure', { description: combinedDescription });
-      
-      setStatus({ type: 'success', message: `✅ Event "${configRes.data.config?.event_name || 'configured'}" successfully from combined details!` });
-      
-      // 6. Reset UI and trigger parent refresh
+
+      setStatus({ type: 'success', message: `✅ Event "${configRes.data.config?.event_name || 'configured'}" successfully!` });
+
       setClarificationData(null);
       setDescription('');
       setAnswers({});
       if (onConfigExtracted) onConfigExtracted(configRes.data.config);
+      setupAdvancementRules(configRes.data.config);
 
     } catch (error) {
       console.error(error);
       setStatus({ type: 'error', message: 'Failed to configure event with clarification.' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const setupAdvancementRules = (config) => {
+    if (!config || !config.stages) return;
+    // Only show for stages that are actual rounds (not registration/team formation)
+    const roundStages = config.stages.filter(s => {
+      const label = s.label?.toLowerCase() || '';
+      const name = s.name?.toLowerCase() || '';
+      return label.includes('round') || name.includes('round') || label.includes('eval') || name.includes('eval');
+    });
+
+    if (roundStages.length === 0) return;
+
+    setAdvancementRules(roundStages.map((s, idx) => ({
+      round: idx + 1,
+      stage_name: s.name,
+      label: s.label,
+      rule: ''
+    })));
+    setShowAdvancementRules(true);
+    setRulesSaved(false);
+  };
+
+  const handleRuleChange = (index, value) => {
+    setAdvancementRules(prev => prev.map((r, i) => i === index ? { ...r, rule: value } : r));
+  };
+
+  const handleSaveRules = async () => {
+    const unfilled = advancementRules.filter(r => !r.rule.trim());
+    if (unfilled.length > 0) {
+      alert('Please fill in advancement rules for all rounds.');
+      return;
+    }
+
+    setSavingRules(true);
+    try {
+      await axios.patch('http://localhost:8000/event/config/advancement-rules', {
+        rules: advancementRules.map(r => ({
+          round: r.round,
+          stage_name: r.stage_name,
+          rule: r.rule
+        }))
+      });
+      setRulesSaved(true);
+    } catch (err) {
+      alert('Failed to save advancement rules. Please try again.');
+    } finally {
+      setSavingRules(false);
     }
   };
 
@@ -124,10 +171,10 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
             onChange={(e) => setDescription(e.target.value)}
             disabled={isLoading}
           />
-          
+
           {status.message && (
             <div className={`p-3 rounded-lg text-sm font-medium ${
-              status.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' : 
+              status.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' :
               status.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' :
               'bg-blue-50 text-blue-700 border border-blue-100'
             }`}>
@@ -148,16 +195,14 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
           </div>
         </form>
       ) : (
-        /* View 2: Clarification / Conversational Agent Phase */
+        /* View 2: Clarification Phase */
         <div className="animate-fade-in">
           <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-md">
             <div className="flex items-start">
               <span className="text-xl mr-3">🤖</span>
               <div>
                 <h3 className="text-amber-800 font-bold mb-1">More Information Needed</h3>
-                <p className="text-amber-700 text-sm">
-                  {clarificationData.message}
-                </p>
+                <p className="text-amber-700 text-sm">{clarificationData.message}</p>
               </div>
             </div>
           </div>
@@ -166,7 +211,7 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
             {clarificationData.questions.map((q, index) => (
               <div key={q.field} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <label className="block font-semibold text-gray-800 mb-2">
-                  <span className="text-blue-600 mr-2">Q{index + 1}.</span> 
+                  <span className="text-blue-600 mr-2">Q{index + 1}.</span>
                   {q.question}
                 </label>
                 <input
@@ -209,6 +254,55 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* View 3: Per-round advancement rules — appears after config saved */}
+      {showAdvancementRules && (
+        <div className="mt-8 border-t border-gray-100 pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">📊</span>
+            <h3 className="text-lg font-bold text-gray-800">Set Advancement Rules Per Round</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">
+            Define how many teams advance after each round. You can use percentages like "top 50%" or fixed numbers like "top 3 teams".
+          </p>
+
+          <div className="space-y-3">
+            {advancementRules.map((r, idx) => (
+              <div key={idx} className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="flex-shrink-0 w-32">
+                  <span className="text-sm font-bold text-blue-700">{r.label || r.stage_name}</span>
+                </div>
+                <input
+                  type="text"
+                  className="flex-1 p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                  placeholder='e.g. "top 50%" or "top 3 teams"'
+                  value={r.rule}
+                  onChange={(e) => handleRuleChange(idx, e.target.value)}
+                  disabled={rulesSaved}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end mt-4">
+            {rulesSaved ? (
+              <div className="flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-lg font-semibold text-sm">
+                ✅ Advancement rules saved
+              </div>
+            ) : (
+              <button
+                onClick={handleSaveRules}
+                disabled={savingRules}
+                className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-colors ${
+                  savingRules ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {savingRules ? 'Saving...' : 'Save Advancement Rules'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

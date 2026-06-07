@@ -10,7 +10,8 @@ const Leaderboard = ({ refreshTrigger }) => {
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [resolvingId, setResolvingId] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
-  
+  const [podium, setPodium] = useState(null);
+
   const navigate = useNavigate();
 
   const fetchData = () => {
@@ -32,7 +33,7 @@ const Leaderboard = ({ refreshTrigger }) => {
     setResolvingId(scoreId);
     try {
       await axios.post(`${API}/scores/resolve/${scoreId}`);
-      fetchData(); 
+      fetchData();
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to resolve anomaly.");
     } finally {
@@ -46,7 +47,7 @@ const Leaderboard = ({ refreshTrigger }) => {
     try {
       await axios.post(`${API}/scores/reject/${scoreId}`);
       alert(`Score rejected. ${judgeName} has been notified to re-evaluate.`);
-      fetchData(); 
+      fetchData();
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to reject anomaly.");
     } finally {
@@ -60,13 +61,12 @@ const Leaderboard = ({ refreshTrigger }) => {
       return;
     }
 
-    if (!window.confirm("End the evaluation phase? The AI will now calculate winners based on your configuration rules and draft the progression emails.")) return;
+    if (!window.confirm("End the evaluation phase? The AI will now calculate winners and draft result emails.")) return;
 
     setFinalizing(true);
     try {
-      await axios.post(`${API}/scores/finalize`);
-      alert("Evaluation ended successfully! Taking you to the Communications tab to review and send the drafted results.");
-      navigate('/comms'); // Redirect to Communications log to approve the drafts!
+      const res = await axios.post(`${API}/scores/finalize`);
+      setPodium(res.data.podium);
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to finalize evaluation.");
       console.error(error);
@@ -79,9 +79,111 @@ const Leaderboard = ({ refreshTrigger }) => {
     setExpandedTeamId(expandedTeamId === teamId ? null : teamId);
   };
 
+  const medalColors = {
+    1: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', badge: 'bg-yellow-400 text-white' },
+    2: { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-700', badge: 'bg-gray-400 text-white' },
+    3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', badge: 'bg-orange-400 text-white' },
+  };
+
+  // Show podium view after finalize
+  if (podium) {
+    return (
+      <div className="w-full">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-black text-gray-800 mb-1">🏆 Final Results</h2>
+          <p className="text-gray-500 text-sm">The evaluation is complete. Here are your winners!</p>
+        </div>
+
+        {/* Podium */}
+        <div className="flex justify-center items-end gap-4 mb-8">
+          {/* 2nd place */}
+          {podium[1] && (
+            <div className="flex flex-col items-center">
+              <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-5 text-center w-48 shadow-sm">
+                <div className="text-4xl mb-2">🥈</div>
+                <p className="font-black text-gray-800 text-lg">{podium[1].team_name}</p>
+                <p className="text-gray-500 text-sm font-semibold">{podium[1].final_score} pts</p>
+              </div>
+              <div className="bg-gray-300 w-48 h-16 rounded-b-xl flex items-center justify-center">
+                <span className="font-black text-white text-2xl">2</span>
+              </div>
+            </div>
+          )}
+
+          {/* 1st place — tallest */}
+          {podium[0] && (
+            <div className="flex flex-col items-center">
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 text-center w-48 shadow-md">
+                <div className="text-4xl mb-2">🥇</div>
+                <p className="font-black text-gray-800 text-lg">{podium[0].team_name}</p>
+                <p className="text-yellow-600 text-sm font-semibold">{podium[0].final_score} pts</p>
+              </div>
+              <div className="bg-yellow-400 w-48 h-24 rounded-b-xl flex items-center justify-center">
+                <span className="font-black text-white text-2xl">1</span>
+              </div>
+            </div>
+          )}
+
+          {/* 3rd place */}
+          {podium[2] && (
+            <div className="flex flex-col items-center">
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-5 text-center w-48 shadow-sm">
+                <div className="text-4xl mb-2">🥉</div>
+                <p className="font-black text-gray-800 text-lg">{podium[2].team_name}</p>
+                <p className="text-orange-500 text-sm font-semibold">{podium[2].final_score} pts</p>
+              </div>
+              <div className="bg-orange-400 w-48 h-10 rounded-b-xl flex items-center justify-center">
+                <span className="font-black text-white text-2xl">3</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Full results table below podium */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-gray-200">
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500">Rank</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500">Team Name</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 text-right">Final Score</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {podium.map((entry) => {
+                const colors = medalColors[entry.rank] || { bg: '', border: 'border-gray-100', text: 'text-gray-700', badge: 'bg-gray-200 text-gray-700' };
+                return (
+                  <tr key={entry.team_id} className={`${colors.bg}`}>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-black ${colors.badge}`}>
+                        {entry.medal}
+                      </span>
+                    </td>
+                    <td className={`p-4 font-bold ${colors.text}`}>{entry.team_name}</td>
+                    <td className="p-4 font-black text-gray-800 text-right text-lg">{entry.final_score}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+          <p className="text-green-700 font-semibold text-sm">✅ Result emails have been drafted and sent to Pending Approvals. Go to the Comms tab to review and send.</p>
+          <button
+            onClick={() => navigate('/comms')}
+            className="mt-3 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors text-sm"
+          >
+            Go to Comms →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
-      {/* 🔴 ANOMALY RESOLUTION DASHBOARD 🔴 */}
+      {/* Anomaly Resolution */}
       {anomalies.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
@@ -91,14 +193,14 @@ const Leaderboard = ({ refreshTrigger }) => {
           <p className="text-red-700 text-sm mb-5">
             The evaluation engine has paused the pipeline. The following scores deviate significantly from the panel average (&gt; 20% variance). Review the judge's notes and resolve the discrepancies to unlock the leaderboard.
           </p>
-          
+
           <div className="space-y-4">
             {anomalies.map(anomaly => (
               <div key={anomaly.id} className="bg-white border border-red-200 rounded-lg p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
                 <div className="flex-1">
                   <h4 className="font-bold text-gray-800 text-lg mb-1">Team #{anomaly.team_id}</h4>
                   <p className="text-sm text-gray-600 mb-2">
-                    <strong>Evaluator:</strong> {anomaly.judge_name} <span className="mx-2">|</span> 
+                    <strong>Evaluator:</strong> {anomaly.judge_name} <span className="mx-2">|</span>
                     <strong>Flagged Score:</strong> <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">{anomaly.score}</span>
                   </p>
                   <div className="text-sm text-gray-700 italic bg-slate-50 p-3 rounded-md border border-slate-100 relative">
@@ -106,7 +208,7 @@ const Leaderboard = ({ refreshTrigger }) => {
                     {anomaly.notes}
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
                   <button
                     onClick={() => handleResolve(anomaly.id)}
@@ -129,20 +231,19 @@ const Leaderboard = ({ refreshTrigger }) => {
         </div>
       )}
 
-      {/* 🏆 LIVE LEADERBOARD 🏆 */}
-{leaderboard.length > 0 && (
-  <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3">
-    <span className="text-blue-600 text-xl">🔄</span>
-    <div>
-      <span className="font-bold text-blue-800">Round {leaderboard[0].current_round}</span>
-      <span className="text-blue-600 text-sm ml-2">— Currently active evaluation round</span>
-    </div>
-  </div>
-)}
-<div className="flex justify-between items-center mb-4">
-  <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
-        
-        {/* NEW END EVALUATION BUTTON */}
+      {/* Round banner */}
+      {leaderboard.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3">
+          <span className="text-blue-600 text-xl">🔄</span>
+          <div>
+            <span className="font-bold text-blue-800">Round {leaderboard[0].current_round}</span>
+            <span className="text-blue-600 text-sm ml-2">— Currently active evaluation round</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
         <button
           onClick={handleFinalizeEvaluation}
           disabled={finalizing || leaderboard.length === 0}
@@ -151,7 +252,7 @@ const Leaderboard = ({ refreshTrigger }) => {
           {finalizing ? 'Drafting Emails...' : '✅ End Evaluation & Draft Results'}
         </button>
       </div>
-      
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -170,8 +271,8 @@ const Leaderboard = ({ refreshTrigger }) => {
             ) : (
               leaderboard.map((team, index) => (
                 <React.Fragment key={team.team_id}>
-                  <tr 
-                    onClick={() => toggleRow(team.team_id)} 
+                  <tr
+                    onClick={() => toggleRow(team.team_id)}
                     className={`hover:bg-slate-50 cursor-pointer transition-colors ${expandedTeamId === team.team_id ? 'bg-slate-50' : ''}`}
                   >
                     <td className="p-4 font-bold text-gray-700">#{index + 1}</td>
@@ -189,8 +290,7 @@ const Leaderboard = ({ refreshTrigger }) => {
                       )}
                     </td>
                   </tr>
-                  
-                  {/* Expandable Judge Breakdown */}
+
                   {expandedTeamId === team.team_id && (
                     <tr className="bg-slate-50 border-b-2 border-slate-200">
                       <td colSpan="4" className="p-6">
