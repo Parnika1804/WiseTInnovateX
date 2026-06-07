@@ -125,9 +125,12 @@ Example: [1, 3, 4]"""
             qualified_team_ids = {item[0] for item in sorted_teams[:cutoff_index]}
 
     participant_team_map = {}
+    approved_member_ids = set()
     for team in teams:
         for pid in json.loads(team.member_ids):
             participant_team_map[pid] = team
+            approved_member_ids.add(pid)
+    participants = db.query(Participant).filter(Participant.id.in_(approved_member_ids)).all()
 
     participants = db.query(Participant).all()
     drafted_count = 0
