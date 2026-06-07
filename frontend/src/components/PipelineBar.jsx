@@ -60,24 +60,32 @@ const PipelineBar = () => {
 
   // Visual override logic — determines pill color based on system state
   const getVisualStatus = (stage, dbStatus) => {
-    const label = stage.label?.toLowerCase() || '';
-    const name = stage.name?.toLowerCase() || '';
+  const label = stage.label?.toLowerCase() || '';
+  const name = stage.name?.toLowerCase() || '';
 
-    const isRegistration = label.includes('registr') || name.includes('registr');
-    const isTeamFormation = label.includes('team') || name.includes('team');
-    const isEvaluation = label.includes('eval') || label.includes('judg') || label.includes('round') || name.includes('eval') || name.includes('round');
+  const isRegistration = label.includes('registr') || name.includes('registr');
+  const isTeamFormation = label.includes('team') || name.includes('team');
+  const approvedTeams = teams.filter(t => t.status === 'APPROVED');
 
-    if (isRegistration && rosterCount > 0 && dbStatus !== 'ACTIVE') return 'COMPLETED';
-    if (isTeamFormation) {
-      const approvedTeams = teams.filter(t => t.status === 'APPROVED');
-      if (approvedTeams.length > 0 && dbStatus !== 'ACTIVE') return 'COMPLETED';
-      if (teams.length > 0 && dbStatus === 'UPCOMING') return 'ACTIVE';
-    }
-    if (isEvaluation && hasScores && dbStatus === 'UPCOMING') return 'ACTIVE';
-
+  // Registration: green if roster uploaded, but only if not currently ACTIVE in DB
+  if (isRegistration) {
+    if (dbStatus === 'ACTIVE') return 'ACTIVE';
+    if (rosterCount > 0) return 'COMPLETED';
     return dbStatus;
-  };
+  }
 
+  // Team Formation: green if teams approved, blue if teams exist but none approved yet
+  if (isTeamFormation) {
+    if (dbStatus === 'ACTIVE') return 'ACTIVE';
+    if (dbStatus === 'COMPLETED') return 'COMPLETED';
+    if (approvedTeams.length > 0) return 'COMPLETED';
+    if (teams.length > 0) return 'ACTIVE';
+    return dbStatus;
+  }
+
+  // All other stages (rounds etc) — trust DB completely, no visual override
+  return dbStatus;
+};
   if (error) return (
     <div className="w-full p-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 mb-6">
       <p className="font-medium text-gray-600">{error}</p>

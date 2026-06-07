@@ -15,10 +15,11 @@ const JudgePortal = () => {
   const [tokenError, setTokenError] = useState(false);
 
   const [teams, setTeams] = useState([]);
-  const [scoredTeamIds, setScoredTeamIds] = useState([]); 
+  const [scoredTeamIds, setScoredTeamIds] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [score, setScore] = useState('');
   const [maxScore, setMaxScore] = useState(10);
+  const [currentRound, setCurrentRound] = useState(1);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
@@ -50,14 +51,15 @@ const JudgePortal = () => {
       .then(res => {
         if (res.data.status === 'found' && res.data.config.scoring) {
           setMaxScore(res.data.config.scoring.max_score || 10);
+          setCurrentRound((res.data.config.current_stage_index || 0) + 1);
         }
       }).catch(console.error);
 
     axios.get(`${API}/teams?qualified_only=true`)
-  .then(res => {
-    setTeams(res.data);
-    if (res.data.length > 0) setSelectedTeam(res.data[0]);
-  }).catch(console.error);
+      .then(res => {
+        setTeams(res.data);
+        if (res.data.length > 0) setSelectedTeam(res.data[0]);
+      }).catch(console.error);
 
     fetchScoredTeams();
   }, [judgeName]);
@@ -72,7 +74,7 @@ const JudgePortal = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTeam) return;
-    
+
     if (parseFloat(score) < 0 || parseFloat(score) > maxScore) {
       setSubmitStatus(`❌ Score must be between 0 and ${maxScore}.`);
       return;
@@ -87,12 +89,12 @@ const JudgePortal = () => {
         score: parseFloat(score),
         notes,
       });
-      
+
       setSubmitStatus(`✅ Score submitted for ${selectedTeam.name}!`);
       setScore('');
       setNotes('');
-      fetchScoredTeams(); 
-      
+      fetchScoredTeams();
+
     } catch (err) {
       setSubmitStatus(`❌ ${err.response?.data?.detail || 'Submission failed.'}`);
     } finally {
@@ -115,7 +117,6 @@ const JudgePortal = () => {
     </div>
   );
 
-  // Extract unique project links
   const uniqueProjectLinks = selectedTeam?.members
     ? Array.from(new Set(selectedTeam.members.map(m => m.project_link).filter(link => link && link.trim() !== '')))
     : [];
@@ -130,10 +131,18 @@ const JudgePortal = () => {
         </p>
       </div>
 
+      {/* Round banner */}
+      <div className="bg-blue-600 text-white px-8 py-3 flex items-center gap-3">
+        <span className="text-lg">🔄</span>
+        <span className="font-bold">Round {currentRound}</span>
+        <span className="text-blue-200 text-sm">— You are currently scoring for this round</span>
+        <span className="ml-auto text-blue-200 text-sm">Max score: <strong className="text-white">{maxScore}</strong></span>
+      </div>
+
       <div className="max-w-5xl mx-auto px-6 py-8">
         {teams.length === 0 ? (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">
-            <p className="font-semibold">No approved teams available yet.</p>
+            <p className="font-semibold">No approved teams available for this round.</p>
           </div>
         ) : (
           <>
@@ -147,14 +156,14 @@ const JudgePortal = () => {
                     className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all flex items-center gap-2 ${
                       selectedTeam?.id === t.id
                         ? 'bg-slate-900 text-white border-slate-900'
-                        : isScored 
-                          ? 'bg-green-50 text-green-700 border-green-200 hover:border-green-400' 
+                        : isScored
+                          ? 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'
                           : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
                     }`}
                   >
                     {t.name} {isScored && '✓'}
                   </button>
-                )
+                );
               })}
             </div>
 
@@ -163,12 +172,15 @@ const JudgePortal = () => {
                 <div>
                   <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
                     <h3 className="text-lg font-bold text-slate-900 mb-4">Team Portfolio & Projects</h3>
-                    
+
                     {uniqueProjectLinks.length > 0 && (
                       <div className="mb-6 pb-6 border-b border-slate-100 flex flex-wrap gap-3">
                         {uniqueProjectLinks.map((link, idx) => (
-                          <a 
-                            key={idx} href={link} target="_blank" rel="noreferrer" 
+                          <a
+                            key={idx}
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm text-sm"
                           >
                             📦 View Team Project {uniqueProjectLinks.length > 1 ? `#${idx + 1}` : ''}
@@ -211,7 +223,7 @@ const JudgePortal = () => {
                   <h3 className="text-lg font-bold text-slate-900 mb-4">
                     Evaluation — <span className="text-blue-600">{selectedTeam.name}</span>
                   </h3>
-                  
+
                   {scoredTeamIds.includes(selectedTeam.id) ? (
                     <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center mt-4">
                       <div className="text-green-500 text-5xl mb-4">✅</div>
