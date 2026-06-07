@@ -1,11 +1,9 @@
+import requests
 import os
-from google import genai
 from dotenv import load_dotenv
 
-# Force reload of environment variables
 load_dotenv(override=True)
 
-# Load keys
 GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY_1"),
     os.getenv("GEMINI_API_KEY_2"),
@@ -20,22 +18,16 @@ def call_gemini(prompt: str) -> str:
 
     for idx, key in enumerate(AVAILABLE_KEYS):
         try:
-            # Initialize the new GenAI Client
-            client = genai.Client(api_key=key)
-            
-            # Using the latest model
-            response = client.models.generate_content(
-                model='gemini-3.5-flash', 
-                contents=prompt
-            )
-            
-            return response.text
-            
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}]
+            }
+            response = requests.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
         except Exception as e:
-            error_msg = str(e)
-            print(f"❌ [GEMINI] Key #{idx + 1} failed: {error_msg}")
-            
-            # If we've tried all keys, raise the error
+            print(f"Key #{idx + 1} failed: {e}")
             if idx == len(AVAILABLE_KEYS) - 1:
-                raise Exception(f"All Gemini API keys failed. Last error: {error_msg}")
+                raise Exception(f"All Gemini API keys failed. Last error: {e}")
             continue
