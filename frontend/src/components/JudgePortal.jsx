@@ -53,12 +53,11 @@ const JudgePortal = () => {
         }
       }).catch(console.error);
 
-    axios.get(`${API}/teams`)
-      .then(res => {
-        const approved = res.data.filter(t => t.status === 'APPROVED');
-        setTeams(approved);
-        if (approved.length > 0) setSelectedTeam(approved[0]);
-      }).catch(console.error);
+    axios.get(`${API}/teams?qualified_only=true`)
+  .then(res => {
+    setTeams(res.data);
+    if (res.data.length > 0) setSelectedTeam(res.data[0]);
+  }).catch(console.error);
 
     fetchScoredTeams();
   }, [judgeName]);
