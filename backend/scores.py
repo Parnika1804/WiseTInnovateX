@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from email_service import send_email
 from activity import log_action
-from gemini import call_gemini  # <-- ADDED THIS: Importing the AI function
+from gemini import call_gemini
 import json
 
 router = APIRouter()
@@ -39,39 +39,35 @@ def check_anomaly(scores: list, new_score: float, max_score: float = 10.0) -> bo
 @router.get("/scores/assessment-guide/{team_id}")
 def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
     team = db.query(Team).filter(Team.id == team_id).first()
-
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
     config = get_dynamic_scoring_config(db)
     max_score = config.get("max_score", 10.0) if config else 10.0
 
-    # Extract the specific skills of the members on this team
     member_ids = []
     if team.member_ids:
         try:
             member_ids = json.loads(team.member_ids)
         except:
             pass
-            
+
     members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
     skills = [m.skill for m in members if m.skill]
     skills_str = ", ".join(skills) if skills else "General"
 
-    # THE FIX: Dynamically generate the rubric using Gemini
     prompt = f"""You are an expert hackathon judge. 
     Create a concise, structured assessment guide (rubric) for evaluating a team that has the following combined skills: {skills_str}.
     The maximum score they can receive is {max_score}.
     Keep it to 3-4 bullet points focusing on what to look for based on their specific technical stack and skills. 
     Do not include introductory text, just the bullet points."""
-    
+
     try:
         guide = call_gemini(prompt)
     except Exception as e:
         print(f"AI Generation Failed: {e}")
-        # Fallback just in case API limits are hit
         guide = f"Evaluate this team based on the configured criteria. Maximum score allowed is {max_score}. Focus on their specific skill integration: {skills_str}."
-    
+
     return {"max_score": max_score, "assessment_guide": guide.strip()}
 
 # ---------------------------------------------------------
@@ -79,12 +75,11 @@ def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/scores/submit")
 def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
-    # 1. ENFORCE SINGLE SUBMISSION: Check if judge already scored this team
     existing = db.query(Score).filter(
-        Score.team_id == request.team_id, 
+        Score.team_id == request.team_id,
         Score.judge_name == request.judge_name
     ).first()
-    
+
     if existing:
         raise HTTPException(status_code=400, detail="You have already submitted a score for this team.")
 
@@ -92,8 +87,9 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    config = get_dynamic_scoring_config(db)
-    max_score = config.get("max_score", 10.0) if config else 10.0
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
+    current_round = (config.current_stage_index or 0) + 1 if config else 1
 
     if request.score < 0 or request.score > max_score:
         raise HTTPException(status_code=400, detail=f"Score must be between 0 and {max_score}")
@@ -106,9 +102,10 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
         judge_name=request.judge_name,
         score=request.score,
         notes=request.notes,
-        anomaly_flagged=is_anomaly
+        anomaly_flagged=is_anomaly,
+        round_number=current_round
     )
-    
+
     db.add(new_score)
     db.commit()
 
@@ -116,7 +113,7 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
 
     if is_anomaly:
         return {"message": "Score submitted.", "warning": "Your score deviates significantly from the panel average and has been flagged for committee review."}
-    
+
     return {"message": "Score submitted successfully"}
 
 # ---------------------------------------------------------
@@ -124,23 +121,35 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.get("/scores/judge/{judge_name}")
 def get_judge_scores(judge_name: str, db: Session = Depends(get_db)):
-    """Returns a list of teams this judge has successfully evaluated."""
     scores = db.query(Score).filter(Score.judge_name == judge_name).all()
     return [{"team_id": s.team_id, "score": s.score} for s in scores]
 
 # ---------------------------------------------------------
-# Leaderboard & Anomalies
+# Leaderboard
 # ---------------------------------------------------------
 @router.get("/scores/leaderboard")
 def get_leaderboard(db: Session = Depends(get_db)):
-    teams = db.query(Team).all()
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    max_score = 10.0
+    current_round = 1
+
+    if config:
+        scoring = json.loads(config.scoring)
+        max_score = scoring.get("max_score", 10.0)
+        current_round = (config.current_stage_index or 0) + 1
+
+    teams = db.query(Team).filter(
+        Team.status == "APPROVED",
+        Team.is_qualified == True
+    ).all()
+
     leaderboard = []
-
-    config = get_dynamic_scoring_config(db)
-    max_score = config.get("max_score", 10.0) if config else 10.0
-
     for t in teams:
-        scores = db.query(Score).filter(Score.team_id == t.id).all()
+        scores = db.query(Score).filter(
+            Score.team_id == t.id,
+            Score.round_number == current_round
+        ).all()
+
         if not scores:
             continue
 
@@ -150,8 +159,10 @@ def get_leaderboard(db: Session = Depends(get_db)):
         leaderboard.append({
             "team_id": t.id,
             "team_name": t.name,
-            "average_score": avg,
+            "average_score": round(avg, 2),
             "max_score": max_score,
+            "current_round": current_round,
+            "is_qualified": t.is_qualified,
             "results_on_hold": has_anomaly,
             "has_anomaly": has_anomaly,
             "scores": [
@@ -168,6 +179,9 @@ def get_leaderboard(db: Session = Depends(get_db)):
     leaderboard.sort(key=lambda x: x["average_score"], reverse=True)
     return leaderboard
 
+# ---------------------------------------------------------
+# Anomalies
+# ---------------------------------------------------------
 @router.get("/scores/anomalies")
 def get_anomalies(db: Session = Depends(get_db)):
     anomalies = db.query(Score).filter(Score.anomaly_flagged == True).all()
@@ -194,7 +208,6 @@ def get_anomalies(db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/scores/resolve/{score_id}")
 def resolve_anomaly(score_id: int, db: Session = Depends(get_db)):
-    """Approves the score and clears the hold on the team."""
     score = db.query(Score).filter(Score.id == score_id).first()
     if not score:
         raise HTTPException(status_code=404, detail="Score not found")
@@ -207,7 +220,6 @@ def resolve_anomaly(score_id: int, db: Session = Depends(get_db)):
 
 @router.post("/scores/reject/{score_id}")
 def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
-    """Deletes an anomalous score and emails the judge to re-evaluate."""
     score = db.query(Score).filter(Score.id == score_id).first()
     if not score:
         raise HTTPException(status_code=404, detail="Score not found")
@@ -235,20 +247,20 @@ def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
     )
 
     return {"message": "Anomaly rejected. Score deleted and judge notified for re-scoring."}
+
 # ---------------------------------------------------------
-# Finalize Evaluation & Trigger Results
+# Finalize Evaluation
 # ---------------------------------------------------------
 @router.post("/scores/finalize")
 def finalize_evaluation(db: Session = Depends(get_db)):
-    """Ends the evaluation phase, runs the AI advancement logic, and drafts emails."""
     from email_triggers import send_results_emails
-    
+
     try:
         result = send_results_emails(db)
         log_action(
-            db=db, 
-            action="EVALUATION_ENDED", 
-            description="Committee finalized the evaluation round and triggered AI progression logic.", 
+            db=db,
+            action="EVALUATION_ENDED",
+            description="Committee finalized the evaluation round and triggered AI progression logic.",
             performed_by="committee"
         )
         return {"message": "Evaluation finalized and emails drafted successfully.", "result": result}

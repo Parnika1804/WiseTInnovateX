@@ -25,6 +25,8 @@ migrations = [
     ("activity_logs",       "target_entity",        "TEXT"),
     ("activity_logs",       "target_id",            "INTEGER"),
     ("activity_logs",       "ip_address",           "TEXT"),
+    ("teams",  "is_qualified",  "BOOLEAN NOT NULL DEFAULT 1"),
+    ("scores", "round_number",  "INTEGER NOT NULL DEFAULT 1"),
 ]
 
 for table, column, definition in migrations:

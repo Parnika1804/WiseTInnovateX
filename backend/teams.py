@@ -232,14 +232,21 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
     return {"message": f"Team {team.name} has been {request.action}", "team_id": team.id, "status": team.status}
 
 @router.get("/teams")
-def get_teams(db: Session = Depends(get_db)):
-    teams = db.query(Team).all()
+def get_teams(qualified_only: bool = False, db: Session = Depends(get_db)):
+    query = db.query(Team)
+    
+    if qualified_only:
+        query = query.filter(
+            Team.status == "APPROVED",
+            Team.is_qualified == True
+        )
+    
+    teams = query.all()
     result = []
     for t in teams:
         member_ids = json.loads(t.member_ids)
         members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
-        
-        # We attach the full profile including the submitted project links here
+
         result.append({
             "id": t.id,
             "name": t.name,
@@ -256,6 +263,7 @@ def get_teams(db: Session = Depends(get_db)):
             ],
             "rationale": t.rationale,
             "status": t.status,
+            "is_qualified": t.is_qualified,
             "event_config_id": t.event_config_id
         })
     return result
