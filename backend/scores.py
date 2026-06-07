@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Team, Score, Participant, EventConfig, User
+from models import Team, Score, Participant, EventConfig, User, CommunicationLog
 from pydantic import BaseModel
 from datetime import datetime
 from email_service import send_email
 from activity import log_action
 from gemini import call_gemini
 import json
+import uuid
 
 router = APIRouter()
 
@@ -251,19 +252,119 @@ def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # Finalize Evaluation
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# Finalize Evaluation
+# ---------------------------------------------------------
 @router.post("/scores/finalize")
 def finalize_evaluation(db: Session = Depends(get_db)):
-    from email_triggers import send_results_emails
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    event_name = config.event_name if config else "the event"
+    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
+    current_round = (config.current_stage_index or 0) + 1 if config else 1
 
-    try:
-        result = send_results_emails(db)
-        log_action(
-            db=db,
-            action="EVALUATION_ENDED",
-            description="Committee finalized the evaluation round and triggered AI progression logic.",
-            performed_by="committee"
-        )
-        return {"message": "Evaluation finalized and emails drafted successfully.", "result": result}
-    except Exception as e:
-        print(f"Error finalizing: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to finalize evaluation: {str(e)}")
+    # 1. Get all qualified approved teams
+    teams = db.query(Team).filter(
+        Team.status == "APPROVED",
+        Team.is_qualified == True
+    ).all()
+
+    if not teams:
+        raise HTTPException(status_code=400, detail="No qualified teams found to finalize.")
+
+    # 2. Calculate final average scores
+    team_scores = []
+    for team in teams:
+        scores = db.query(Score).filter(
+            Score.team_id == team.id,
+            Score.round_number == current_round
+        ).all()
+        avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
+        team_scores.append({
+            "team": team,
+            "avg": round(avg, 2)
+        })
+
+    # 3. Sort by score — top 3 are winners
+    team_scores.sort(key=lambda x: x["avg"], reverse=True)
+
+    medals = {0: "🥇 1st Place", 1: "🥈 2nd Place", 2: "🥉 3rd Place"}
+    batch_id = str(uuid.uuid4())
+    drafted_count = 0
+
+    # 4. Draft emails for all teams
+    for idx, entry in enumerate(team_scores):
+        team = entry["team"]
+        avg = entry["avg"]
+        member_ids = json.loads(team.member_ids)
+        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+
+        is_winner = idx < 3
+        rank_label = medals.get(idx, f"#{idx + 1}")
+
+        for member in members:
+            if is_winner:
+                prompt = f"""You are an event coordinator announcing final results for {event_name}.
+Participant Name: {member.name}
+Team: {team.name}
+Final Rank: {rank_label}
+Final Score: {avg} / {max_score}
+
+Write a warm, celebratory email (4-5 sentences). Address them by name, announce their rank with excitement, congratulate their team, mention their score, end with encouragement for the future. No subject line."""
+                subject = f"{rank_label} — {team.name} | {event_name} Final Results"
+            else:
+                prompt = f"""You are an event coordinator announcing final results for {event_name}.
+Participant Name: {member.name}
+Team: {team.name}
+Final Rank: #{idx + 1}
+Final Score: {avg} / {max_score}
+
+Write a warm thank you email (3-4 sentences). Address them by name, thank them for participating, mention their final score, encourage them to keep building. No subject line."""
+                subject = f"Final Results — {event_name} | Thank You for Participating"
+
+            try:
+                body = call_gemini(prompt)
+            except:
+                if is_winner:
+                    body = f"Dear {member.name}, congratulations! Your team {team.name} has achieved {rank_label} at {event_name} with a score of {avg}/{max_score}. Amazing work!"
+                else:
+                    body = f"Dear {member.name}, thank you for participating in {event_name}. Your team {team.name} finished #{idx + 1} with a score of {avg}/{max_score}. Keep building!"
+
+            log = CommunicationLog(
+                recipient_email=member.email,
+                subject=subject,
+                message=body,
+                comm_type="FINAL_RESULTS",
+                status="PENDING_APPROVAL",
+                batch_id=batch_id
+            )
+            db.add(log)
+            drafted_count += 1
+
+    db.commit()
+
+    # 5. Build podium response
+    podium = []
+    for idx, entry in enumerate(team_scores[:3]):
+        podium.append({
+            "rank": idx + 1,
+            "medal": medals.get(idx),
+            "team_name": entry["team"].name,
+            "team_id": entry["team"].id,
+            "final_score": entry["avg"]
+        })
+
+    log_action(
+        db=db,
+        action="EVALUATION_FINALIZED",
+        description=f"Final results declared. Winner: {team_scores[0]['team'].name}. {drafted_count} result emails drafted for approval.",
+        performed_by="committee"
+    )
+
+    return {
+        "message": "Final results declared successfully.",
+        "podium": podium,
+        "total_teams": len(team_scores),
+        "emails_drafted": drafted_count,
+        "batch_id": batch_id,
+        "note": "Go to Pending Approvals to review and send result emails."
+    }

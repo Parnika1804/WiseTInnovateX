@@ -77,7 +77,12 @@ def advance_pipeline(db: Session = Depends(get_db)):
     event_name = config.event_name
     scoring_config = json.loads(config.scoring)
     max_score = scoring_config.get("max_score", 10)
-    advancement_rule = scoring_config.get("advancement_rule", "Top 50% advance")
+    advancement_rules = scoring_config.get("advancement_rules", [])
+    current_round_rule = next(
+        (r["rule"] for r in advancement_rules if r["round"] == current_index + 1),
+        scoring_config.get("advancement_rule", "Top 50% advance")  # fallback to global rule
+    )
+    advancement_rule = current_round_rule
 
     # 2. Get all approved teams and their scores for current round
     approved_teams = db.query(Team).filter(
