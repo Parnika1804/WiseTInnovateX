@@ -130,8 +130,17 @@ const Leaderboard = ({ refreshTrigger }) => {
       )}
 
       {/* 🏆 LIVE LEADERBOARD 🏆 */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
+{leaderboard.length > 0 && (
+  <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3">
+    <span className="text-blue-600 text-xl">🔄</span>
+    <div>
+      <span className="font-bold text-blue-800">Round {leaderboard[0].current_round}</span>
+      <span className="text-blue-600 text-sm ml-2">— Currently active evaluation round</span>
+    </div>
+  </div>
+)}
+<div className="flex justify-between items-center mb-4">
+  <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
         
         {/* NEW END EVALUATION BUTTON */}
         <button
