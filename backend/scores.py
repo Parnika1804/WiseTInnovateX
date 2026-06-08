@@ -198,16 +198,10 @@ def get_finalized_podium(db: Session = Depends(get_db)):
     if not log:
         return {"finalized": False, "podium": None}
 
-    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    current_round = (config.current_stage_index or 0) + 1 if config else 1
-
     teams = db.query(Team).filter(Team.status == "APPROVED").all()
     team_scores = []
     for team in teams:
-        scores = db.query(Score).filter(
-            Score.team_id == team.id,
-            Score.round_number == current_round
-        ).all()
+        scores = db.query(Score).filter(Score.team_id == team.id).all()
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores.append({"team": team, "avg": round(avg, 2)})
 
@@ -298,7 +292,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
     max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
-    current_round = (config.current_stage_index or 0) + 1 if config else 1
 
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
@@ -310,10 +303,7 @@ def finalize_evaluation(db: Session = Depends(get_db)):
 
     team_scores = []
     for team in teams:
-        scores = db.query(Score).filter(
-            Score.team_id == team.id,
-            Score.round_number == current_round
-        ).all()
+        scores = db.query(Score).filter(Score.team_id == team.id).all()
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores.append({"team": team, "avg": round(avg, 2)})
 
