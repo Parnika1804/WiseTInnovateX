@@ -188,3 +188,64 @@ def trigger_stage_emails(stage_name: str, db: Session) -> dict:
         drafted_count += 1
 
     return {"triggered": True, "stage": stage_name, "stage_emails_drafted": drafted_count, "status": "PENDING_APPROVAL", "batch_id": batch_id}
+def send_mentor_emails(db: Session) -> dict:
+    from models import Mentor
+    batch_id = str(uuid.uuid4())
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    event_name = config.event_name if config else "the event"
+
+    mentors = db.query(Mentor).filter(Mentor.assigned_team_id != None).all()
+    drafted_count = 0
+
+    for mentor in mentors:
+        team = db.query(Team).filter(Team.id == mentor.assigned_team_id).first()
+        if not team:
+            continue
+
+        member_ids = json.loads(team.member_ids)
+        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        member_details = [{"name": m.name, "email": m.email, "skill": m.skill} for m in members]
+
+        # Email to mentor
+        mentor_prompt = f"""You are an event coordinator. Write a professional email to a mentor informing them of their assigned team.
+Event: {event_name}
+Mentor Name: {mentor.name}
+Assigned Team: {team.name}
+Team Members: {', '.join([f"{m['name']} ({m['skill']})" for m in member_details])}
+Team Member Emails: {', '.join([m['email'] for m in member_details])}
+
+Write a warm 3-4 sentence email introducing them to their team, listing member names, skills, and contact emails, and encouraging them to reach out soon. Do not include a subject line."""
+
+        mentor_body = call_gemini(mentor_prompt)
+        mentor_subject = f"Your Mentorship Assignment — {team.name} | {event_name}"
+        _save_as_draft(db, mentor.email, mentor_subject, mentor_body, comm_type="MENTOR_ASSIGNMENT", batch_id=batch_id)
+        drafted_count += 1
+
+        # Email to each participant about their mentor
+        for member in members:
+            teammates = [m for m in members if m.id != member.id]
+            teammate_details = ', '.join([f"{t.name} ({t.skill}, {t.email})" for t in teammates])
+
+            participant_prompt = f"""You are an event coordinator. Write a warm email to a participant introducing their mentor and teammates.
+Event: {event_name}
+Participant Name: {member.name}
+Team Name: {team.name}
+Mentor Name: {mentor.name}
+Mentor Email: {mentor.email}
+Mentor Expertise: {mentor.expertise or 'General'}
+Mentor Phone: {mentor.phone or 'Not provided'}
+Teammates: {teammate_details}
+
+Write a 4-5 sentence email that introduces their mentor with contact details, lists their teammates with skills and emails, and encourages them to connect with both. Do not include a subject line."""
+
+            participant_body = call_gemini(participant_prompt)
+            participant_subject = f"Meet Your Mentor & Teammates — {team.name} | {event_name}"
+            _save_as_draft(db, member.email, participant_subject, participant_body, comm_type="MENTOR_INTRO", batch_id=batch_id)
+            drafted_count += 1
+
+    return {
+        "mentor_emails_drafted": drafted_count,
+        "batch_id": batch_id,
+        "status": "PENDING_APPROVAL",
+        "note": "Mentor and participant intro emails queued for committee approval."
+    }

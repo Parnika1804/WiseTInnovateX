@@ -8,6 +8,7 @@ from gemini import call_gemini
 from tasks import generate_team_rationale
 from activity import log_action
 import json
+from models import Mentor
 
 router = APIRouter()
 
@@ -137,6 +138,11 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
             member_skills=member_skills,
             institutions=institutions
         )
+        unassigned_mentors = db.query(Mentor).filter(Mentor.assigned_team_id == None).all()
+        if unassigned_mentors:
+            mentor = unassigned_mentors[0]
+            mentor.assigned_team_id = new_team.id
+            db.commit()
     return {
         "message": f"{len(created_team_records)} teams generated successfully",
         "config_source": config_source,

@@ -122,3 +122,13 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+class Mentor(Base):
+    __tablename__ = "mentors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    expertise = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    assigned_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -17,6 +17,7 @@ const ParticipantPortal = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [currentRound, setCurrentRound] = useState(null);
   const [finalResults, setFinalResults] = useState(null);
+  const [mentor, setMentor] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -47,6 +48,18 @@ const ParticipantPortal = () => {
 
       setData(portalRes.data);
 
+      // Fetch mentor assigned to participant's team
+      try {
+        const mentorsRes = await axios.get(`${API}/mentors`);
+        const teamId = portalRes.data.team?.id;
+        if (teamId) {
+          const assigned = mentorsRes.data.find(m => m.assigned_team_id === teamId);
+          if (assigned) setMentor(assigned);
+        }
+      } catch (e) {
+        console.log("No mentor data available");
+      }
+
       // Fetch current round configuration
       const configRes = await axios.get(`${API}/event/config`);
       if (configRes.data.status === 'found') {
@@ -55,16 +68,14 @@ const ParticipantPortal = () => {
         const round = scoring?.current_round || 1;
         setCurrentRound(round);
 
-        // CHECK MEMORY: Does this user already have a saved confirmation for this round?
         const confirmKey = `confirmed_part_${participant.id}_round_${round}`;
         if (localStorage.getItem(confirmKey) === 'true') {
           setConfirmed(true);
         } else {
-          setConfirmed(false); // Resets if they enter a new round
+          setConfirmed(false);
         }
       }
 
-      // Check if the event is completely finished
       const finalRes = await axios.get(`${API}/scores/finalized`);
       if (finalRes.data.finalized) {
          setFinalResults(finalRes.data.podium);
@@ -80,7 +91,6 @@ const ParticipantPortal = () => {
     try {
       await axios.post(`${API}/participant/${data.participant.id}/confirm`);
       setConfirmed(true);
-      // SAVE TO MEMORY: Locks in the confirmation so it survives refreshes
       localStorage.setItem(`confirmed_part_${data.participant.id}_round_${currentRound}`, 'true');
     } catch (err) {
       alert("Failed to confirm progression.");
@@ -100,9 +110,7 @@ const ParticipantPortal = () => {
   const isEliminated = data.team && data.team.is_qualified === false;
   const myWin = finalResults ? finalResults.find(p => p.team_id === data.team?.id) : null;
 
-  // ==========================================
   // STATE 1: EVENT FINALIZED AND USER IS A WINNER
-  // ==========================================
   if (finalResults && myWin) return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -122,9 +130,7 @@ const ParticipantPortal = () => {
     </div>
   );
 
-  // ==========================================
   // STATE 2: EVENT FINALIZED OR USER ELIMINATED
-  // ==========================================
   if ((finalResults && !myWin) || isEliminated) return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -132,7 +138,6 @@ const ParticipantPortal = () => {
           <h2 className="text-2xl font-bold mb-1">Hacker Portal</h2>
           <p className="text-slate-300 m-0">Welcome back, <strong className="text-white">{data.participant.name}</strong></p>
         </div>
-
         <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
           <div className="text-5xl mb-4 grayscale">🏁</div>
           <h3 className="text-xl font-bold text-slate-800 mb-2">Event Concluded</h3>
@@ -144,9 +149,7 @@ const ParticipantPortal = () => {
     </div>
   );
 
-  // ==========================================
   // STATE 3: ACTIVE COMPETITION
-  // ==========================================
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -163,24 +166,18 @@ const ParticipantPortal = () => {
           )}
         </div>
 
-        {/* WELCOME TO ROUND 1 MESSAGE */}
         {data.progression?.is_qualified && currentRound === 1 && (
-           <div className="p-6 rounded-xl mb-8 border shadow-sm bg-blue-50 border-blue-200">
+          <div className="p-6 rounded-xl mb-8 border shadow-sm bg-blue-50 border-blue-200">
             <div className="flex items-start gap-4">
               <div className="text-3xl">🚀</div>
               <div className="flex-1">
-                <h4 className="text-lg font-bold mb-1 text-blue-900">
-                  Welcome to the Hackathon!
-                </h4>
-                <p className="text-sm mb-0 text-blue-800">
-                  Round 1 is currently active. Work with your team to build your project. Judges will begin evaluating soon!
-                </p>
+                <h4 className="text-lg font-bold mb-1 text-blue-900">Welcome to the Hackathon!</h4>
+                <p className="text-sm mb-0 text-blue-800">Round 1 is currently active. Work with your team to build your project. Judges will begin evaluating soon!</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* ADVANCEMENT MESSAGE (ONLY SHOWS FOR ROUND 2 AND ABOVE) */}
         {data.progression?.is_qualified && currentRound > 1 && (
           <div className={`p-6 rounded-xl mb-8 border shadow-sm transition-colors ${confirmed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex items-start gap-4">
@@ -241,14 +238,26 @@ const ParticipantPortal = () => {
                     <strong>Notice:</strong> Your proposed team formation was reviewed and rejected by the committee. Please await re-assignment or further instructions.
                   </div>
                 ) : (
-                  <ul className="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                    {data.team_members.map((m, idx) => (
-                      <li key={idx} className="text-sm text-slate-700 flex justify-between">
-                        <span className="font-medium">{m.name}</span>
-                        <span className="text-slate-500">{m.skill}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div>
+                    <ul className="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                      {data.team_members.map((m, idx) => (
+                        <li key={idx} className="text-sm text-slate-700 flex justify-between">
+                          <span className="font-medium">{m.name}</span>
+                          <span className="text-slate-500">{m.skill}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {mentor && (
+                      <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        <p className="text-sm font-bold text-indigo-800 mb-2">🧑‍🏫 Your Mentor</p>
+                        <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
+                        <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
+                        {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}
+                        {mentor.phone && <p className="text-sm text-indigo-700"><strong>Phone:</strong> {mentor.phone}</p>}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (

@@ -23,6 +23,7 @@ const JudgePortal = () => {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
+  const [mentors, setMentors] = useState([]);
 
   useEffect(() => {
     if (!token) { setTokenError(true); return; }
@@ -52,7 +53,6 @@ const JudgePortal = () => {
         if (res.data.status === 'found') {
           let scoring = res.data.config.scoring;
           if (typeof scoring === 'string') scoring = JSON.parse(scoring);
-          
           if (scoring) {
             setMaxScore(scoring.max_score || 10);
             setCurrentRound(scoring.current_round || 1);
@@ -60,7 +60,6 @@ const JudgePortal = () => {
         }
       }).catch(console.error);
 
-    // This fetches ONLY teams that survived the elimination cuts
     axios.get(`${API}/teams?qualified_only=true`)
       .then(res => {
         setTeams(res.data);
@@ -68,6 +67,10 @@ const JudgePortal = () => {
       }).catch(console.error);
 
     fetchScoredTeams();
+
+    axios.get(`${API}/mentors`)
+      .then(res => setMentors(res.data))
+      .catch(console.error);
   }, [judgeName]);
 
   const fetchScoredTeams = () => {
@@ -178,6 +181,18 @@ const JudgePortal = () => {
                   <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
                     <h3 className="text-lg font-bold text-slate-900 mb-4">Team Portfolio & Projects</h3>
 
+                    {(() => {
+                      const mentor = mentors.find(m => m.assigned_team_id === selectedTeam.id);
+                      return mentor ? (
+                        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                          <p className="text-sm font-bold text-indigo-800 mb-1">🧑‍🏫 Assigned Mentor</p>
+                          <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
+                          <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
+                          {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}
+                        </div>
+                      ) : null;
+                    })()}
+
                     {uniqueProjectLinks.length > 0 && (
                       <div className="mb-6 pb-6 border-b border-slate-100 flex flex-wrap gap-3">
                         {uniqueProjectLinks.map((link, idx) => (
@@ -238,14 +253,14 @@ const JudgePortal = () => {
                       </p>
                     </div>
                   ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">
                           Final Score (0–{maxScore})
                         </label>
                         <input
                           type="number" step="0.1" min="0" max={maxScore}
-                          value={score} onChange={e => setScore(e.target.value)} required
+                          value={score} onChange={e => setScore(e.target.value)}
                           className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder={`Max ${maxScore}`}
                         />
@@ -253,14 +268,15 @@ const JudgePortal = () => {
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">Evaluation Notes</label>
                         <textarea
-                          value={notes} onChange={e => setNotes(e.target.value)} required
+                          value={notes} onChange={e => setNotes(e.target.value)}
                           rows={5}
                           className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
                           placeholder="Provide reasoning for your score..."
                         />
                       </div>
                       <button
-                        type="submit" disabled={submitting}
+                        onClick={handleSubmit}
+                        disabled={submitting || !score || !notes}
                         className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-lg font-bold transition-colors"
                       >
                         {submitting ? 'Submitting...' : `Lock in Score for Round ${currentRound}`}
@@ -272,7 +288,7 @@ const JudgePortal = () => {
                           {submitStatus}
                         </div>
                       )}
-                    </form>
+                    </div>
                   )}
                 </div>
               </div>
