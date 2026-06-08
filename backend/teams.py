@@ -21,10 +21,6 @@ class ManualConfig(BaseModel):
 
 @router.post("/teams/translate-rubric")
 def translate_rubric(request: FormationPrompt):
-    """
-    Takes a plain English sentence from the Committee and uses Gemini
-    to translate it into a strict JSON rubric for team formation.
-    """
     system_prompt = f"""You are an AI configuration assistant for a hackathon. 
     The committee will give you a plain English requirement for how teams should be formed.
     You must convert their request into a strict, valid JSON object exactly matching this structure:
@@ -58,7 +54,6 @@ def translate_rubric(request: FormationPrompt):
 
 @router.post("/teams/generate")
 def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = Depends(get_db)):
-    # 1. Determine active configuration
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     
     team_size = 4
@@ -76,7 +71,6 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
         team_size = manual_config.team_size
         skill_balance = manual_config.skill_balance
 
-    # 2. Get unassigned, approved participants
     existing_teams = db.query(Team).all()
     assigned_ids = set()
     for t in existing_teams:
@@ -90,24 +84,20 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
     if not available_participants:
         raise HTTPException(status_code=400, detail="No unassigned approved participants available to form teams.")
 
-    # 3. Algorithmic Sorting Engine
     formed_teams = []
     if skill_balance:
-        # Group by skill for balanced distribution
         skill_buckets = {}
         for p in available_participants:
             skill_buckets.setdefault(p.skill, []).append(p)
         
         while any(skill_buckets.values()):
             current_team = []
-            # Pull one from each skill bucket until team is full
             for skill in list(skill_buckets.keys()):
                 if len(current_team) >= team_size:
                     break
                 if skill_buckets[skill]:
                     current_team.append(skill_buckets[skill].pop(0))
             
-            # If team is not full but buckets are running dry, fill with whoever is left
             if len(current_team) < team_size:
                 for skill in list(skill_buckets.keys()):
                     while skill_buckets[skill] and len(current_team) < team_size:
@@ -116,11 +106,9 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
             if current_team:
                 formed_teams.append(current_team)
     else:
-        # Simple chunking if diversity isn't requested
         for i in range(0, len(available_participants), team_size):
             formed_teams.append(available_participants[i:i + team_size])
 
-    # 4. Save to DB and trigger asynchronous AI rationale tasks
     created_team_records = []
     base_team_number = db.query(Team).count() + 1
 
@@ -142,7 +130,6 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
         db.refresh(new_team)
         created_team_records.append(new_team)
 
-        # Dispatch Celery background task
         generate_team_rationale.delay(
             team_id=new_team.id,
             team_name=new_team.name,
@@ -186,9 +173,8 @@ def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get
         target_id=team.id
     )
     
-    # Auto-send team assignment or rejection emails when status changes
     try:
-        from email_triggers import _save_and_send
+        from email_triggers import _save_as_draft
         config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
         event_name = config.event_name if config else "the event"
         
@@ -210,9 +196,8 @@ Write a concise welcome email (3-4 sentences) that announces their assignment, l
                 
                 body = call_gemini(prompt)
                 subject = f"Your Team Assignment — {team.name} | {event_name}"
-                _save_and_send(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_ASSIGNMENT")
+                _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_ASSIGNMENT")
                 
-        # NEW FIX: Dispatch automated emails to REJECTED teams as well
         elif request.action == "REJECTED":
             for member in members:
                 prompt = f"""You are an event coordinator. Write a polite and reassuring email to a hackathon participant informing them that their proposed team was not approved by the committee.
@@ -224,7 +209,7 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
                 
                 body = call_gemini(prompt)
                 subject = f"Update on Your Team Assignment | {event_name}"
-                _save_and_send(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_REJECTED")
+                _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_REJECTED")
                 
     except Exception as e:
         print(f"[TEAM STATUS EMAIL ERROR] {e}")
