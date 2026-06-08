@@ -14,6 +14,7 @@ const ParticipantPortal = () => {
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [currentRound, setCurrentRound] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -27,7 +28,6 @@ const ParticipantPortal = () => {
     try {
       const meRes = await axios.get(`${API}/auth/me?token=${token}`);
       const { id, name, email, role } = meRes.data;
-
       login({ token, user: { id, name, email, role } });
 
       const portalRes = await axios.get(`${API}/participant/me/${email}`);
@@ -44,6 +44,11 @@ const ParticipantPortal = () => {
       }
 
       setData(portalRes.data);
+
+      const configRes = await axios.get(`${API}/event/config`);
+      if (configRes.data.status === 'found') {
+        setCurrentRound((configRes.data.config.current_stage_index || 0) + 1);
+      }
     } catch (err) {
       setError("Failed to load portal data. Invalid token or server error.");
     }
@@ -69,7 +74,6 @@ const ParticipantPortal = () => {
 
   if (!data) return <div className="p-8 text-center text-gray-500 font-medium mt-10">Loading Secure Portal...</div>;
 
-  // Eliminated state — team exists but is not qualified
   const isEliminated = data.team && data.team.is_qualified === false;
 
   if (isEliminated) return (
@@ -116,7 +120,6 @@ const ParticipantPortal = () => {
                     ? "You've successfully confirmed your attendance for the next round. Keep an eye on your email for further instructions."
                     : data.progression.message}
                 </p>
-
                 {!confirmed && (
                   <button
                     onClick={handleConfirm}
@@ -136,6 +139,9 @@ const ParticipantPortal = () => {
             <h4 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Current Status</h4>
             <div className="space-y-3">
               <p className="text-sm"><strong className="text-slate-600">Stage:</strong> <span className="font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{data.current_stage?.label || 'INTAKE'}</span></p>
+              {currentRound && (
+                <p className="text-sm"><strong className="text-slate-600">Current Round:</strong> <span className="font-medium bg-purple-50 text-purple-700 px-2 py-0.5 rounded">Round {currentRound}</span></p>
+              )}
               <p className="text-sm"><strong className="text-slate-600">Skill Track:</strong> <span className="font-medium">{data.participant.skill}</span></p>
               <p className="text-sm"><strong className="text-slate-600">Institution:</strong> <span className="font-medium">{data.participant.institution || 'N/A'}</span></p>
             </div>

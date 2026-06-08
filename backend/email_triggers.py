@@ -41,9 +41,9 @@ def send_welcome_emails(participants: list, event_name: str, db: Session) -> dic
         prompt = f"You are an event coordinator. Write a warm, concise welcome email (3-4 sentences) for a participant joining an event.\nEvent: {event_name}\nParticipant Name: {p.name}\nParticipant Email: {p.email}\nSkills: {p.skill}\nThe email should: Welcome them by name to the event, Confirm their registration has been received, Tell them to watch their inbox for team assignment details, Wish them good luck. Do not include a subject line. Just the email body."
         body = call_gemini(prompt)
         subject = f"Welcome to {event_name} — You're registered!"
-        _save_and_send(db, p.email, subject, body, comm_type="WELCOME")
+        _save_as_draft(db, p.email, subject, body, comm_type="WELCOME")
         sent_count += 1
-    return {"welcome_emails_sent": sent_count}
+    return {"welcome_emails_drafted": sent_count}
 
 def send_team_assignment_emails(team: Team, members: list, event_name: str, db: Session) -> dict:
     member_names = [m.name for m in members]
@@ -53,9 +53,9 @@ def send_team_assignment_emails(team: Team, members: list, event_name: str, db: 
         prompt = f"You are an event coordinator. Write a warm team assignment email for a hackathon participant.\nEvent: {event_name}\nTeam Name: {team.name}\nRecipient Name: {member.name}\nTeam Members: {', '.join(member_names)}\nTeam Skills: {', '.join(member_skills)}\nThe email should (3-4 sentences): Address them by name and announce their team assignment, List all team members and their skills, Encourage them to connect with teammates soon, Mention the event is starting and wish them success. Do not include a subject line. Just the email body."
         body = call_gemini(prompt)
         subject = f"Your Team Assignment — {team.name} | {event_name}"
-        _save_and_send(db, member.email, subject, body, comm_type="TEAM_ASSIGNMENT")
+        _save_as_draft(db, member.email, subject, body, comm_type="TEAM_ASSIGNMENT")
         sent_count += 1
-    return {"team_assignment_emails_sent": sent_count}
+    return {"team_assignment_emails_drafted": sent_count}
 
 def send_evaluation_reminder_emails(db: Session, batch_id: str = None) -> dict:
     if batch_id is None: batch_id = str(uuid.uuid4())
@@ -91,11 +91,10 @@ def send_results_emails(db: Session, batch_id: str = None) -> dict:
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores[team.id] = {"team": team, "avg": avg}
 
-    # THE FIX: DYNAMIC AI ADVANCEMENT LOGIC INSTEAD OF HARDCODED 50%
     qualified_team_ids = set()
     if team_scores:
         teams_data = [{"team_id": tid, "score": round(data["avg"], 2)} for tid, data in team_scores.items()]
-        
+
         prompt = f"""You are an AI judging assistant.
 The advancement rule for this event is: "{advancement_rule}"
 
@@ -110,7 +109,6 @@ Example: [1, 3, 4]"""
             raw_response = call_gemini(prompt).strip()
             if "```" in raw_response:
                 raw_response = raw_response.split("```")[1].replace("json", "").strip()
-            
             start = raw_response.find("[")
             end = raw_response.rfind("]") + 1
             if start != -1 and end != 0:
@@ -130,7 +128,6 @@ Example: [1, 3, 4]"""
         for pid in json.loads(team.member_ids):
             participant_team_map[pid] = team
             approved_member_ids.add(pid)
-    participants = db.query(Participant).filter(Participant.id.in_(approved_member_ids)).all()
 
     participants = db.query(Participant).all()
     drafted_count = 0

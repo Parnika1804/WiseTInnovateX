@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import Team, Score, Participant, EventConfig, User, CommunicationLog, ActivityLog
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Team, Score, Participant, EventConfig, User, CommunicationLog
 from pydantic import BaseModel
 from datetime import datetime
 from email_service import send_email
@@ -77,26 +76,30 @@ def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.post("/scores/submit")
 def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
+    current_round = (config.current_stage_index or 0) + 1 if config else 1
+
     existing = db.query(Score).filter(
         Score.team_id == request.team_id,
-        Score.judge_name == request.judge_name
+        Score.judge_name == request.judge_name,
+        Score.round_number == current_round
     ).first()
 
     if existing:
-        raise HTTPException(status_code=400, detail="You have already submitted a score for this team.")
+        raise HTTPException(status_code=400, detail="You have already submitted a score for this team in this round.")
 
     team = db.query(Team).filter(Team.id == request.team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
-    current_round = (config.current_stage_index or 0) + 1 if config else 1
-
     if request.score < 0 or request.score > max_score:
         raise HTTPException(status_code=400, detail=f"Score must be between 0 and {max_score}")
 
-    existing_scores = [s.score for s in db.query(Score).filter(Score.team_id == request.team_id).all()]
+    existing_scores = [s.score for s in db.query(Score).filter(
+        Score.team_id == request.team_id,
+        Score.round_number == current_round
+    ).all()]
     is_anomaly = check_anomaly(existing_scores, request.score, max_score)
 
     new_score = Score(
@@ -123,7 +126,12 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 @router.get("/scores/judge/{judge_name}")
 def get_judge_scores(judge_name: str, db: Session = Depends(get_db)):
-    scores = db.query(Score).filter(Score.judge_name == judge_name).all()
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    current_round = (config.current_stage_index or 0) + 1 if config else 1
+    scores = db.query(Score).filter(
+        Score.judge_name == judge_name,
+        Score.round_number == current_round
+    ).all()
     return [{"team_id": s.team_id, "score": s.score} for s in scores]
 
 # ---------------------------------------------------------
@@ -180,6 +188,10 @@ def get_leaderboard(db: Session = Depends(get_db)):
 
     leaderboard.sort(key=lambda x: x["average_score"], reverse=True)
     return leaderboard
+
+# ---------------------------------------------------------
+# Finalized Podium
+# ---------------------------------------------------------
 @router.get("/scores/finalized")
 def get_finalized_podium(db: Session = Depends(get_db)):
     log = db.query(ActivityLog).filter(ActivityLog.action == "EVALUATION_FINALIZED").first()
@@ -188,12 +200,14 @@ def get_finalized_podium(db: Session = Depends(get_db)):
 
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     current_round = (config.current_stage_index or 0) + 1 if config else 1
-    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
 
     teams = db.query(Team).filter(Team.status == "APPROVED").all()
     team_scores = []
     for team in teams:
-        scores = db.query(Score).filter(Score.team_id == team.id, Score.round_number == current_round).all()
+        scores = db.query(Score).filter(
+            Score.team_id == team.id,
+            Score.round_number == current_round
+        ).all()
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores.append({"team": team, "avg": round(avg, 2)})
 
@@ -206,6 +220,7 @@ def get_finalized_podium(db: Session = Depends(get_db)):
     ]
 
     return {"finalized": True, "podium": podium}
+
 # ---------------------------------------------------------
 # Anomalies
 # ---------------------------------------------------------
@@ -278,23 +293,13 @@ def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------
 # Finalize Evaluation
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# Finalize Evaluation
 @router.post("/scores/finalize")
 def finalize_evaluation(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
     max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
     current_round = (config.current_stage_index or 0) + 1 if config else 1
-    if config:
-        stages = json.loads(config.stages)
-        if config.current_stage_index < len(stages) - 1:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot finalize yet. Currently on stage {config.current_stage_index + 1} of {len(stages)}. Advance to the final stage first."
-            )
 
-    # 1. Get all qualified approved teams
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
         Team.is_qualified == True
@@ -303,7 +308,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
     if not teams:
         raise HTTPException(status_code=400, detail="No qualified teams found to finalize.")
 
-    # 2. Calculate final average scores
     team_scores = []
     for team in teams:
         scores = db.query(Score).filter(
@@ -311,19 +315,14 @@ def finalize_evaluation(db: Session = Depends(get_db)):
             Score.round_number == current_round
         ).all()
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
-        team_scores.append({
-            "team": team,
-            "avg": round(avg, 2)
-        })
+        team_scores.append({"team": team, "avg": round(avg, 2)})
 
-    # 3. Sort by score — top 3 are winners
     team_scores.sort(key=lambda x: x["avg"], reverse=True)
 
     medals = {0: "🥇 1st Place", 1: "🥈 2nd Place", 2: "🥉 3rd Place"}
     batch_id = str(uuid.uuid4())
     drafted_count = 0
 
-    # 4. Draft emails for all teams
     for idx, entry in enumerate(team_scores):
         team = entry["team"]
         avg = entry["avg"]
@@ -374,7 +373,6 @@ Write a warm thank you email (3-4 sentences). Address them by name, thank them f
 
     db.commit()
 
-    # 5. Build podium response
     podium = []
     for idx, entry in enumerate(team_scores[:3]):
         podium.append({

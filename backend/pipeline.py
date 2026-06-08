@@ -6,7 +6,6 @@ from config import PIPELINE_STAGES, CURRENT_STAGE
 from activity import log_action
 from gemini import call_gemini
 import json
-import uuid
 
 router = APIRouter()
 
@@ -74,17 +73,16 @@ def advance_pipeline(db: Session = Depends(get_db)):
 
     next_index = current_index + 1
     next_stage = stages[next_index]
-    event_name = config.event_name
     scoring_config = json.loads(config.scoring)
     max_score = scoring_config.get("max_score", 10)
     advancement_rules = scoring_config.get("advancement_rules", [])
     current_round_rule = next(
         (r["rule"] for r in advancement_rules if r["round"] == current_index + 1),
-        scoring_config.get("advancement_rule", "Top 50% advance")  # fallback to global rule
+        scoring_config.get("advancement_rule", "Top 50% advance")
     )
     advancement_rule = current_round_rule
 
-    # 2. Get all approved teams and their scores for current round
+    # 2. Get all approved qualified teams
     approved_teams = db.query(Team).filter(
         Team.status == "APPROVED",
         Team.is_qualified == True
@@ -135,87 +133,14 @@ Example: [1, 3, 4]"""
         team.is_qualified = team.id in qualified_ids
     db.commit()
 
-    # 6. Draft emails for committee approval
-    batch_id = str(uuid.uuid4())
-
-    # Get next stage task description from AI
-    next_stage_task_prompt = f"""You are an event coordinator. The event '{event_name}' is advancing to the next stage: '{next_stage.get('label', next_stage.get('name'))}'.
-Write 2-3 sentences describing what participants should prepare or do for this stage. Be specific and practical. No subject line, just the task description."""
-    try:
-        next_stage_tasks = call_gemini(next_stage_task_prompt).strip()
-    except:
-        next_stage_tasks = f"Please prepare for the {next_stage.get('label', next_stage.get('name'))} stage."
-
-    drafted_count = 0
-    for team in approved_teams:
-        member_ids = json.loads(team.member_ids)
-        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
-
-        if team.id in qualified_ids:
-            # Qualified email
-            for member in members:
-                prompt = f"""You are an event coordinator. Write a congratulatory email to a participant who has advanced to the next round.
-Event: {event_name}
-Participant Name: {member.name}
-Team: {team.name}
-Next Stage: {next_stage.get('label', next_stage.get('name'))}
-Team Score This Round: {team_scores[team.id]['avg']} / {max_score}
-What to do next: {next_stage_tasks}
-
-Write a warm, concise email (4-5 sentences). Address them by name, congratulate them, share their score, tell them what the next stage involves and what they need to prepare. No subject line."""
-                try:
-                    body = call_gemini(prompt)
-                except:
-                    body = f"Dear {member.name}, congratulations! Your team {team.name} has qualified for the next round. Please prepare for the {next_stage.get('label')} stage."
-
-                subject = f"🎉 You Advanced to {next_stage.get('label', next_stage.get('name'))} | {event_name}"
-                log = CommunicationLog(
-                    recipient_email=member.email,
-                    subject=subject,
-                    message=body,
-                    comm_type="STAGE_ADVANCE_QUALIFIED",
-                    status="PENDING_APPROVAL",
-                    batch_id=batch_id
-                )
-                db.add(log)
-                drafted_count += 1
-        else:
-            # Eliminated email
-            for member in members:
-                prompt = f"""You are an event coordinator. Write a warm, encouraging email to a participant whose team did not advance to the next round.
-Event: {event_name}
-Participant Name: {member.name}
-Team: {team.name}
-Team Score This Round: {team_scores[team.id]['avg']} / {max_score}
-
-Write a kind, motivating email (3-4 sentences). Thank them by name, acknowledge their effort, encourage them to keep building, end positively. No subject line."""
-                try:
-                    body = call_gemini(prompt)
-                except:
-                    body = f"Dear {member.name}, thank you for participating in {event_name}. Your team {team.name} gave a great effort this round. We hope to see you at future events!"
-
-                subject = f"Thank You for Participating | {event_name}"
-                log = CommunicationLog(
-                    recipient_email=member.email,
-                    subject=subject,
-                    message=body,
-                    comm_type="STAGE_ADVANCE_ELIMINATED",
-                    status="PENDING_APPROVAL",
-                    batch_id=batch_id
-                )
-                db.add(log)
-                drafted_count += 1
-
-    db.commit()
-
-    # 7. Advance stage index
+    # 6. Advance stage index
     config.current_stage_index = next_index
     db.commit()
 
     log_action(
         db=db,
         action="PIPELINE_ADVANCED",
-        description=f"Pipeline advanced from stage {current_index + 1} to {next_index + 1}. {len(qualified_ids)} teams qualified, {len(approved_teams) - len(qualified_ids)} eliminated. {drafted_count} emails drafted for approval.",
+        description=f"Pipeline advanced from stage {current_index + 1} to {next_index + 1}. {len(qualified_ids)} teams qualified, {len(approved_teams) - len(qualified_ids)} eliminated.",
         performed_by="committee"
     )
 
@@ -225,7 +150,5 @@ Write a kind, motivating email (3-4 sentences). Thank them by name, acknowledge 
         "current_stage": next_stage.get("label"),
         "qualified_teams": len(qualified_ids),
         "eliminated_teams": len(approved_teams) - len(qualified_ids),
-        "emails_drafted": drafted_count,
-        "batch_id": batch_id,
-        "note": "Emails are queued for committee approval. Go to Pending Approvals to review and send."
+        "note": "Stage advanced. Go to Comms tab to manually draft and send emails."
     }
