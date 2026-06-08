@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import Layout from './components/Layout';
 import AITeamGenerator from './components/AITeamGenerator';
+import DynamicTeamConfig from './components/DynamicTeamConfig';
 // Component Imports
 import CommitteeDashboard from './components/CommitteeDashboard';
 import TeamList from './components/TeamList';
@@ -20,14 +21,17 @@ import EventDescriptionForm from './components/EventDescriptionForm';
 // --- INLINE PAGE COMPONENTS (COMMITTEE ONLY) ---
 const TeamView = () => {
   const [refreshTeams, setRefreshTeams] = useState(0);
-  
+
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Team Formation & Approval</h2>
-      
-      {/* The New AI Generator Component! */}
+      <h2 className="text-2xl font-bold mb-6">Team Formation &amp; Approval</h2>
+
+      {/* Step 1: Set round count and qualify % */}
+      <DynamicTeamConfig onRulesConfirmed={(rules) => console.log('Round rules confirmed:', rules)} />
+
+      {/* Step 2: AI rubric + team generation */}
       <AITeamGenerator onTeamsGenerated={() => setRefreshTeams(prev => prev + 1)} />
-      
+
       <TeamList refreshTrigger={refreshTeams} />
     </div>
   );

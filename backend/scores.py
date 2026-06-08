@@ -9,6 +9,7 @@ from activity import log_action
 from gemini import call_gemini
 import json
 import uuid
+import re
 
 router = APIRouter()
 
@@ -77,8 +78,9 @@ def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
 @router.post("/scores/submit")
 def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
-    current_round = (config.current_stage_index or 0) + 1 if config else 1
+    scoring_data = json.loads(config.scoring) if config else {}
+    max_score = scoring_data.get("max_score", 10.0)
+    current_round = scoring_data.get("current_round", 1)
 
     existing = db.query(Score).filter(
         Score.team_id == request.team_id,
@@ -127,7 +129,9 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
 @router.get("/scores/judge/{judge_name}")
 def get_judge_scores(judge_name: str, db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    current_round = (config.current_stage_index or 0) + 1 if config else 1
+    scoring_data = json.loads(config.scoring) if config else {}
+    current_round = scoring_data.get("current_round", 1)
+    
     scores = db.query(Score).filter(
         Score.judge_name == judge_name,
         Score.round_number == current_round
@@ -146,7 +150,7 @@ def get_leaderboard(db: Session = Depends(get_db)):
     if config:
         scoring = json.loads(config.scoring)
         max_score = scoring.get("max_score", 10.0)
-        current_round = (config.current_stage_index or 0) + 1
+        current_round = scoring.get("current_round", 1)
 
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
@@ -285,14 +289,32 @@ def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
     return {"message": "Anomaly rejected. Score deleted and judge notified for re-scoring."}
 
 # ---------------------------------------------------------
-# Finalize Evaluation
+# Finalize Evaluation (Chronological Round Advancement)
 # ---------------------------------------------------------
 @router.post("/scores/finalize")
 def finalize_evaluation(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-    event_name = config.event_name if config else "the event"
-    max_score = json.loads(config.scoring).get("max_score", 10.0) if config else 10.0
+    if not config:
+        raise HTTPException(status_code=400, detail="No active event configuration found.")
 
+    event_name = config.event_name
+    scoring_data = json.loads(config.scoring)
+    max_score = scoring_data.get("max_score", 10.0)
+    advancement_rules = scoring_data.get("advancement_rules", [])
+
+    # Use explicitly tracked current round
+    current_round = scoring_data.get("current_round", 1)
+    
+    is_final_round = False
+    current_rule_str = "final round"
+    
+    if advancement_rules and len(advancement_rules) >= current_round:
+        current_rule_str = advancement_rules[current_round - 1].get("rule", "final round").lower()
+        
+    if "final" in current_rule_str or current_round >= len(advancement_rules):
+        is_final_round = True
+
+    # Pull only currently qualified teams
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
         Team.is_qualified == True
@@ -303,88 +325,127 @@ def finalize_evaluation(db: Session = Depends(get_db)):
 
     team_scores = []
     for team in teams:
-        scores = db.query(Score).filter(Score.team_id == team.id).all()
+        scores = db.query(Score).filter(Score.team_id == team.id, Score.round_number == current_round).all()
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores.append({"team": team, "avg": round(avg, 2)})
 
     team_scores.sort(key=lambda x: x["avg"], reverse=True)
-
-    medals = {0: "🥇 1st Place", 1: "🥈 2nd Place", 2: "🥉 3rd Place"}
     batch_id = str(uuid.uuid4())
     drafted_count = 0
 
-    for idx, entry in enumerate(team_scores):
-        team = entry["team"]
-        avg = entry["avg"]
-        member_ids = json.loads(team.member_ids)
-        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+    if is_final_round:
+        # ------------------------------------------
+        # FINAL ROUND LOGIC
+        # ------------------------------------------
+        medals = {0: "🥇 1st Place", 1: "🥈 2nd Place", 2: "🥉 3rd Place"}
+        
+        for idx, entry in enumerate(team_scores):
+            team = entry["team"]
+            avg = entry["avg"]
+            member_ids = json.loads(team.member_ids)
+            members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
 
-        is_winner = idx < 3
-        rank_label = medals.get(idx, f"#{idx + 1}")
+            is_winner = idx < 3
+            rank_label = medals.get(idx, f"#{idx + 1}")
 
-        for member in members:
-            if is_winner:
-                prompt = f"""You are an event coordinator announcing final results for {event_name}.
-Participant Name: {member.name}
-Team: {team.name}
-Final Rank: {rank_label}
-Final Score: {avg} / {max_score}
-
-Write a warm, celebratory email (4-5 sentences). Address them by name, announce their rank with excitement, congratulate their team, mention their score, end with encouragement for the future. No subject line."""
-                subject = f"{rank_label} — {team.name} | {event_name} Final Results"
-            else:
-                prompt = f"""You are an event coordinator announcing final results for {event_name}.
-Participant Name: {member.name}
-Team: {team.name}
-Final Rank: #{idx + 1}
-Final Score: {avg} / {max_score}
-
-Write a warm thank you email (3-4 sentences). Address them by name, thank them for participating, mention their final score, encourage them to keep building. No subject line."""
-                subject = f"Final Results — {event_name} | Thank You for Participating"
-
-            try:
-                body = call_gemini(prompt)
-            except:
+            for member in members:
                 if is_winner:
-                    body = f"Dear {member.name}, congratulations! Your team {team.name} has achieved {rank_label} at {event_name} with a score of {avg}/{max_score}. Amazing work!"
+                    subject = f"{rank_label} — {team.name} | {event_name} Final Results"
+                    body = f"Dear {member.name},\n\nCongratulations! Your team '{team.name}' has achieved {rank_label} at {event_name} with a final score of {avg}/{max_score}. Amazing work, and we are incredibly proud of your innovation!"
                 else:
-                    body = f"Dear {member.name}, thank you for participating in {event_name}. Your team {team.name} finished #{idx + 1} with a score of {avg}/{max_score}. Keep building!"
+                    subject = f"Final Results — {event_name} | Thank You for Participating"
+                    body = f"Dear {member.name},\n\nThank you for participating in {event_name}. Your team '{team.name}' finished #{idx + 1} with a final score of {avg}/{max_score}. We loved your project and encourage you to keep building!"
 
+                log = CommunicationLog(
+                    recipient_email=member.email, subject=subject, message=body,
+                    comm_type="FINAL_RESULTS", status="PENDING_APPROVAL", batch_id=batch_id
+                )
+                db.add(log)
+                drafted_count += 1
+
+        db.commit()
+
+        podium = [
+            {"rank": idx + 1, "medal": medals.get(idx), "team_name": e["team"].name, "team_id": e["team"].id, "final_score": e["avg"]}
+            for idx, e in enumerate(team_scores[:3])
+        ]
+
+        log_action(db, "EVALUATION_FINALIZED", f"Final results declared. Winner: {team_scores[0]['team'].name}. {drafted_count} result emails drafted for approval.", "committee")
+
+        return {
+            "message": "Final event results declared successfully.",
+            "is_final": True,
+            "podium": podium,
+            "total_teams": len(team_scores),
+            "emails_drafted": drafted_count,
+            "batch_id": batch_id,
+        }
+
+    else:
+        # ------------------------------------------
+        # INTERMEDIATE ROUND LOGIC
+        # ------------------------------------------
+        match = re.search(r'(\d+)%', current_rule_str)
+        cutoff_pct = int(match.group(1)) if match else 50
+        
+        cutoff_index = max(1, int(len(team_scores) * (cutoff_pct / 100.0)))
+        advancing_teams = team_scores[:cutoff_index]
+        eliminated_teams = team_scores[cutoff_index:]
+
+        # Eliminate teams
+        for e in eliminated_teams:
+            e["team"].is_qualified = False
+
+        # Email Participants
+        for entry in team_scores:
+            team = entry["team"]
+            avg = entry["avg"]
+            has_advanced = team.is_qualified
+            member_ids = json.loads(team.member_ids)
+            members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+
+            for member in members:
+                if has_advanced:
+                    subject = f"Congratulations! You've advanced to Round {current_round + 1}"
+                    body = f"Dear {member.name},\n\nGreat job! Your team '{team.name}' scored {avg}/{max_score} in Round {current_round} and has successfully advanced to the next phase of the hackathon. Check your portal to prepare for the next challenge!"
+                    comm_type = "RESULTS_QUALIFIED"
+                else:
+                    subject = f"Event Results — Round {current_round}"
+                    body = f"Dear {member.name},\n\nThank you for giving your all. Your team '{team.name}' scored {avg}/{max_score}. Unfortunately, you did not meet the {cutoff_pct}% cutoff for the next round. We appreciate your hard work and hope to see you at future events!"
+                    comm_type = "RESULTS_NOT_QUALIFIED"
+
+                log = CommunicationLog(
+                    recipient_email=member.email, subject=subject, message=body,
+                    comm_type=comm_type, status="PENDING_APPROVAL", batch_id=batch_id
+                )
+                db.add(log)
+                drafted_count += 1
+                
+        # Notify Judges to Rescore
+        judges = db.query(User).filter(User.role == "Judge").all()
+        for judge in judges:
+            subject = f"Action Required: Round {current_round + 1} Evaluation Ready"
+            body = f"Hello {judge.name},\n\nRound {current_round} has concluded and the top {cutoff_pct}% of teams have advanced.\n\nRound {current_round + 1} is now active. Please log back into your Judge Portal using your secure magic link to evaluate the remaining qualified teams.\n\nThank you,\nEvent Committee"
             log = CommunicationLog(
-                recipient_email=member.email,
-                subject=subject,
-                message=body,
-                comm_type="FINAL_RESULTS",
-                status="PENDING_APPROVAL",
-                batch_id=batch_id
+                recipient_email=judge.email, subject=subject, message=body,
+                comm_type="JUDGE_NOTIFICATION", status="PENDING_APPROVAL", batch_id=batch_id
             )
             db.add(log)
             drafted_count += 1
 
-    db.commit()
+        # Increment Round
+        scoring_data["current_round"] = current_round + 1
+        config.scoring = json.dumps(scoring_data)
+        
+        db.commit()
 
-    podium = []
-    for idx, entry in enumerate(team_scores[:3]):
-        podium.append({
-            "rank": idx + 1,
-            "medal": medals.get(idx),
-            "team_name": entry["team"].name,
-            "team_id": entry["team"].id,
-            "final_score": entry["avg"]
-        })
+        log_action(db, "ROUND_FINALIZED", f"Round {current_round} finalized. {len(advancing_teams)} teams advanced. Emails drafted to teams and judges.", "committee")
 
-    log_action(
-        db=db,
-        action="EVALUATION_FINALIZED",
-        description=f"Final results declared. Winner: {team_scores[0]['team'].name}. {drafted_count} result emails drafted for approval.",
-        performed_by="committee"
-    )
-
-    return {
-        "message": "Final results declared successfully.",
-        "podium": podium,
-        "total_teams": len(team_scores),
-        "emails_drafted": drafted_count,
-        "batch_id": batch_id,
-        "note": "Go to Pending Approvals to review and send result emails."
-    }
+        return {
+            "message": f"Round {current_round} finalized. Top {cutoff_pct}% advanced.",
+            "is_final": False,
+            "teams_advanced": len(advancing_teams),
+            "teams_eliminated": len(eliminated_teams),
+            "emails_drafted": drafted_count,
+            "batch_id": batch_id
+        }

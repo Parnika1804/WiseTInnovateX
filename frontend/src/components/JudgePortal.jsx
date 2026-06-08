@@ -49,12 +49,18 @@ const JudgePortal = () => {
 
     axios.get(`${API}/event/config`)
       .then(res => {
-        if (res.data.status === 'found' && res.data.config.scoring) {
-          setMaxScore(res.data.config.scoring.max_score || 10);
-          setCurrentRound((res.data.config.current_stage_index || 0) + 1);
+        if (res.data.status === 'found') {
+          let scoring = res.data.config.scoring;
+          if (typeof scoring === 'string') scoring = JSON.parse(scoring);
+          
+          if (scoring) {
+            setMaxScore(scoring.max_score || 10);
+            setCurrentRound(scoring.current_round || 1);
+          }
         }
       }).catch(console.error);
 
+    // This fetches ONLY teams that survived the elimination cuts
     axios.get(`${API}/teams?qualified_only=true`)
       .then(res => {
         setTeams(res.data);
@@ -131,18 +137,17 @@ const JudgePortal = () => {
         </p>
       </div>
 
-      {/* Round banner */}
-      <div className="bg-blue-600 text-white px-8 py-3 flex items-center gap-3">
+      <div className="bg-blue-600 text-white px-8 py-3 flex flex-wrap items-center gap-3">
         <span className="text-lg">🔄</span>
-        <span className="font-bold">Round {currentRound}</span>
-        <span className="text-blue-200 text-sm">— You are currently scoring for this round</span>
-        <span className="ml-auto text-blue-200 text-sm">Max score: <strong className="text-white">{maxScore}</strong></span>
+        <span className="font-bold tracking-wide">Evaluating Round {currentRound}</span>
+        <span className="text-blue-200 text-sm hidden sm:inline">— Ensure scores reflect current stage criteria.</span>
+        <span className="ml-auto text-blue-200 text-sm">Max score constraint: <strong className="text-white">{maxScore}</strong></span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
         {teams.length === 0 ? (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">
-            <p className="font-semibold">No approved teams available for this round.</p>
+            <p className="font-semibold">No approved teams available for Round {currentRound}.</p>
           </div>
         ) : (
           <>
@@ -221,7 +226,7 @@ const JudgePortal = () => {
 
                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-fit">
                   <h3 className="text-lg font-bold text-slate-900 mb-4">
-                    Evaluation — <span className="text-blue-600">{selectedTeam.name}</span>
+                    Round {currentRound} Evaluation — <span className="text-blue-600">{selectedTeam.name}</span>
                   </h3>
 
                   {scoredTeamIds.includes(selectedTeam.id) ? (
@@ -229,7 +234,7 @@ const JudgePortal = () => {
                       <div className="text-green-500 text-5xl mb-4">✅</div>
                       <h3 className="text-xl font-bold text-green-900 mb-2">Score Locked In</h3>
                       <p className="text-sm text-green-700">
-                        You have successfully completed the evaluation for {selectedTeam.name}.
+                        You have successfully completed the evaluation for {selectedTeam.name} in Round {currentRound}.
                       </p>
                     </div>
                   ) : (
@@ -258,7 +263,7 @@ const JudgePortal = () => {
                         type="submit" disabled={submitting}
                         className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-lg font-bold transition-colors"
                       >
-                        {submitting ? 'Submitting...' : 'Lock in Evaluation'}
+                        {submitting ? 'Submitting...' : `Lock in Score for Round ${currentRound}`}
                       </button>
                       {submitStatus && (
                         <div className={`p-3 rounded-lg text-sm font-medium ${
