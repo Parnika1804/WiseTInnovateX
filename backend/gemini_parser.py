@@ -15,8 +15,8 @@ Return ONLY a valid JSON object with this exact structure. No extra text, no mar
     {{
       "order": 1,
       "name": "STAGE_NAME",
-      "label": "Human readable label",
-      "description": "What happens in this stage"
+      "label": "Human readable label for the stage, e.g. 'Qualifier Round', 'Semi Finals', 'Grand Finale'",
+      "description": "A specific description of what happens in this stage. Do not use generic text like 'Round X Description'. Describe the actual challenge, judging criteria, or elimination rules for this stage based on the event context."
     }}
   ],
   "team_formation": {{
