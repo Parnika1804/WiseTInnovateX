@@ -56,7 +56,39 @@ def get_pipeline_status(db: Session = Depends(get_db)):
         "stages": stages_with_status,
         "pending_items": pending_items
     }
+@router.get("/pipeline/dynamic/status")
+def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    if not config:
+        return {"status": "not_configured", "message": "No active event found. Please configure your event first."}
 
+    stages = json.loads(config.stages)
+    current_index = config.current_stage_index if config.current_stage_index is not None else 0
+
+    stages_with_status = []
+    for i, stage in enumerate(stages):
+        if i < current_index:
+            status = "COMPLETED"
+        elif i == current_index:
+            status = "ACTIVE"
+        else:
+            status = "UPCOMING"
+        stages_with_status.append({
+            "order": i + 1,
+            "name": stage.get("name", ""),
+            "label": stage.get("label", stage.get("name", "")),
+            "description": stage.get("description", ""),
+            "status": status
+        })
+
+    return {
+        "event_name": config.event_name,
+        "current_stage": stages[current_index].get("label"),
+        "current_stage_index": current_index,
+        "total_stages": len(stages),
+        "is_final_stage": current_index >= len(stages) - 1,
+        "stages": stages_with_status
+    }
 
 @router.post("/pipeline/advance")
 def advance_pipeline(db: Session = Depends(get_db)):

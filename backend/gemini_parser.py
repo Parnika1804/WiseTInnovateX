@@ -10,7 +10,7 @@ Event Description:
 
 Return ONLY a valid JSON object with this exact structure. No extra text, no markdown, no backticks, no explanation — just raw JSON:
 {{
-  "event_name": "name of the event or Unknown if not mentioned",
+  "event_name": "extract the exact name of the event from the description. Look for phrases like 'called', 'named', 'event name is'. If not explicitly mentioned, creatively generate a suitable event name based on the description context",
   "stages": [
     {{
       "order": 1,
