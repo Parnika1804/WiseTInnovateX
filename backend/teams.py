@@ -20,6 +20,99 @@ class ManualConfig(BaseModel):
     skill_balance: bool = True
     constraints: Optional[str] = None
 
+
+def assign_mentors_to_teams(db: Session, teams: list):
+    mentors = db.query(Mentor).all()
+    if not mentors or not teams:
+        return
+
+    mentor_capacity = {m.id: 2 for m in mentors}  # default capacity = 2 teams per mentor
+
+    mentor_assigned_count = {}
+    existing_mentors = db.query(Mentor).filter(Mentor.assigned_team_id != None).all()
+    for m in existing_mentors:
+        mentor_assigned_count[m.id] = mentor_assigned_count.get(m.id, 0) + 1
+
+    teams_data = []
+    for t in teams:
+        member_ids = json.loads(t.member_ids)
+        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        skills = [m.skill for m in members if m.skill]
+        teams_data.append({"team_id": t.id, "team_name": t.name, "skills": skills})
+
+    mentors_data = [
+        {
+            "mentor_id": m.id,
+            "name": m.name,
+            "expertise": m.expertise or "General",
+            "remaining_capacity": mentor_capacity[m.id] - mentor_assigned_count.get(m.id, 0)
+        }
+        for m in mentors
+    ]
+
+    prompt = f"""You are an assignment engine for a hackathon.
+
+Teams (with member skillsets):
+{json.dumps(teams_data, indent=2)}
+
+Mentors (with expertise and remaining capacity):
+{json.dumps(mentors_data, indent=2)}
+
+Task: Assign the best-fit mentor to each team based on expertise matching the team's skillset.
+Rules:
+- A mentor cannot be assigned more teams than their remaining_capacity.
+- Not all mentors need to get a team, and not all mentors need equal teams.
+- If no good match exists for a team, you may leave it unmatched.
+
+Return ONLY a valid JSON array, no markdown, no explanation, in this exact format:
+[{{"team_id": 1, "mentor_id": 3}}, {{"team_id": 2, "mentor_id": 1}}]
+"""
+
+    assigned_team_ids = set()
+    try:
+        raw = call_gemini(prompt).strip()
+        if "```" in raw:
+            raw = raw.split("```")[1].replace("json", "").strip()
+        start = raw.find("[")
+        end = raw.rfind("]") + 1
+        pairings = json.loads(raw[start:end])
+
+        for pair in pairings:
+            team_id = pair.get("team_id")
+            mentor_id = pair.get("mentor_id")
+            if team_id is None or mentor_id is None:
+                continue
+
+            current_count = mentor_assigned_count.get(mentor_id, 0)
+            if current_count >= mentor_capacity.get(mentor_id, 2):
+                continue
+            if team_id in assigned_team_ids:
+                continue
+
+            mentor = db.query(Mentor).filter(Mentor.id == mentor_id).first()
+            if mentor and mentor.assigned_team_id is None:
+                mentor.assigned_team_id = team_id
+                db.commit()
+                mentor_assigned_count[mentor_id] = current_count + 1
+                assigned_team_ids.add(team_id)
+
+    except Exception as e:
+        print(f"[MENTOR MATCHING AI ERROR] {e}. Falling back to round-robin for unmatched teams.")
+
+    # Fallback: round-robin for any team not yet matched
+    for t in teams:
+        if t.id in assigned_team_ids:
+            continue
+        for m in mentors:
+            current_count = mentor_assigned_count.get(m.id, 0)
+            if current_count < mentor_capacity.get(m.id, 2):
+                m.assigned_team_id = t.id
+                db.commit()
+                mentor_assigned_count[m.id] = current_count + 1
+                assigned_team_ids.add(t.id)
+                break
+
+
 @router.post("/teams/translate-rubric")
 def translate_rubric(request: FormationPrompt):
     system_prompt = f"""You are an AI configuration assistant for a hackathon. 
@@ -138,11 +231,10 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
             member_skills=member_skills,
             institutions=institutions
         )
-        unassigned_mentors = db.query(Mentor).filter(Mentor.assigned_team_id == None).all()
-        if unassigned_mentors:
-            mentor = unassigned_mentors[0]
-            mentor.assigned_team_id = new_team.id
-            db.commit()
+
+    # AI-based mentor matching with capacity + round-robin fallback
+    assign_mentors_to_teams(db, created_team_records)
+
     return {
         "message": f"{len(created_team_records)} teams generated successfully",
         "config_source": config_source,
