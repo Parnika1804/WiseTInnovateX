@@ -15,6 +15,7 @@ from clarification import router as clarification_router
 from auth import router as auth_router
 from mentors import router as mentors_router
 from special_mention import router as special_mention_router
+from feedback import router as feedback_router  # NEW
 
 app = FastAPI(title="EventFlow API")
 
@@ -41,6 +42,7 @@ app.include_router(clarification_router)
 app.include_router(auth_router)
 app.include_router(mentors_router)
 app.include_router(special_mention_router)
+app.include_router(feedback_router)  # NEW
 
 @app.get("/")
 def root():

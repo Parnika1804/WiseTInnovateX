@@ -6,11 +6,140 @@ import { useAuth } from './AuthContext';
 
 const API = 'http://localhost:8000';
 
+// ---------------------------------------------------------------------------
+// Feedback Form Component — shown only after results are finalized
+// ---------------------------------------------------------------------------
+const FeedbackForm = ({ participantId, hasMentor }) => {
+  const [submitted, setSubmitted] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [eventRating, setEventRating] = useState(0);
+  const [mentorRating, setMentorRating] = useState(0);
+  const [judgingRating, setJudgingRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const checkSubmitted = async () => {
+      try {
+        const res = await axios.get(`${API}/feedback/check/${participantId}`);
+        setSubmitted(res.data.submitted);
+      } catch (e) {
+        // If check fails, let them try to submit anyway
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkSubmitted();
+  }, [participantId]);
+
+  const StarRating = ({ label, value, onChange }) => (
+    <div className="mb-4">
+      <p className="text-sm font-semibold text-slate-700 mb-2">{label}</p>
+      <div className="flex gap-2">
+        {[1, 2, 3, 4, 5].map(star => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => onChange(star)}
+            className={`text-2xl transition-transform hover:scale-110 ${
+              star <= value ? 'text-amber-400' : 'text-slate-200'
+            }`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const handleSubmit = async () => {
+    if (!eventRating || !judgingRating) {
+      setError('Please rate the event and judging before submitting.');
+      return;
+    }
+    if (hasMentor && !mentorRating) {
+      setError('Please rate your mentor before submitting.');
+      return;
+    }
+    setError('');
+    setSubmitting(true);
+    try {
+      await axios.post(`${API}/feedback/submit`, {
+        participant_id: participantId,
+        event_rating: eventRating,
+        mentor_rating: hasMentor ? mentorRating : null,
+        judging_rating: judgingRating,
+        comment: comment.trim() || null,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to submit feedback. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (checking) return null;
+
+  if (submitted) return (
+    <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6 text-center">
+      <div className="text-4xl mb-3">🙏</div>
+      <h4 className="text-lg font-bold text-green-800 mb-1">Thank You for Your Feedback!</h4>
+      <p className="text-sm text-green-700">Your responses help us make future events even better.</p>
+    </div>
+  );
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-6 mt-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
+        <div className="text-2xl">📝</div>
+        <div>
+          <h4 className="text-lg font-bold text-slate-800">Share Your Feedback</h4>
+          <p className="text-sm text-slate-500">Help us improve future events — takes 30 seconds.</p>
+        </div>
+      </div>
+
+      <StarRating label="How was the overall event? *" value={eventRating} onChange={setEventRating} />
+      <StarRating label="How was the judging process? *" value={judgingRating} onChange={setJudgingRating} />
+      {hasMentor && (
+        <StarRating label="How was your mentor? *" value={mentorRating} onChange={setMentorRating} />
+      )}
+
+      <div className="mb-4">
+        <p className="text-sm font-semibold text-slate-700 mb-2">Any additional comments? (optional)</p>
+        <textarea
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          placeholder="What did you love? What could be better?"
+          rows={3}
+          className="w-full border border-slate-200 rounded-lg p-3 text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
+        />
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-600 mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+      )}
+
+      <button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-lg transition-colors disabled:opacity-50"
+      >
+        {submitting ? 'Submitting...' : 'Submit Feedback'}
+      </button>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Main Portal
+// ---------------------------------------------------------------------------
 const ParticipantPortal = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const { login } = useAuth();
-  
+
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -18,7 +147,7 @@ const ParticipantPortal = () => {
   const [currentRound, setCurrentRound] = useState(null);
   const [finalResults, setFinalResults] = useState(null);
   const [mentor, setMentor] = useState(null);
-  const [specialMention, setSpecialMention] = useState(null); // NEW
+  const [specialMention, setSpecialMention] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -49,7 +178,6 @@ const ParticipantPortal = () => {
 
       setData(portalRes.data);
 
-      // Fetch mentor assigned to participant's team
       try {
         const mentorsRes = await axios.get(`${API}/mentors`);
         const teamId = portalRes.data.team?.id;
@@ -61,7 +189,6 @@ const ParticipantPortal = () => {
         console.log("No mentor data available");
       }
 
-      // Fetch special mention status for this participant — NEW
       try {
         const smRes = await axios.get(`${API}/special-mention`);
         const teamId = portalRes.data.team?.id;
@@ -76,7 +203,6 @@ const ParticipantPortal = () => {
         console.log("No special mention data available");
       }
 
-      // Fetch current round configuration
       const configRes = await axios.get(`${API}/event/config`);
       if (configRes.data.status === 'found') {
         let scoring = configRes.data.config.scoring;
@@ -94,7 +220,7 @@ const ParticipantPortal = () => {
 
       const finalRes = await axios.get(`${API}/scores/finalized`);
       if (finalRes.data.finalized) {
-         setFinalResults(finalRes.data.podium);
+        setFinalResults(finalRes.data.podium);
       }
 
     } catch (err) {
@@ -126,7 +252,6 @@ const ParticipantPortal = () => {
   const isEliminated = data.team && data.team.is_qualified === false;
   const myWin = finalResults ? finalResults.find(p => p.team_id === data.team?.id) : null;
 
-  // Special Mention card component — reused in multiple states
   const SpecialMentionCard = () => {
     if (!specialMention) return null;
 
@@ -194,7 +319,13 @@ const ParticipantPortal = () => {
             Final Cumulative Score: {myWin.final_score.toFixed(2)}
           </p>
         </div>
-        <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
+
+        {/* Feedback form for winners too */}
+        <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
+
+        <div className="mt-6">
+          <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
+        </div>
       </div>
     </div>
   );
@@ -208,10 +339,8 @@ const ParticipantPortal = () => {
           <p className="text-slate-300 m-0">Welcome back, <strong className="text-white">{data.participant.name}</strong></p>
         </div>
 
-        {/* Special Mention card shown here too — approved nominees see their wildcard status */}
         <SpecialMentionCard />
 
-        {/* Only show "Event Concluded" box if NOT an approved special mention going to finals */}
         {specialMention?.status !== 'APPROVED' && (
           <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
             <div className="text-5xl mb-4 grayscale">🏁</div>
@@ -221,7 +350,6 @@ const ParticipantPortal = () => {
           </div>
         )}
 
-        {/* Approved special mention: show active finals card instead */}
         {specialMention?.status === 'APPROVED' && (
           <div className="bg-white p-8 rounded-xl border border-purple-200 shadow-sm text-center">
             <div className="text-5xl mb-4">🚀</div>
@@ -231,12 +359,19 @@ const ParticipantPortal = () => {
           </div>
         )}
 
-        <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
+        {/* Feedback form — shown to eliminated participants too */}
+        {finalResults && (
+          <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
+        )}
+
+        <div className="mt-6">
+          <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
+        </div>
       </div>
     </div>
   );
 
-  // STATE 3: ACTIVE COMPETITION
+  // STATE 3: ACTIVE COMPETITION — no feedback form yet
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -253,7 +388,6 @@ const ParticipantPortal = () => {
           )}
         </div>
 
-        {/* Special mention card in active state too (e.g. nominated mid-event) */}
         <SpecialMentionCard />
 
         {data.progression?.is_qualified && currentRound === 1 && (

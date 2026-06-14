@@ -14,16 +14,18 @@ const TABS = [
   { id: 'overview', label: '🏠 Overview' },
   { id: 'mentors', label: '🧑‍🏫 Mentors' },
   { id: 'special-mentions', label: '⭐ Special Mentions' },
+  { id: 'feedback', label: '📝 Feedback' },   // NEW
 ];
 
+// ---------------------------------------------------------------------------
+// Special Mentions (unchanged)
+// ---------------------------------------------------------------------------
 const SpecialMentions = () => {
   const [nominations, setNominations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionStatus, setActionStatus] = useState('');
 
-  useEffect(() => {
-    fetchNominations();
-  }, []);
+  useEffect(() => { fetchNominations(); }, []);
 
   const fetchNominations = async () => {
     setLoading(true);
@@ -57,8 +59,6 @@ const SpecialMentions = () => {
 
   return (
     <div className="space-y-6">
-
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Nominations</p>
@@ -82,12 +82,10 @@ const SpecialMentions = () => {
         </div>
       )}
 
-      {/* Pending nominations */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
           <h3 className="text-lg font-bold text-slate-800">Pending Nominations</h3>
         </div>
-
         {loading ? (
           <div className="p-8 text-center text-slate-400">Loading nominations...</div>
         ) : pending.length === 0 ? (
@@ -109,8 +107,6 @@ const SpecialMentions = () => {
                     <p className="text-sm text-slate-500 mb-3">
                       Nominated by mentor <strong className="text-slate-700">{n.mentor_name}</strong>
                     </p>
-
-                    {/* Nominated members */}
                     <div className="flex flex-wrap gap-2 mb-3">
                       {n.nominated_members.map(m => (
                         <span key={m.id} className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-semibold">
@@ -118,26 +114,18 @@ const SpecialMentions = () => {
                         </span>
                       ))}
                     </div>
-
-                    {/* Reason */}
                     <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Mentor's Reason</p>
                       <p className="text-sm text-slate-700">{n.mentor_reason}</p>
                     </div>
                   </div>
-
-                  {/* Action buttons */}
                   <div className="flex flex-col gap-2 min-w-fit">
-                    <button
-                      onClick={() => handleAction(n.id, 'APPROVED')}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors"
-                    >
+                    <button onClick={() => handleAction(n.id, 'APPROVED')}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors">
                       ✓ Approve
                     </button>
-                    <button
-                      onClick={() => handleAction(n.id, 'REJECTED')}
-                      className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold rounded-lg transition-colors"
-                    >
+                    <button onClick={() => handleAction(n.id, 'REJECTED')}
+                      className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold rounded-lg transition-colors">
                       ✕ Reject
                     </button>
                   </div>
@@ -148,7 +136,6 @@ const SpecialMentions = () => {
         )}
       </div>
 
-      {/* Reviewed nominations */}
       {reviewed.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
@@ -189,6 +176,151 @@ const SpecialMentions = () => {
   );
 };
 
+// ---------------------------------------------------------------------------
+// Feedback Summary — NEW committee view
+// ---------------------------------------------------------------------------
+const FeedbackSummary = () => {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { fetchSummary(); }, []);
+
+  const fetchSummary = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/feedback/summary`);
+      setSummary(res.data);
+    } catch (err) {
+      console.error('Failed to fetch feedback summary', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const StarDisplay = ({ value }) => (
+    <span className="text-amber-400 text-lg">
+      {'★'.repeat(Math.round(value || 0))}
+      <span className="text-slate-200">{'★'.repeat(5 - Math.round(value || 0))}</span>
+    </span>
+  );
+
+  const RatingBar = ({ label, value, breakdown }) => {
+    const total = Object.values(breakdown || {}).reduce((a, b) => a + b, 0);
+    return (
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-sm font-semibold text-slate-700">{label}</p>
+          <div className="flex items-center gap-2">
+            <StarDisplay value={value} />
+            <span className="text-sm font-bold text-slate-800">{value ? value.toFixed(1) : 'N/A'}</span>
+          </div>
+        </div>
+        {breakdown && total > 0 && (
+          <div className="space-y-1">
+            {[5, 4, 3, 2, 1].map(star => {
+              const count = breakdown[String(star)] || 0;
+              const pct = total > 0 ? (count / total) * 100 : 0;
+              return (
+                <div key={star} className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="w-3 text-right">{star}★</span>
+                  <div className="flex-1 bg-slate-100 rounded-full h-2">
+                    <div
+                      className="bg-amber-400 h-2 rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-5 text-right">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) return <div className="p-8 text-center text-slate-400">Loading feedback...</div>;
+
+  if (!summary || summary.total_responses === 0) return (
+    <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm">
+      <div className="text-5xl mb-4">📝</div>
+      <h3 className="text-lg font-bold text-slate-800 mb-2">No Feedback Yet</h3>
+      <p className="text-slate-500 text-sm">Feedback forms appear on participant portals once results are finalized. Responses will show up here automatically.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Summary stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Responses</p>
+          <p className="text-4xl font-black text-slate-800">{summary.total_responses}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg Event Rating</p>
+          <p className="text-3xl font-black text-amber-500">{summary.avg_event_rating?.toFixed(1) ?? '—'}</p>
+          <StarDisplay value={summary.avg_event_rating} />
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg Judging Rating</p>
+          <p className="text-3xl font-black text-blue-600">{summary.avg_judging_rating?.toFixed(1) ?? '—'}</p>
+          <StarDisplay value={summary.avg_judging_rating} />
+        </div>
+      </div>
+
+      {/* Detailed breakdown */}
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3">Rating Breakdown</h3>
+        <RatingBar label="Overall Event" value={summary.avg_event_rating} breakdown={summary.breakdown?.event} />
+        <RatingBar label="Judging Process" value={summary.avg_judging_rating} breakdown={summary.breakdown?.judging} />
+        {summary.avg_mentor_rating !== null && (
+          <RatingBar label="Mentor Experience" value={summary.avg_mentor_rating} breakdown={summary.breakdown?.mentor} />
+        )}
+      </div>
+
+      {/* Comments */}
+      {summary.comments?.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-slate-800">Participant Comments</h3>
+            <span className="text-sm text-slate-500">{summary.comments.length} comment{summary.comments.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {summary.comments.map((c, idx) => (
+              <div key={idx} className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-semibold text-slate-800 text-sm">{c.participant_name}</p>
+                  <div className="flex gap-3 text-xs text-slate-500">
+                    <span>Event: <strong className="text-amber-500">{c.event_rating}★</strong></span>
+                    <span>Judging: <strong className="text-blue-500">{c.judging_rating}★</strong></span>
+                    {c.mentor_rating && <span>Mentor: <strong className="text-indigo-500">{c.mentor_rating}★</strong></span>}
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-3 border border-slate-100">
+                  "{c.comment}"
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="text-right">
+        <button
+          onClick={fetchSummary}
+          className="text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors"
+        >
+          🔄 Refresh
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Committee Dashboard
+// ---------------------------------------------------------------------------
 const CommitteeDashboard = () => {
   const [refresh, setRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
@@ -214,7 +346,6 @@ const CommitteeDashboard = () => {
 
   return (
     <div className="mt-6">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Command Center</h2>
         <button
@@ -225,10 +356,8 @@ const CommitteeDashboard = () => {
         </button>
       </div>
 
-      {/* Pipeline always spans full width */}
       <PipelineBar key={`pipeline-${refresh}`} />
 
-      {/* Tabs */}
       <div className="flex gap-1 mt-6 mb-6 border-b border-slate-200">
         {TABS.map(tab => (
           <button
@@ -245,7 +374,6 @@ const CommitteeDashboard = () => {
         ))}
       </div>
 
-      {/* Tab: Overview */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
@@ -264,15 +392,9 @@ const CommitteeDashboard = () => {
         </div>
       )}
 
-      {/* Tab: Mentors */}
-      {activeTab === 'mentors' && (
-        <MentorManager />
-      )}
-
-      {/* Tab: Special Mentions */}
-      {activeTab === 'special-mentions' && (
-        <SpecialMentions />
-      )}
+      {activeTab === 'mentors' && <MentorManager />}
+      {activeTab === 'special-mentions' && <SpecialMentions />}
+      {activeTab === 'feedback' && <FeedbackSummary />}   {/* NEW */}
     </div>
   );
 };
