@@ -59,3 +59,8 @@ def send_intro_emails(db: Session = Depends(get_db)):
     from email_triggers import send_mentor_emails
     result = send_mentor_emails(db)
     return result
+@router.post("/mentors/send-portal-links")
+def send_mentor_portal_links(db: Session = Depends(get_db)):
+    from email_triggers import send_mentor_link_emails
+    result = send_mentor_link_emails(db)
+    return result

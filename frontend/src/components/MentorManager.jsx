@@ -9,7 +9,9 @@ const MentorManager = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [emailStatus, setEmailStatus] = useState('');
+  const [linkStatus, setLinkStatus] = useState('');
   const [sendingEmails, setSendingEmails] = useState(false);
+  const [sendingLinks, setSendingLinks] = useState(false);
   const [clearing, setClearing] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -63,6 +65,19 @@ const MentorManager = () => {
       setEmailStatus(`❌ ${err.response?.data?.detail || 'Failed to draft emails.'}`);
     } finally {
       setSendingEmails(false);
+    }
+  };
+
+  const handleSendPortalLinks = async () => {
+    setSendingLinks(true);
+    setLinkStatus('');
+    try {
+      const res = await axios.post(`${API}/mentors/send-portal-links`);
+      setLinkStatus(`✅ ${res.data.mentor_link_emails_drafted} mentor portal link emails drafted and queued for approval in Comms tab.`);
+    } catch (err) {
+      setLinkStatus(`❌ ${err.response?.data?.detail || 'Failed to draft portal link emails.'}`);
+    } finally {
+      setSendingLinks(false);
     }
   };
 
@@ -129,7 +144,16 @@ const MentorManager = () => {
             </label>
           </div>
 
-          {/* Draft emails */}
+          {/* Send Portal Links — NEW */}
+          <button
+            onClick={handleSendPortalLinks}
+            disabled={sendingLinks || mentors.length === 0}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors border shadow-sm bg-violet-600 hover:bg-violet-700 disabled:bg-violet-200 disabled:cursor-not-allowed text-white border-violet-600"
+          >
+            {sendingLinks ? '⏳ Generating...' : '🔗 Send Mentor Portal Links'}
+          </button>
+
+          {/* Draft intro emails */}
           <button
             onClick={handleSendEmails}
             disabled={sendingEmails || mentors.length === 0}
@@ -168,6 +192,13 @@ const MentorManager = () => {
             uploadStatus.startsWith('✅') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
           }`}>
             {uploadStatus}
+          </div>
+        )}
+        {linkStatus && (
+          <div className={`mt-3 p-3 rounded-lg text-sm font-medium ${
+            linkStatus.startsWith('✅') ? 'bg-violet-50 text-violet-700 border border-violet-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {linkStatus}
           </div>
         )}
         {emailStatus && (

@@ -94,7 +94,6 @@ def send_results_emails(db: Session, batch_id: str = None) -> dict:
     qualified_team_ids = set()
     if team_scores:
         teams_data = [{"team_id": tid, "score": round(data["avg"], 2)} for tid, data in team_scores.items()]
-
         prompt = f"""You are an AI judging assistant.
 The advancement rule for this event is: "{advancement_rule}"
 
@@ -208,7 +207,6 @@ def send_mentor_emails(db: Session) -> dict:
         members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
         member_details = [{"name": m.name, "email": m.email, "skill": m.skill} for m in members]
 
-        # Email to mentor
         mentor_prompt = f"""You are an event coordinator. Write a professional email to a mentor informing them of their assigned team.
 Event: {event_name}
 Mentor Name: {mentor.name}
@@ -223,7 +221,6 @@ Write a warm 3-4 sentence email introducing them to their team, listing member n
         _save_as_draft(db, mentor.email, mentor_subject, mentor_body, comm_type="MENTOR_ASSIGNMENT", batch_id=batch_id)
         drafted_count += 1
 
-        # Email to each participant about their mentor
         for member in members:
             teammates = [m for m in members if m.id != member.id]
             teammate_details = ', '.join([f"{t.name} ({t.skill}, {t.email})" for t in teammates])
@@ -253,13 +250,58 @@ Write a 4-5 sentence email that introduces their mentor with contact details, li
     }
 
 
-# NEW — Special Mention email functions
+def send_mentor_link_emails(db: Session) -> dict:
+    """
+    Generates a magic link JWT for each mentor and drafts a personalized
+    portal access email to Comms — exactly like judge magic links.
+    Called from mentors.py when committee clicks 'Send Mentor Links'.
+    """
+    from models import Mentor
+    from auth import create_token
+    batch_id = str(uuid.uuid4())
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    event_name = config.event_name if config else "the event"
+
+    mentors = db.query(Mentor).all()
+    drafted_count = 0
+
+    for mentor in mentors:
+        token_data = {
+            "email": mentor.email,
+            "role": "Mentor",
+            "name": mentor.name,
+        }
+        token = create_token(token_data)
+        magic_link = f"http://localhost:5173/mentor-portal?token={token}"
+
+        team = db.query(Team).filter(Team.id == mentor.assigned_team_id).first() if mentor.assigned_team_id else None
+        team_info = f"Your assigned team is: {team.name}" if team else "You have not been assigned a team yet — check back soon."
+
+        prompt = f"""You are an event coordinator. Write a professional, warm email to a mentor giving them access to their mentor portal.
+Event: {event_name}
+Mentor Name: {mentor.name}
+{team_info}
+
+Write 3-4 sentences welcoming them as a mentor, telling them to use the magic link below to access their portal where they can see their assigned team and submit nominations, and that the link is personal and should not be shared. Do not include a subject line. End the email body just before the link — I will append it separately."""
+
+        body = call_gemini(prompt)
+        full_body = f"{body}\n\nAccess your Mentor Portal here:\n{magic_link}\n\nPlease do not share this link — it is uniquely tied to your mentor session."
+
+        subject = f"Your Mentor Portal Access — {event_name}"
+        _save_as_draft(db, mentor.email, subject, full_body, comm_type="MENTOR_MAGIC_LINK", batch_id=batch_id)
+        drafted_count += 1
+
+    return {
+        "mentor_link_emails_drafted": drafted_count,
+        "batch_id": batch_id,
+        "status": "PENDING_APPROVAL",
+        "note": "Mentor portal link emails queued for committee approval."
+    }
+
+
+# Special Mention email functions
 
 def send_special_mention_nomination_email(db: Session, nomination) -> dict:
-    """
-    Drafts a notification email to the committee when a mentor submits a Special Mention nomination.
-    Called from special_mention.py after nomination is saved.
-    """
     from models import Mentor
     batch_id = str(uuid.uuid4())
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
@@ -271,7 +313,6 @@ def send_special_mention_nomination_email(db: Session, nomination) -> dict:
     nominated_members = db.query(Participant).filter(Participant.id.in_(nominated_ids)).all()
     nominated_names = ", ".join([m.name for m in nominated_members]) or "Full team"
 
-    # Draft to all committee members (query users with role=committee)
     from models import User
     committee_members = db.query(User).filter(User.role == "committee").all()
     drafted_count = 0
@@ -301,10 +342,6 @@ Write 2-3 sentences informing the committee member that a nomination is pending 
 
 
 def send_special_mention_decision_emails(db: Session, nomination, approved: bool) -> dict:
-    """
-    Drafts emails to nominated participants after committee approves or rejects a Special Mention.
-    Called from special_mention.py after committee decision.
-    """
     batch_id = str(uuid.uuid4())
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
