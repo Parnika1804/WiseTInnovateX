@@ -17,7 +17,7 @@ class SaveConfigRequest(BaseModel):
 class RoundRule(BaseModel):
     round: int
     stage_name: str
-    rule: str  # e.g. "top 50%", "top 3 teams", "top 70%"
+    rule: str
 
 class AdvancementRulesRequest(BaseModel):
     rules: List[RoundRule]
@@ -111,6 +111,129 @@ def get_active_config(db: Session = Depends(get_db)):
     }
 
 
+def _compute_pipeline_status(config, db: Session) -> dict:
+    """
+    Purely visual pipeline status computed from real DB data.
+    No triggers, no emails, no side effects.
+    
+    Rules:
+    - Registration: COMPLETED if any participants exist, else UPCOMING
+    - Team Formation: COMPLETED if any team is APPROVED, ACTIVE if teams exist but none approved, else UPCOMING
+    - Evaluation rounds: COMPLETED if scores exist for that round AND round has been finalized (current_round > that round), ACTIVE if current round matches, else UPCOMING
+    - Results: COMPLETED if EVALUATION_FINALIZED activity log exists, ACTIVE if all rounds done, else UPCOMING
+    """
+    stages = json.loads(config.stages)
+    if not stages:
+        return None
+
+    scoring_data = json.loads(config.scoring) if config.scoring else {}
+    current_round = scoring_data.get("current_round", 1)
+
+    # DB checks
+    participant_count = db.query(Participant).count()
+    all_teams = db.query(Team).all()
+    approved_teams = [t for t in all_teams if t.status == "APPROVED"]
+    
+    results_finalized = db.query(ActivityLog).filter(
+        ActivityLog.action == "EVALUATION_FINALIZED"
+    ).first() is not None
+
+    # Count scores per round
+    def has_scores_for_round(round_num):
+        return db.query(Score).filter(Score.round_number == round_num).count() > 0
+
+    # Track evaluation round counter as we walk through stages
+    eval_round_counter = 0
+    stages_with_status = []
+
+    for i, stage in enumerate(stages):
+        label = stage.get("label", "").lower()
+        name = stage.get("name", "").lower()
+
+        is_registration = "registr" in label or "registr" in name
+        is_team = "team" in label or "team" in name
+        is_result = "result" in label or "result" in name or "final" in label or "winner" in label
+        is_evaluation = (
+            "eval" in label or "eval" in name or
+            "judg" in label or "judg" in name or
+            "round" in label or "round" in name or
+            "assess" in label or "assess" in name
+        ) and not is_result
+
+        if is_registration:
+            if participant_count > 0:
+                status = "COMPLETED"
+            else:
+                status = "UPCOMING"
+
+        elif is_team:
+            if len(approved_teams) > 0:
+                status = "COMPLETED"
+            elif len(all_teams) > 0:
+                status = "ACTIVE"
+            else:
+                status = "UPCOMING"
+
+        elif is_evaluation:
+            eval_round_counter += 1
+            round_num = eval_round_counter
+            round_has_scores = has_scores_for_round(round_num)
+
+            if results_finalized:
+                # All evaluation rounds done
+                status = "COMPLETED"
+            elif current_round > round_num and round_has_scores:
+                # This round was finalized, next round is active
+                status = "COMPLETED"
+            elif current_round == round_num and round_has_scores:
+                # Scores submitted for this round, not yet finalized
+                status = "ACTIVE"
+            elif current_round == round_num and len(approved_teams) > 0:
+                # Round is active but no scores yet
+                status = "ACTIVE"
+            else:
+                status = "UPCOMING"
+
+        elif is_result:
+            if results_finalized:
+                status = "COMPLETED"
+            elif current_round > len([s for s in stages if "eval" in s.get("label","").lower() or "round" in s.get("label","").lower()]):
+                status = "ACTIVE"
+            else:
+                status = "UPCOMING"
+
+        else:
+            # Generic stage — use position relative to current_round as proxy
+            status = "UPCOMING"
+
+        stages_with_status.append({
+            "order": stage["order"],
+            "name": stage["name"],
+            "label": stage["label"],
+            "description": stage.get("description", ""),
+            "status": status
+        })
+
+    # Determine current stage label for header
+    active_stages = [s for s in stages_with_status if s["status"] == "ACTIVE"]
+    current_stage_name = active_stages[0]["name"] if active_stages else stages_with_status[-1]["name"]
+    current_stage_index = next(
+        (i for i, s in enumerate(stages_with_status) if s["status"] == "ACTIVE"),
+        len(stages_with_status) - 1
+    )
+
+    return {
+        "event_name": config.event_name,
+        "current_stage": current_stage_name,
+        "current_stage_index": current_stage_index,
+        "total_stages": len(stages),
+        "is_final_stage": results_finalized,
+        "stages": stages_with_status,
+        "team_formation": json.loads(config.team_formation),
+        "scoring": scoring_data
+    }
+
+
 @router.get("/pipeline/dynamic/status")
 def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
@@ -122,51 +245,23 @@ def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
         }
 
     stages = json.loads(config.stages)
-
     if not stages:
         return {
             "status": "not_configured",
             "message": "Event configuration is incomplete due to a previous AI generation error. Please re-configure your event."
         }
 
-    current_index = config.current_stage_index if config.current_stage_index is not None else 0
-    current_index = min(current_index, len(stages) - 1)
-
-    stages_with_status = []
-    for i, stage in enumerate(stages):
-        if i < current_index:
-            status = "COMPLETED"
-        elif i == current_index:
-            status = "ACTIVE"
-        else:
-            status = "UPCOMING"
-
-        stages_with_status.append({
-            "order": stage["order"],
-            "name": stage["name"],
-            "label": stage["label"],
-            "description": stage["description"],
-            "status": status
-        })
-
-    current_stage = stages[current_index]
-
-    return {
-        "event_name": config.event_name,
-        "current_stage": current_stage["name"],
-        "current_stage_index": current_index,
-        "total_stages": len(stages),
-        "is_final_stage": current_index >= len(stages) - 1,
-        "stages": stages_with_status,
-        "team_formation": json.loads(config.team_formation),
-        "scoring": json.loads(config.scoring)
-    }
+    result = _compute_pipeline_status(config, db)
+    return result
 
 
 @router.post("/pipeline/advance")
 def advance_pipeline_stage(db: Session = Depends(get_db)):
+    """
+    Kept for compatibility but no longer drives visual state.
+    Visual state is computed purely from DB data now.
+    """
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-
     if not config:
         raise HTTPException(status_code=404, detail="No active event config found.")
 
@@ -181,25 +276,17 @@ def advance_pipeline_stage(db: Session = Depends(get_db)):
     next_stage_name = stages[config.current_stage_index]["name"]
     db.commit()
 
-    try:
-        from email_triggers import trigger_stage_emails
-        trigger_result = trigger_stage_emails(next_stage_name, db)
-    except Exception as e:
-        trigger_result = {"triggered": False, "error": str(e)}
-
     return {
         "message": f"Pipeline advanced: '{prev_stage_name}' → '{next_stage_name}'",
         "previous_stage": prev_stage_name,
         "current_stage": next_stage_name,
         "current_stage_index": config.current_stage_index,
-        "email_trigger": trigger_result
     }
 
 
 @router.post("/pipeline/reset")
 def reset_pipeline_stage(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
-
     if not config:
         raise HTTPException(status_code=404, detail="No active event config found.")
 
@@ -223,7 +310,6 @@ def reset_system(db: Session = Depends(get_db)):
         db.query(Participant).delete()
         db.query(ActivityLog).delete()
         db.query(EventConfig).delete()
-
         db.query(User).filter(User.role == "Judge").delete()
 
         from activity import log_action
