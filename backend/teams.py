@@ -20,13 +20,18 @@ class ManualConfig(BaseModel):
     skill_balance: bool = True
     constraints: Optional[str] = None
 
+class MoveMemberRequest(BaseModel):
+    member_id: int
+    from_team_id: int
+    to_team_id: int
+
 
 def assign_mentors_to_teams(db: Session, teams: list):
     mentors = db.query(Mentor).all()
     if not mentors or not teams:
         return
 
-    mentor_capacity = {m.id: 2 for m in mentors}  # default capacity = 2 teams per mentor
+    mentor_capacity = {m.id: 2 for m in mentors}
 
     mentor_assigned_count = {}
     existing_mentors = db.query(Mentor).filter(Mentor.assigned_team_id != None).all()
@@ -99,7 +104,6 @@ Return ONLY a valid JSON array, no markdown, no explanation, in this exact forma
     except Exception as e:
         print(f"[MENTOR MATCHING AI ERROR] {e}. Falling back to round-robin for unmatched teams.")
 
-    # Fallback: round-robin for any team not yet matched
     for t in teams:
         if t.id in assigned_team_ids:
             continue
@@ -145,6 +149,7 @@ def translate_rubric(request: FormationPrompt):
     except Exception as e:
         print(f"Error translating rubric: {e}")
         raise HTTPException(status_code=500, detail="Failed to parse rubric using AI")
+
 
 @router.post("/teams/generate")
 def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = Depends(get_db)):
@@ -232,7 +237,6 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
             institutions=institutions
         )
 
-    # AI-based mentor matching with capacity + round-robin fallback
     assign_mentors_to_teams(db, created_team_records)
 
     return {
@@ -249,9 +253,11 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
         ]
     }
 
+
 class ApproveRejectRequest(BaseModel):
     team_id: int
     action: str
+
 
 @router.post("/teams/approve")
 def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get_db)):
@@ -314,6 +320,67 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
 
     return {"message": f"Team {team.name} has been {request.action}", "team_id": team.id, "status": team.status}
 
+
+@router.patch("/teams/move-member")
+def move_member(request: MoveMemberRequest, db: Session = Depends(get_db)):
+    # Validate source team
+    from_team = db.query(Team).filter(Team.id == request.from_team_id).first()
+    if not from_team:
+        raise HTTPException(status_code=404, detail="Source team not found")
+
+    # Validate destination team
+    to_team = db.query(Team).filter(Team.id == request.to_team_id).first()
+    if not to_team:
+        raise HTTPException(status_code=404, detail="Destination team not found")
+
+    # Validate member exists
+    member = db.query(Participant).filter(Participant.id == request.member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    from_ids = json.loads(from_team.member_ids)
+    to_ids = json.loads(to_team.member_ids)
+
+    # Validate member is actually in source team
+    if request.member_id not in from_ids:
+        raise HTTPException(status_code=400, detail="Member does not belong to the source team")
+
+    # Prevent move that would leave source team empty
+    if len(from_ids) <= 1:
+        raise HTTPException(status_code=400, detail="Cannot move — source team would be left empty")
+
+    # Prevent duplicate
+    if request.member_id in to_ids:
+        raise HTTPException(status_code=400, detail="Member is already in the destination team")
+
+    # Perform move safely inside a transaction
+    try:
+        from_ids.remove(request.member_id)
+        to_ids.append(request.member_id)
+
+        from_team.member_ids = json.dumps(from_ids)
+        to_team.member_ids = json.dumps(to_ids)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Move failed, no changes saved: {str(e)}")
+
+    log_action(
+        db=db,
+        action="MEMBER_MOVED",
+        description=f"{member.name} moved from {from_team.name} to {to_team.name} by committee.",
+        performed_by="committee",
+        target_entity="Team",
+        target_id=to_team.id
+    )
+
+    return {
+        "message": f"{member.name} moved from {from_team.name} to {to_team.name}",
+        "from_team": {"id": from_team.id, "name": from_team.name, "member_ids": from_ids},
+        "to_team": {"id": to_team.id, "name": to_team.name, "member_ids": to_ids}
+    }
+
+
 @router.get("/teams")
 def get_teams(qualified_only: bool = False, db: Session = Depends(get_db)):
     query = db.query(Team)
@@ -350,6 +417,7 @@ def get_teams(qualified_only: bool = False, db: Session = Depends(get_db)):
             "event_config_id": t.event_config_id
         })
     return result
+
 
 @router.delete("/teams/clear")
 def clear_teams(db: Session = Depends(get_db)):
