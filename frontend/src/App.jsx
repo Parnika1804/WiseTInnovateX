@@ -17,6 +17,7 @@ import Leaderboard from './components/Leaderboard';
 import ParticipantPortal from './components/ParticipantPortal';
 import JudgePortal from './components/JudgePortal';
 import EventDescriptionForm from './components/EventDescriptionForm';
+import MentorPortal from './components/MentorPortal';
 
 // --- INLINE PAGE COMPONENTS (COMMITTEE ONLY) ---
 const TeamView = () => {
@@ -80,18 +81,17 @@ function App() {
             <Route path="/teams" element={<TeamView />} />
             <Route path="/comms" element={<CommsLog />} />
             {/* The Committee checks the results, but doesn't grade */}
-            <Route path="/evaluation" element={<EvaluationResultsView />} /> 
+            <Route path="/evaluation" element={<EvaluationResultsView />} />
           </Route>
 
           {/* === JUDGE MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
-          {/* Must be outside ProtectedRoute: the judge arrives from an email link with no
-              session yet. JudgePortal decodes the JWT from ?token= and calls login() itself. */}
           <Route path="/judge-dashboard" element={<JudgePortal />} />
 
           {/* === PARTICIPANT MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
-          {/* Must be outside ProtectedRoute: participant arrives from an email link with no
-              session yet. ParticipantPortal decodes the JWT from ?token= and calls login() itself. */}
           <Route path="/participant-portal" element={<ParticipantPortal />} />
+
+          {/* === MENTOR MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
+          <Route path="/mentor-portal" element={<MentorPortal />} />
 
         </Routes>
       </Router>

@@ -14,6 +14,7 @@ from dynamic_pipeline import router as dynamic_pipeline_router
 from clarification import router as clarification_router
 from auth import router as auth_router
 from mentors import router as mentors_router
+from special_mention import router as special_mention_router
 
 app = FastAPI(title="EventFlow API")
 
@@ -37,8 +38,9 @@ app.include_router(participant_router)
 app.include_router(event_description_router)
 app.include_router(dynamic_pipeline_router)
 app.include_router(clarification_router)
-app.include_router(auth_router) 
+app.include_router(auth_router)
 app.include_router(mentors_router)
+app.include_router(special_mention_router)
 
 @app.get("/")
 def root():

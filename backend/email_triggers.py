@@ -188,6 +188,8 @@ def trigger_stage_emails(stage_name: str, db: Session) -> dict:
         drafted_count += 1
 
     return {"triggered": True, "stage": stage_name, "stage_emails_drafted": drafted_count, "status": "PENDING_APPROVAL", "batch_id": batch_id}
+
+
 def send_mentor_emails(db: Session) -> dict:
     from models import Mentor
     batch_id = str(uuid.uuid4())
@@ -248,4 +250,97 @@ Write a 4-5 sentence email that introduces their mentor with contact details, li
         "batch_id": batch_id,
         "status": "PENDING_APPROVAL",
         "note": "Mentor and participant intro emails queued for committee approval."
+    }
+
+
+# NEW — Special Mention email functions
+
+def send_special_mention_nomination_email(db: Session, nomination) -> dict:
+    """
+    Drafts a notification email to the committee when a mentor submits a Special Mention nomination.
+    Called from special_mention.py after nomination is saved.
+    """
+    from models import Mentor
+    batch_id = str(uuid.uuid4())
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    event_name = config.event_name if config else "the event"
+
+    mentor = db.query(Mentor).filter(Mentor.id == nomination.mentor_id).first()
+    team = db.query(Team).filter(Team.id == nomination.team_id).first()
+    nominated_ids = json.loads(nomination.nominated_member_ids) if nomination.nominated_member_ids else []
+    nominated_members = db.query(Participant).filter(Participant.id.in_(nominated_ids)).all()
+    nominated_names = ", ".join([m.name for m in nominated_members]) or "Full team"
+
+    # Draft to all committee members (query users with role=committee)
+    from models import User
+    committee_members = db.query(User).filter(User.role == "committee").all()
+    drafted_count = 0
+
+    for cm in committee_members:
+        prompt = f"""You are an event management system. Write a brief, professional notification email to a committee member.
+Event: {event_name}
+A mentor has submitted a Special Mention nomination for review.
+Mentor: {mentor.name if mentor else 'Unknown'} ({mentor.email if mentor else ''})
+Team: {team.name if team else 'Unknown'}
+Nominated Members: {nominated_names}
+Reason given: {nomination.reason or 'No reason provided'}
+
+Write 2-3 sentences informing the committee member that a nomination is pending their review in the dashboard. Do not include a subject line."""
+
+        body = call_gemini(prompt)
+        subject = f"⭐ Special Mention Nomination Pending Review — {team.name if team else 'Unknown Team'} | {event_name}"
+        _save_as_draft(db, cm.email, subject, body, comm_type="SPECIAL_MENTION_NOMINATION", batch_id=batch_id)
+        drafted_count += 1
+
+    return {
+        "special_mention_nomination_emails_drafted": drafted_count,
+        "batch_id": batch_id,
+        "status": "PENDING_APPROVAL",
+        "note": "Committee notification emails queued for approval."
+    }
+
+
+def send_special_mention_decision_emails(db: Session, nomination, approved: bool) -> dict:
+    """
+    Drafts emails to nominated participants after committee approves or rejects a Special Mention.
+    Called from special_mention.py after committee decision.
+    """
+    batch_id = str(uuid.uuid4())
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    event_name = config.event_name if config else "the event"
+
+    team = db.query(Team).filter(Team.id == nomination.team_id).first()
+    nominated_ids = json.loads(nomination.nominated_member_ids) if nomination.nominated_member_ids else []
+    nominated_members = db.query(Participant).filter(Participant.id.in_(nominated_ids)).all()
+    drafted_count = 0
+
+    for member in nominated_members:
+        if approved:
+            prompt = f"""You are an event coordinator. Write a warm, exciting email to a participant whose Special Mention nomination has been approved.
+Event: {event_name}
+Participant Name: {member.name}
+Team: {team.name if team else 'your team'}
+
+Write 3-4 sentences informing them that their mentor nominated them for a Special Mention, the committee has approved it, and they will now compete in the final round as a Special Mention wildcard entry alongside the main finalists. Mention they will be judged separately for a Special Mention award. Do not include a subject line."""
+            subject = f"⭐ You've Been Granted Special Mention — Finals Entry | {event_name}"
+            comm_type = "SPECIAL_MENTION_APPROVED"
+        else:
+            prompt = f"""You are an event coordinator. Write a warm, empathetic email to a participant whose Special Mention nomination was not approved.
+Event: {event_name}
+Participant Name: {member.name}
+Team: {team.name if team else 'your team'}
+
+Write 3-4 sentences acknowledging that their mentor nominated them for a Special Mention, thanking them for their effort during the event, and encouraging them to keep building for future events. Keep the tone positive and respectful. Do not include a subject line."""
+            subject = f"Regarding Your Special Mention Nomination | {event_name}"
+            comm_type = "SPECIAL_MENTION_REJECTED"
+
+        body = call_gemini(prompt)
+        _save_as_draft(db, member.email, subject, body, comm_type=comm_type, batch_id=batch_id)
+        drafted_count += 1
+
+    return {
+        "special_mention_decision_emails_drafted": drafted_count,
+        "batch_id": batch_id,
+        "status": "PENDING_APPROVAL",
+        "note": "Special mention decision emails queued for committee approval."
     }

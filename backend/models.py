@@ -122,6 +122,8 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Mentor(Base):
     __tablename__ = "mentors"
 
@@ -131,4 +133,17 @@ class Mentor(Base):
     expertise = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     assigned_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SpecialMention(Base):
+    __tablename__ = "special_mentions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    mentor_id = Column(Integer, ForeignKey("mentors.id"), nullable=False)
+    nominated_member_ids = Column(String, nullable=False)  # JSON array of participant IDs
+    reason = Column(String, nullable=False)
+    status = Column(String, default="PENDING")  # PENDING / APPROVED / REJECTED
+    reviewed_by = Column(String, nullable=True)  # committee member who approved/rejected
     created_at = Column(DateTime, default=datetime.utcnow)

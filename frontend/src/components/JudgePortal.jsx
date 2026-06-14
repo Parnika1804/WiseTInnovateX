@@ -15,8 +15,10 @@ const JudgePortal = () => {
   const [tokenError, setTokenError] = useState(false);
 
   const [teams, setTeams] = useState([]);
+  const [specialMentionTeams, setSpecialMentionTeams] = useState([]);
   const [scoredTeamIds, setScoredTeamIds] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [activeSection, setActiveSection] = useState('main'); // 'main' or 'special'
   const [score, setScore] = useState('');
   const [maxScore, setMaxScore] = useState(10);
   const [currentRound, setCurrentRound] = useState(1);
@@ -34,9 +36,7 @@ const JudgePortal = () => {
         atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
       );
       const payload = JSON.parse(jsonPayload);
-
       if (payload.role !== 'Judge') { setTokenError(true); return; }
-
       login({ token, user: { name: payload.name, email: payload.email, role: 'Judge' } });
       setJudgeName(payload.name);
     } catch (err) {
@@ -66,6 +66,11 @@ const JudgePortal = () => {
         if (res.data.length > 0) setSelectedTeam(res.data[0]);
       }).catch(console.error);
 
+    // Fetch approved special mention teams
+    axios.get(`${API}/special-mention/approved`)
+      .then(res => setSpecialMentionTeams(res.data))
+      .catch(console.error);
+
     fetchScoredTeams();
 
     axios.get(`${API}/mentors`)
@@ -80,15 +85,12 @@ const JudgePortal = () => {
       .catch(console.error);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!selectedTeam) return;
-
     if (parseFloat(score) < 0 || parseFloat(score) > maxScore) {
       setSubmitStatus(`❌ Score must be between 0 and ${maxScore}.`);
       return;
     }
-
     setSubmitting(true);
     setSubmitStatus('');
     try {
@@ -98,12 +100,10 @@ const JudgePortal = () => {
         score: parseFloat(score),
         notes,
       });
-
       setSubmitStatus(`✅ Score submitted for ${selectedTeam.name}!`);
       setScore('');
       setNotes('');
       fetchScoredTeams();
-
     } catch (err) {
       setSubmitStatus(`❌ ${err.response?.data?.detail || 'Submission failed.'}`);
     } finally {
@@ -130,13 +130,35 @@ const JudgePortal = () => {
     ? Array.from(new Set(selectedTeam.members.map(m => m.project_link).filter(link => link && link.trim() !== '')))
     : [];
 
+  const allTeams = activeSection === 'main' ? teams : [];
+
+  const renderTeamCard = (t, isSpecialMention = false) => {
+    const isScored = scoredTeamIds.includes(t.id);
+    return (
+      <button
+        key={t.id}
+        onClick={() => { setSelectedTeam(t); setScore(''); setNotes(''); setSubmitStatus(''); }}
+        className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all flex items-center gap-2 ${
+          selectedTeam?.id === t.id
+            ? 'bg-slate-900 text-white border-slate-900'
+            : isScored
+              ? 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'
+              : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+        }`}
+      >
+        {isSpecialMention && <span>⭐</span>}
+        {t.team_name || t.name} {isScored && '✓'}
+      </button>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-slate-900 text-white px-8 py-5">
         <h2 className="text-xl font-bold">Judge Evaluation Portal</h2>
         <p className="text-slate-400 text-sm mt-1">
           Welcome, <span className="text-white font-semibold">{judgeName}</span>
-          {' '}· Evaluated <span className="text-green-400 font-semibold">{scoredTeamIds.length}</span> / {teams.length} teams
+          {' '}· Evaluated <span className="text-green-400 font-semibold">{scoredTeamIds.length}</span> / {teams.length + specialMentionTeams.length} teams
         </p>
       </div>
 
@@ -148,152 +170,202 @@ const JudgePortal = () => {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-        {teams.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">
-            <p className="font-semibold">No approved teams available for Round {currentRound}.</p>
+
+        {/* Section toggle */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => { setActiveSection('main'); setSelectedTeam(teams[0] || null); setScore(''); setNotes(''); setSubmitStatus(''); }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+              activeSection === 'main' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+            }`}
+          >
+            🏆 Main Finalists ({teams.length})
+          </button>
+          <button
+            onClick={() => { setActiveSection('special'); setSelectedTeam(null); setScore(''); setNotes(''); setSubmitStatus(''); }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+              activeSection === 'special' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+            }`}
+          >
+            ⭐ Special Mentions ({specialMentionTeams.length})
+          </button>
+        </div>
+
+        {/* Special mention notice */}
+        {activeSection === 'special' && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="text-sm text-amber-800 font-medium">⭐ These are Special Mention wildcard entries. Score them separately — their scores do not affect main finalist rankings.</p>
           </div>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {teams.map(t => {
-                const isScored = scoredTeamIds.includes(t.id);
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => { setSelectedTeam(t); setScore(''); setNotes(''); setSubmitStatus(''); }}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all flex items-center gap-2 ${
-                      selectedTeam?.id === t.id
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : isScored
-                          ? 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                    }`}
-                  >
-                    {t.name} {isScored && '✓'}
-                  </button>
-                );
-              })}
+        )}
+
+        {/* Main finalists */}
+        {activeSection === 'main' && (
+          teams.length === 0 ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">
+              <p className="font-semibold">No approved teams available for Round {currentRound}.</p>
             </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {teams.map(t => renderTeamCard(t, false))}
+              </div>
+            </>
+          )
+        )}
 
-            {selectedTeam && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">Team Portfolio & Projects</h3>
+        {/* Special mention teams */}
+        {activeSection === 'special' && (
+          specialMentionTeams.length === 0 ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center text-amber-800">
+              <p className="font-semibold">No approved Special Mention nominations yet.</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {specialMentionTeams.map(t => renderTeamCard(t, true))}
+            </div>
+          )
+        )}
 
-                    {(() => {
-                      const mentor = mentors.find(m => m.assigned_team_id === selectedTeam.id);
-                      return mentor ? (
-                        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                          <p className="text-sm font-bold text-indigo-800 mb-1">🧑‍🏫 Assigned Mentor</p>
-                          <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
-                          <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
-                          {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {uniqueProjectLinks.length > 0 && (
-                      <div className="mb-6 pb-6 border-b border-slate-100 flex flex-wrap gap-3">
-                        {uniqueProjectLinks.map((link, idx) => (
-                          <a
-                            key={idx}
-                            href={link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm text-sm"
-                          >
-                            📦 View Team Project {uniqueProjectLinks.length > 1 ? `#${idx + 1}` : ''}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-
-                    {selectedTeam.members && selectedTeam.members.length > 0 ? (
-                      selectedTeam.members.map(m => (
-                        <div key={m.id} className="mb-4 last:mb-0 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                          <p className="font-semibold text-slate-800">
-                            {m.name} <span className="text-sm font-normal text-slate-500">({m.skill})</span>
-                          </p>
-                          {m.tech_stack && (
-                            <p className="text-sm text-slate-600 mt-1">
-                              <span className="font-medium text-slate-700">Tech Stack:</span> {m.tech_stack}
-                            </p>
-                          )}
-                          <div className="flex gap-4 mt-3 text-sm">
-                            {m.resume_link ? (
-                              <a href={m.resume_link} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
-                                📄 View Resume
-                              </a>
-                            ) : (
-                              <span className="text-slate-400">No resume</span>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-slate-500">No member data available.</p>
-                    )}
-                  </div>
-
-                  <AssessmentGuide teamId={selectedTeam.id} />
+        {/* Team detail + scoring */}
+        {selectedTeam && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <h3 className="text-lg font-bold text-slate-900">Team Portfolio & Projects</h3>
+                  {activeSection === 'special' && (
+                    <span className="px-2.5 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-xs font-bold">⭐ Special Mention</span>
+                  )}
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-fit">
-                  <h3 className="text-lg font-bold text-slate-900 mb-4">
-                    Round {currentRound} Evaluation — <span className="text-blue-600">{selectedTeam.name}</span>
-                  </h3>
+                {(() => {
+                  const mentor = mentors.find(m => m.assigned_team_id === selectedTeam.id);
+                  return mentor ? (
+                    <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <p className="text-sm font-bold text-indigo-800 mb-1">🧑‍🏫 Assigned Mentor</p>
+                      <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
+                      <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
+                      {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}
+                    </div>
+                  ) : null;
+                })()}
 
-                  {scoredTeamIds.includes(selectedTeam.id) ? (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center mt-4">
-                      <div className="text-green-500 text-5xl mb-4">✅</div>
-                      <h3 className="text-xl font-bold text-green-900 mb-2">Score Locked In</h3>
-                      <p className="text-sm text-green-700">
-                        You have successfully completed the evaluation for {selectedTeam.name} in Round {currentRound}.
+                {uniqueProjectLinks.length > 0 && (
+                  <div className="mb-6 pb-6 border-b border-slate-100 flex flex-wrap gap-3">
+                    {uniqueProjectLinks.map((link, idx) => (
+                      <a
+                        key={idx}
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm text-sm"
+                      >
+                        📦 View Team Project {uniqueProjectLinks.length > 1 ? `#${idx + 1}` : ''}
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {selectedTeam.members && selectedTeam.members.length > 0 ? (
+                  selectedTeam.members.map(m => (
+                    <div key={m.id} className="mb-4 last:mb-0 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <p className="font-semibold text-slate-800">
+                        {m.name} <span className="text-sm font-normal text-slate-500">({m.skill})</span>
+                      </p>
+                      {m.tech_stack && (
+                        <p className="text-sm text-slate-600 mt-1">
+                          <span className="font-medium text-slate-700">Tech Stack:</span> {m.tech_stack}
+                        </p>
+                      )}
+                      <div className="flex gap-4 mt-3 text-sm">
+                        {m.resume_link ? (
+                          <a href={m.resume_link} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
+                            📄 View Resume
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">No resume</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  // Special mention — show nominated members
+                  selectedTeam.nominated_members && selectedTeam.nominated_members.map(m => (
+                    <div key={m.id} className="mb-4 last:mb-0 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                      <p className="font-semibold text-slate-800">
+                        {m.name} <span className="text-sm font-normal text-slate-500">({m.skill})</span>
                       </p>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">
-                          Final Score (0–{maxScore})
-                        </label>
-                        <input
-                          type="number" step="0.1" min="0" max={maxScore}
-                          value={score} onChange={e => setScore(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder={`Max ${maxScore}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Evaluation Notes</label>
-                        <textarea
-                          value={notes} onChange={e => setNotes(e.target.value)}
-                          rows={5}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
-                          placeholder="Provide reasoning for your score..."
-                        />
-                      </div>
-                      <button
-                        onClick={handleSubmit}
-                        disabled={submitting || !score || !notes}
-                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-lg font-bold transition-colors"
-                      >
-                        {submitting ? 'Submitting...' : `Lock in Score for Round ${currentRound}`}
-                      </button>
-                      {submitStatus && (
-                        <div className={`p-3 rounded-lg text-sm font-medium ${
-                          submitStatus.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                        }`}>
-                          {submitStatus}
-                        </div>
-                      )}
+                  ))
+                )}
+              </div>
+
+              {activeSection === 'main' && <AssessmentGuide teamId={selectedTeam.id} />}
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-fit">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">
+                Round {currentRound} Evaluation — <span className={activeSection === 'special' ? 'text-amber-500' : 'text-blue-600'}>{selectedTeam.team_name || selectedTeam.name}</span>
+              </h3>
+
+              {activeSection === 'special' && (
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700 font-medium">⭐ Scoring as Special Mention — this score is separate from main finalist rankings.</p>
+                </div>
+              )}
+
+              {scoredTeamIds.includes(selectedTeam.id) ? (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center mt-4">
+                  <div className="text-green-500 text-5xl mb-4">✅</div>
+                  <h3 className="text-xl font-bold text-green-900 mb-2">Score Locked In</h3>
+                  <p className="text-sm text-green-700">
+                    You have successfully completed the evaluation for {selectedTeam.team_name || selectedTeam.name} in Round {currentRound}.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                      Final Score (0–{maxScore})
+                    </label>
+                    <input
+                      type="number" step="0.1" min="0" max={maxScore}
+                      value={score} onChange={e => setScore(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={`Max ${maxScore}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Evaluation Notes</label>
+                    <textarea
+                      value={notes} onChange={e => setNotes(e.target.value)}
+                      rows={5}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+                      placeholder="Provide reasoning for your score..."
+                    />
+                  </div>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting || !score || !notes}
+                    className={`w-full disabled:opacity-50 text-white py-3 rounded-lg font-bold transition-colors ${
+                      activeSection === 'special'
+                        ? 'bg-amber-500 hover:bg-amber-600'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    {submitting ? 'Submitting...' : `Lock in Score for Round ${currentRound}`}
+                  </button>
+                  {submitStatus && (
+                    <div className={`p-3 rounded-lg text-sm font-medium ${
+                      submitStatus.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    }`}>
+                      {submitStatus}
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-          </>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
