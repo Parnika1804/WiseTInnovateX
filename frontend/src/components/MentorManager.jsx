@@ -5,18 +5,24 @@ const API = 'http://localhost:8000';
 
 const MentorManager = () => {
   const [mentors, setMentors] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [emailStatus, setEmailStatus] = useState('');
   const [linkStatus, setLinkStatus] = useState('');
+  const [reassignStatus, setReassignStatus] = useState('');
   const [sendingEmails, setSendingEmails] = useState(false);
   const [sendingLinks, setSendingLinks] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [reassignRow, setReassignRow] = useState(null); // team_id being reassigned
+  const [selectedNewMentor, setSelectedNewMentor] = useState('');
+  const [reassigning, setReassigning] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchMentors();
+    fetchTeams();
   }, []);
 
   const fetchMentors = async () => {
@@ -31,16 +37,22 @@ const MentorManager = () => {
     }
   };
 
+  const fetchTeams = async () => {
+    try {
+      const res = await axios.get(`${API}/teams`);
+      setTeams(res.data);
+    } catch (err) {
+      console.error('Failed to fetch teams', err);
+    }
+  };
+
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setUploading(true);
     setUploadStatus('');
-
     const formData = new FormData();
     formData.append('file', file);
-
     try {
       const res = await axios.post(`${API}/mentors/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -95,8 +107,37 @@ const MentorManager = () => {
     }
   };
 
+  const handleReassignClick = (teamId) => {
+    setReassignRow(teamId);
+    setSelectedNewMentor('');
+    setReassignStatus('');
+  };
+
+  const handleReassignConfirm = async (teamId) => {
+    if (!selectedNewMentor) return;
+    setReassigning(true);
+    setReassignStatus('');
+    try {
+      const res = await axios.patch(`${API}/mentors/${teamId}/reassign`, {
+        new_mentor_id: parseInt(selectedNewMentor),
+      });
+      setReassignStatus(`✅ ${res.data.message}`);
+      setReassignRow(null);
+      setSelectedNewMentor('');
+      fetchMentors();
+    } catch (err) {
+      setReassignStatus(`❌ ${err.response?.data?.detail || 'Reassignment failed.'}`);
+    } finally {
+      setReassigning(false);
+    }
+  };
+
   const assignedCount = mentors.filter(m => m.assigned_team_id).length;
   const unassignedCount = mentors.length - assignedCount;
+
+  // Mentors available to be reassigned (unassigned ones + the current mentor of the row)
+  const availableMentors = (teamId) =>
+    mentors.filter(m => !m.assigned_team_id || m.assigned_team_id === teamId);
 
   return (
     <div className="space-y-6">
@@ -144,7 +185,7 @@ const MentorManager = () => {
             </label>
           </div>
 
-          {/* Send Portal Links — NEW */}
+          {/* Send Portal Links */}
           <button
             onClick={handleSendPortalLinks}
             disabled={sendingLinks || mentors.length === 0}
@@ -208,6 +249,13 @@ const MentorManager = () => {
             {emailStatus}
           </div>
         )}
+        {reassignStatus && (
+          <div className={`mt-3 p-3 rounded-lg text-sm font-medium ${
+            reassignStatus.startsWith('✅') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {reassignStatus}
+          </div>
+        )}
       </div>
 
       {/* Mentors table */}
@@ -236,6 +284,7 @@ const MentorManager = () => {
                   <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Phone</th>
                   <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned Team</th>
                   <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -263,6 +312,48 @@ const MentorManager = () => {
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
                           ⏳ Pending
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {mentor.assigned_team_id ? (
+                        reassignRow === mentor.assigned_team_id ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={selectedNewMentor}
+                              onChange={(e) => setSelectedNewMentor(e.target.value)}
+                              className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            >
+                              <option value="">Pick mentor...</option>
+                              {availableMentors(mentor.assigned_team_id)
+                                .filter(m => m.id !== mentor.id)
+                                .map(m => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                            <button
+                              onClick={() => handleReassignConfirm(mentor.assigned_team_id)}
+                              disabled={!selectedNewMentor || reassigning}
+                              className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-orange-500 hover:bg-orange-600 disabled:bg-orange-200 disabled:cursor-not-allowed text-white transition-colors"
+                            >
+                              {reassigning ? '...' : 'Confirm'}
+                            </button>
+                            <button
+                              onClick={() => { setReassignRow(null); setSelectedNewMentor(''); }}
+                              className="text-xs px-2 py-1.5 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleReassignClick(mentor.assigned_team_id)}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 transition-colors"
+                          >
+                            🔀 Reassign
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
                       )}
                     </td>
                   </tr>
