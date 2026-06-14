@@ -133,6 +133,60 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Judge Feedback Component — shows judge notes on team's project after results
+// ---------------------------------------------------------------------------
+const JudgeFeedback = ({ teamId }) => {
+  const [feedback, setFeedback] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        const res = await axios.get(`${API}/scores/team-feedback/${teamId}`);
+        setFeedback(res.data.feedback || []);
+      } catch (e) {
+        console.log("No judge feedback available");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeedback();
+  }, [teamId]);
+
+  if (loading) return null;
+  if (!feedback.length) return null;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-6 mt-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
+        <div className="text-2xl">🧑‍⚖️</div>
+        <div>
+          <h4 className="text-lg font-bold text-slate-800">Judge Feedback on Your Project</h4>
+          <p className="text-sm text-slate-500">Here's what the judges thought about your team's work.</p>
+        </div>
+      </div>
+      <div className="space-y-4">
+        {feedback.map((f, idx) => (
+          <div key={idx} className="bg-slate-50 border border-slate-100 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-slate-700">Judge · Round {f.round_number}</p>
+              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
+                Score: {f.score}
+              </span>
+            </div>
+            {f.notes ? (
+              <p className="text-sm text-slate-600 italic">"{f.notes}"</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">No written feedback provided for this round.</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main Portal
 // ---------------------------------------------------------------------------
 const ParticipantPortal = () => {
@@ -320,6 +374,9 @@ const ParticipantPortal = () => {
           </p>
         </div>
 
+        {/* Judge feedback on project */}
+        {data.team && <JudgeFeedback teamId={data.team.id} />}
+
         {/* Feedback form for winners too */}
         <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
 
@@ -361,7 +418,10 @@ const ParticipantPortal = () => {
 
         {/* Feedback form — shown to eliminated participants too */}
         {finalResults && (
-          <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
+          <>
+            {data.team && <JudgeFeedback teamId={data.team.id} />}
+            <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
+          </>
         )}
 
         <div className="mt-6">

@@ -449,3 +449,24 @@ def finalize_evaluation(db: Session = Depends(get_db)):
             "emails_drafted": drafted_count,
             "batch_id": batch_id
         }
+# ---------------------------------------------------------
+# Team Feedback — read-only, shows judge notes to participants
+# ---------------------------------------------------------
+@router.get("/scores/team-feedback/{team_id}")
+def get_team_feedback(team_id: int, db: Session = Depends(get_db)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    scores = db.query(Score).filter(Score.team_id == team_id).order_by(Score.round_number).all()
+
+    feedback = [
+        {
+            "round_number": s.round_number,
+            "score": s.score,
+            "notes": s.notes,
+        }
+        for s in scores
+    ]
+
+    return {"team_id": team_id, "feedback": feedback}
