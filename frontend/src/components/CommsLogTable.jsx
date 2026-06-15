@@ -6,8 +6,6 @@ const API = 'http://localhost:8000';
 
 const CommsLogTable = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
-  const [pendingGroups, setPendingGroups] = useState({});
-  const [processingIds, setProcessingIds] = useState(new Set());
 
   // WebSocket Live Refresh
   const wsStatus = useWebSocket('comms', (data) => {
@@ -23,17 +21,7 @@ const CommsLogTable = ({ refreshTrigger }) => {
   const fetchLogs = async () => {
     try {
       const response = await axios.get(`${API}/comms/log`);
-      const all = response.data;
-      setLogs(all);
-
-      // Group PENDING_APPROVAL entries by comm_type instead of batch_id
-      const groups = {};
-      all.filter(l => l.status === 'PENDING_APPROVAL').forEach(l => {
-        const type = l.comm_type || 'UNCATEGORIZED';
-        if (!groups[type]) groups[type] = [];
-        groups[type].push(l);
-      });
-      setPendingGroups(groups);
+      setLogs(response.data);
     } catch (error) {
       console.error('Failed to fetch logs', error);
     }
@@ -47,69 +35,6 @@ const CommsLogTable = ({ refreshTrigger }) => {
     } catch (error) {
       console.error('Failed to delete log', error);
       alert('Failed to delete log. Check backend console.');
-    }
-  };
-
-  const setProcessing = (id, val) => {
-    setProcessingIds(prev => {
-      const next = new Set(prev);
-      val ? next.add(id) : next.delete(id);
-      return next;
-    });
-  };
-
-  const handleApprove = async (logId) => {
-    setProcessing(logId, true);
-    try {
-      await axios.post(`${API}/comms/approve/${logId}`);
-      await fetchLogs();
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Approval failed.');
-    } finally {
-      setProcessing(logId, false);
-    }
-  };
-
-  const handleReject = async (logId) => {
-    if (!window.confirm('Reject this email? It will NOT be sent.')) return;
-    setProcessing(logId, true);
-    try {
-      await axios.post(`${API}/comms/reject/${logId}`);
-      await fetchLogs();
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Rejection failed.');
-    } finally {
-      setProcessing(logId, false);
-    }
-  };
-
-  const handleApproveGroup = async (commType) => {
-    const count = pendingGroups[commType]?.length || 0;
-    if (!window.confirm(`Approve and send all ${count} pending emails for ${commType}?`)) return;
-    setProcessing(`group-${commType}`, true);
-    try {
-      const res = await axios.post(`${API}/comms/approve-type/${commType}`);
-      alert(`✅ Sent ${res.data.sent} email(s). Failed: ${res.data.failed}`);
-      await fetchLogs();
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Group approval failed.');
-    } finally {
-      setProcessing(`group-${commType}`, false);
-    }
-  };
-
-  const handleRejectGroup = async (commType) => {
-    const count = pendingGroups[commType]?.length || 0;
-    if (!window.confirm(`Reject and discard all ${count} pending emails for ${commType}?`)) return;
-    setProcessing(`group-${commType}`, true);
-    try {
-      const res = await axios.post(`${API}/comms/reject-type/${commType}`);
-      alert(`🗑️ Rejected ${res.data.rejected} email(s).`);
-      await fetchLogs();
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Group rejection failed.');
-    } finally {
-      setProcessing(`group-${commType}`, false);
     }
   };
 
@@ -139,8 +64,6 @@ const CommsLogTable = ({ refreshTrigger }) => {
     }
   };
 
-  const groupTypes = Object.keys(pendingGroups);
-
   return (
     <div className="mt-6">
       {/* ── Status Header ── */}
@@ -153,47 +76,6 @@ const CommsLogTable = ({ refreshTrigger }) => {
           </span>
         )}
       </div>
-
-      {/* ── Pending approval type banners ── */}
-      {groupTypes.length > 0 && (
-        <div className="mb-4 space-y-3">
-          {groupTypes.map(commType => {
-            const items = pendingGroups[commType];
-            const isBusy = processingIds.has(`group-${commType}`);
-            return (
-              <div key={commType}
-                className="flex items-center justify-between gap-4 p-4 bg-amber-50 border border-amber-300 rounded-lg">
-                <div>
-                  <p className="font-semibold text-amber-800 text-sm">
-                    ⏳ {items.length} email{items.length !== 1 ? 's' : ''} pending approval
-                    &nbsp;—&nbsp;
-                    <span className="font-normal">{getTypeBadge(commType)}</span>
-                  </p>
-                  <p className="text-xs text-amber-600 mt-0.5">
-                    Category: <code className="bg-amber-100 px-1 rounded">{commType}</code>
-                  </p>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleApproveGroup(commType)}
-                    disabled={isBusy}
-                    className="px-4 py-1.5 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {isBusy ? 'Processing…' : `✅ Approve All (${items.length})`}
-                  </button>
-                  <button
-                    onClick={() => handleRejectGroup(commType)}
-                    disabled={isBusy}
-                    className="px-4 py-1.5 bg-red-100 text-red-700 text-sm font-semibold rounded-md hover:bg-red-200 disabled:opacity-50"
-                  >
-                    🗑️ Reject All
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* ── Main log table ── */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -229,24 +111,7 @@ const CommsLogTable = ({ refreshTrigger }) => {
                     <td className="p-4">{getStatusBadge(log.status)}</td>
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        {log.status === 'PENDING_APPROVAL' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(log.id)}
-                              disabled={processingIds.has(log.id)}
-                              className="text-green-600 hover:text-green-800 hover:bg-green-50 px-3 py-1 rounded-md transition-colors text-sm font-semibold disabled:opacity-50"
-                            >
-                              {processingIds.has(log.id) ? '…' : '✅ Approve'}
-                            </button>
-                            <button
-                              onClick={() => handleReject(log.id)}
-                              disabled={processingIds.has(log.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-md transition-colors text-sm font-semibold disabled:opacity-50"
-                            >
-                              ❌ Reject
-                            </button>
-                          </>
-                        )}
+                        {/* Only the delete button remains here */}
                         <button
                           onClick={() => handleDeleteLog(log.id)}
                           className="text-gray-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition-colors text-xs"

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import EmailEditModal from './EmailEditModal';
-import EmailViewModal from './EmailViewModal';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 const API = 'http://localhost:8000';
@@ -53,10 +51,6 @@ const PendingApprovals = ({ onAction }) => {
   const [loadingId,    setLoadingId]    = useState(null);
   const [toast,        setToast]        = useState('');
   const [expanded,     setExpanded]     = useState({});
-  
-  // Modals state
-  const [viewLog, setViewLog] = useState(null);
-  const [editLog, setEditLog] = useState(null);
 
   const emailCount = pendingComms.length;
   const totalCount = pendingTeams.length + anomalies.length + emailCount;
@@ -81,7 +75,6 @@ const PendingApprovals = ({ onAction }) => {
     }
   }, []);
 
-  // WebSocket Live Refresh
   useWebSocket('comms', (data) => {
     if (data.event === 'comms_updated') load();
   });
@@ -117,56 +110,34 @@ const PendingApprovals = ({ onAction }) => {
     }
   };
 
-  // --- Email Actions ---
-  const handleApproveEmail = async (logId) => {
-    setLoadingId(`email-${logId}`);
-    try {
-      await axios.post(`${API}/comms/approve/${logId}`);
-      showToast('1 email sent successfully.');
-      load();
-    } catch (e) {
-      showToast(e.response?.data?.detail || 'Approval failed.', false);
-    } finally { setLoadingId(null); }
-  };
-
-  const handleRejectEmail = async (logId) => {
-    setLoadingId(`email-${logId}`);
-    try {
-      await axios.post(`${API}/comms/reject/${logId}`);
-      showToast('Email rejected.', false);
-      load();
-    } catch (e) {
-      showToast('Rejection failed.', false);
-    } finally { setLoadingId(null); }
-  };
-
+  // --- Email Actions (Updated with alerts for clear visibility) ---
   const handleApproveAll = async (commType, count) => {
     setLoadingId(`batch-approve-${commType}`);
     try {
-      await axios.post(`${API}/comms/approve-type/${commType}`);
-      showToast(`${count} email(s) sent successfully.`);
+      const res = await axios.post(`${API}/comms/approve-type/${commType}`);
+      // Use alert to ensure the user gets a prominent notification
+      alert(`✅ Successfully sent ${res.data?.sent || count} ${commType} email(s).`);
       load();
     } catch (e) {
-      showToast('Batch approval failed.', false);
+      alert(`❌ Batch approval failed: ${e.response?.data?.detail || e.message}`);
     } finally { setLoadingId(null); }
   };
 
   const handleRejectAll = async (commType) => {
-    if (!window.confirm("Reject all emails in this group?")) return;
+    if (!window.confirm(`Are you sure you want to discard all pending ${commType} emails?`)) return;
     setLoadingId(`batch-reject-${commType}`);
     try {
       await axios.post(`${API}/comms/reject-type/${commType}`);
-      showToast('Group rejected.', false);
+      alert(`🗑️ Rejected pending ${commType} emails.`);
       load();
     } catch (e) {
-      showToast('Batch rejection failed.', false);
+      alert(`❌ Batch rejection failed: ${e.response?.data?.detail || e.message}`);
     } finally { setLoadingId(null); }
   };
 
   const toggleExpand = (key) =>
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // Group pending communications by comm_type
   const commsGrouped = pendingComms.reduce((acc, log) => {
     const type = log.comm_type || 'UNCATEGORIZED';
     if (!acc[type]) acc[type] = [];
@@ -176,10 +147,6 @@ const PendingApprovals = ({ onAction }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative">
-      {/* Modals */}
-      {viewLog && <EmailViewModal log={viewLog} onClose={() => setViewLog(null)} />}
-      {editLog && <EmailEditModal log={editLog} onClose={() => setEditLog(null)} onSave={load} />}
-
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <h3 className="text-base font-bold text-gray-800">Pending Approvals</h3>
@@ -201,13 +168,15 @@ const PendingApprovals = ({ onAction }) => {
         </div>
       )}
 
-      {/* EMAILS */}
+      {/* EMAILS - Summary Only */}
       {Object.entries(commsGrouped).map(([type, logs]) => (
-        <div key={type} className="mb-6">
-          <div className="flex items-center justify-between mb-3 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+        <div key={type} className="mb-4">
+          <div className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
             <div className="flex items-center gap-2">
               <span className="text-base">📬</span>
-              <span className="text-sm font-bold text-blue-900">{type.replace(/_/g, ' ')}</span>
+              <span className="text-sm font-semibold text-blue-900">
+                {logs.length} {type.replace(/_/g, ' ')} emails ready to approve
+              </span>
               <Badge count={logs.length} />
             </div>
             <div className="flex gap-2">
@@ -226,39 +195,6 @@ const PendingApprovals = ({ onAction }) => {
                 Reject All
               </ActionBtn>
             </div>
-          </div>
-          
-          <div className="space-y-2 pl-2 border-l-2 border-blue-100 ml-3">
-            {logs.map(log => (
-              <div key={log.id} className="p-3 bg-white border border-gray-200 rounded-lg flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">{log.subject}</p>
-                  <p className="text-xs text-gray-500 truncate">To: {log.recipient_email}</p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => setViewLog(log)} className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors">
-                    View
-                  </button>
-                  <button onClick={() => setEditLog(log)} className="px-2.5 py-1 text-xs font-semibold bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors">
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => handleApproveEmail(log.id)}
-                    disabled={loadingId === `email-${log.id}`}
-                    className="px-2.5 py-1 text-xs font-semibold bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors disabled:opacity-50"
-                  >
-                    ✓
-                  </button>
-                  <button 
-                    onClick={() => handleRejectEmail(log.id)}
-                    disabled={loadingId === `email-${log.id}`}
-                    className="px-2.5 py-1 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors disabled:opacity-50"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       ))}
