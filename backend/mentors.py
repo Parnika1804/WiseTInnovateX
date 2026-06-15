@@ -38,10 +38,7 @@ def get_mentors(db: Session = Depends(get_db)):
     result = []
     for m in mentors:
         team = db.query(Team).filter(Team.id == m.assigned_team_id).first() if m.assigned_team_id else None
-        
-        # Safely pull the rationale if it exists
         rationale = getattr(team, 'mentor_rationale', None) if team else None
-
         result.append({
             "id": m.id,
             "name": m.name,
@@ -93,25 +90,47 @@ def reassign_mentor(team_id: int, request: ReassignRequest, db: Session = Depend
     if not new_mentor:
         raise HTTPException(status_code=404, detail="Mentor not found")
 
-    # Check new mentor isn't already assigned to another team
-    if new_mentor.assigned_team_id and new_mentor.assigned_team_id != team_id:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Mentor is already assigned to another team. Unassign them first."
-        )
-
+    # Allow reassignment even if mentor already has a team — just move them
     new_mentor.assigned_team_id = team_id
     db.commit()
 
     team = db.query(Team).filter(Team.id == team_id).first()
-    
-    # Generate and store AI rationale for this assignment
+
     if team:
-        from gemini import generate_mentor_rationale
-        generate_mentor_rationale(new_mentor, team, db)
+        try:
+            from gemini import generate_mentor_rationale
+            generate_mentor_rationale(new_mentor, team, db)
+        except Exception:
+            pass
 
     return {
         "message": f"{new_mentor.name} reassigned to {team.name if team else 'team'}",
         "mentor_id": new_mentor.id,
         "team_id": team_id
+    }
+
+
+class ManualAssignRequest(BaseModel):
+    mentor_id: int
+    team_id: int
+
+
+@router.patch("/mentors/manual-assign")
+def manual_assign_mentor(request: ManualAssignRequest, db: Session = Depends(get_db)):
+    """Assign any mentor to any team — used for unassigned mentors."""
+    mentor = db.query(Mentor).filter(Mentor.id == request.mentor_id).first()
+    if not mentor:
+        raise HTTPException(status_code=404, detail="Mentor not found")
+
+    team = db.query(Team).filter(Team.id == request.team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    mentor.assigned_team_id = request.team_id
+    db.commit()
+
+    return {
+        "message": f"{mentor.name} assigned to {team.name}",
+        "mentor_id": mentor.id,
+        "team_id": request.team_id
     }
