@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Team, CommunicationLog, EventConfig, Score, Participant
 from config import PIPELINE_STAGES, CURRENT_STAGE
 from activity import log_action
 from gemini import call_gemini
+from websocket_manager import manager
 import json
 
 router = APIRouter()
@@ -56,6 +57,7 @@ def get_pipeline_status(db: Session = Depends(get_db)):
         "stages": stages_with_status,
         "pending_items": pending_items
     }
+    
 @router.get("/pipeline/dynamic/status")
 def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
@@ -91,8 +93,7 @@ def get_dynamic_pipeline_status(db: Session = Depends(get_db)):
     }
 
 @router.post("/pipeline/advance")
-def advance_pipeline(db: Session = Depends(get_db)):
-    # 1. Get active event config
+def advance_pipeline(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     if not config:
         raise HTTPException(status_code=400, detail="No active event config found. Please describe your event first.")
@@ -114,7 +115,6 @@ def advance_pipeline(db: Session = Depends(get_db)):
     )
     advancement_rule = current_round_rule
 
-    # 2. Get all approved qualified teams
     approved_teams = db.query(Team).filter(
         Team.status == "APPROVED",
         Team.is_qualified == True
@@ -123,7 +123,6 @@ def advance_pipeline(db: Session = Depends(get_db)):
     if not approved_teams:
         raise HTTPException(status_code=400, detail="No approved qualified teams found to advance.")
 
-    # 3. Calculate average scores per team for current round
     team_scores = {}
     for team in approved_teams:
         scores = db.query(Score).filter(
@@ -133,7 +132,6 @@ def advance_pipeline(db: Session = Depends(get_db)):
         avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
         team_scores[team.id] = {"team": team, "avg": round(avg, 2)}
 
-    # 4. Use AI to determine which teams qualify for next round
     teams_data = [{"team_id": tid, "team_name": data["team"].name, "score": data["avg"]} for tid, data in team_scores.items()]
 
     prompt = f"""You are an AI judging assistant.
@@ -160,12 +158,10 @@ Example: [1, 3, 4]"""
         cutoff = max(1, len(sorted_teams) // 2)
         qualified_ids = {item[0] for item in sorted_teams[:cutoff]}
 
-    # 5. Mark teams as qualified or eliminated
     for team in approved_teams:
         team.is_qualified = team.id in qualified_ids
     db.commit()
 
-    # 6. Advance stage index
     config.current_stage_index = next_index
     db.commit()
 
@@ -175,6 +171,8 @@ Example: [1, 3, 4]"""
         description=f"Pipeline advanced from stage {current_index + 1} to {next_index + 1}. {len(qualified_ids)} teams qualified, {len(approved_teams) - len(qualified_ids)} eliminated.",
         performed_by="committee"
     )
+
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
 
     return {
         "message": f"Pipeline advanced to {next_stage.get('label', next_stage.get('name'))}",

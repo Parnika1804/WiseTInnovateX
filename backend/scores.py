@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from models import Team, Score, Participant, EventConfig, User, CommunicationLog, ActivityLog
 from sqlalchemy.orm import Session
 from database import get_db
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from email_service import send_email
 from activity import log_action
+from websocket_manager import manager
 from gemini import call_gemini
 import json
 import uuid
@@ -76,7 +77,7 @@ def get_assessment_guide(team_id: int, db: Session = Depends(get_db)):
 # Submit Score
 # ---------------------------------------------------------
 @router.post("/scores/submit")
-def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
+def submit_score(request: ScoreRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     scoring_data = json.loads(config.scoring) if config else {}
     max_score = scoring_data.get("max_score", 10.0)
@@ -117,6 +118,8 @@ def submit_score(request: ScoreRequest, db: Session = Depends(get_db)):
     db.commit()
 
     log_action(db, "SCORE_SUBMITTED", f"Score of {request.score} submitted for team {request.team_id}", "judge", "Score", new_score.id)
+
+    background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
 
     if is_anomaly:
         return {"message": "Score submitted.", "warning": "Your score deviates significantly from the panel average and has been flagged for committee review."}
@@ -247,7 +250,7 @@ def get_anomalies(db: Session = Depends(get_db)):
 # Anomaly Resolutions
 # ---------------------------------------------------------
 @router.post("/scores/resolve/{score_id}")
-def resolve_anomaly(score_id: int, db: Session = Depends(get_db)):
+def resolve_anomaly(score_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     score = db.query(Score).filter(Score.id == score_id).first()
     if not score:
         raise HTTPException(status_code=404, detail="Score not found")
@@ -256,10 +259,13 @@ def resolve_anomaly(score_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     log_action(db, "ANOMALY_RESOLVED", f"Anomaly resolved for score {score_id} (Team {score.team_id})", "committee")
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
+    background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
+
     return {"message": "Anomaly resolved successfully"}
 
 @router.post("/scores/reject/{score_id}")
-def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
+def reject_anomaly(score_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     score = db.query(Score).filter(Score.id == score_id).first()
     if not score:
         raise HTTPException(status_code=404, detail="Score not found")
@@ -286,13 +292,16 @@ def reject_anomaly(score_id: int, db: Session = Depends(get_db)):
         performed_by="committee"
     )
 
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
+    background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
+
     return {"message": "Anomaly rejected. Score deleted and judge notified for re-scoring."}
 
 # ---------------------------------------------------------
 # Finalize Evaluation (Chronological Round Advancement)
 # ---------------------------------------------------------
 @router.post("/scores/finalize")
-def finalize_evaluation(db: Session = Depends(get_db)):
+def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     if not config:
         raise HTTPException(status_code=400, detail="No active event configuration found.")
@@ -302,7 +311,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
     max_score = scoring_data.get("max_score", 10.0)
     advancement_rules = scoring_data.get("advancement_rules", [])
 
-    # Use explicitly tracked current round
     current_round = scoring_data.get("current_round", 1)
     
     is_final_round = False
@@ -314,7 +322,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
     if "final" in current_rule_str or current_round >= len(advancement_rules):
         is_final_round = True
 
-    # Pull only currently qualified teams
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
         Team.is_qualified == True
@@ -334,9 +341,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
     drafted_count = 0
 
     if is_final_round:
-        # ------------------------------------------
-        # FINAL ROUND LOGIC
-        # ------------------------------------------
         medals = {0: "🥇 1st Place", 1: "🥈 2nd Place", 2: "🥉 3rd Place"}
         
         for idx, entry in enumerate(team_scores):
@@ -371,6 +375,10 @@ def finalize_evaluation(db: Session = Depends(get_db)):
         ]
 
         log_action(db, "EVALUATION_FINALIZED", f"Final results declared. Winner: {team_scores[0]['team'].name}. {drafted_count} result emails drafted for approval.", "committee")
+        
+        background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
+        background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
+        background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
 
         return {
             "message": "Final event results declared successfully.",
@@ -382,9 +390,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
         }
 
     else:
-        # ------------------------------------------
-        # INTERMEDIATE ROUND LOGIC
-        # ------------------------------------------
         match = re.search(r'(\d+)%', current_rule_str)
         cutoff_pct = int(match.group(1)) if match else 50
         
@@ -392,11 +397,9 @@ def finalize_evaluation(db: Session = Depends(get_db)):
         advancing_teams = team_scores[:cutoff_index]
         eliminated_teams = team_scores[cutoff_index:]
 
-        # Eliminate teams
         for e in eliminated_teams:
             e["team"].is_qualified = False
 
-        # Email Participants
         for entry in team_scores:
             team = entry["team"]
             avg = entry["avg"]
@@ -421,7 +424,6 @@ def finalize_evaluation(db: Session = Depends(get_db)):
                 db.add(log)
                 drafted_count += 1
                 
-        # Notify Judges to Rescore
         judges = db.query(User).filter(User.role == "Judge").all()
         for judge in judges:
             subject = f"Action Required: Round {current_round + 1} Evaluation Ready"
@@ -433,13 +435,16 @@ def finalize_evaluation(db: Session = Depends(get_db)):
             db.add(log)
             drafted_count += 1
 
-        # Increment Round
         scoring_data["current_round"] = current_round + 1
         config.scoring = json.dumps(scoring_data)
         
         db.commit()
 
         log_action(db, "ROUND_FINALIZED", f"Round {current_round} finalized. {len(advancing_teams)} teams advanced. Emails drafted to teams and judges.", "committee")
+
+        background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
+        background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
+        background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
 
         return {
             "message": f"Round {current_round} finalized. Top {cutoff_pct}% advanced.",
@@ -449,8 +454,9 @@ def finalize_evaluation(db: Session = Depends(get_db)):
             "emails_drafted": drafted_count,
             "batch_id": batch_id
         }
+        
 # ---------------------------------------------------------
-# Team Feedback — read-only, shows judge notes to participants
+# Team Feedback
 # ---------------------------------------------------------
 @router.get("/scores/team-feedback/{team_id}")
 def get_team_feedback(team_id: int, db: Session = Depends(get_db)):

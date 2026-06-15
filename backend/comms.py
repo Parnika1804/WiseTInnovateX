@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 from models import CommunicationLog, Team, Participant, EventConfig
@@ -8,6 +8,7 @@ from datetime import datetime
 from gemini import call_gemini
 from email_service import send_email
 from activity import log_action
+from websocket_manager import manager
 import json
 
 router = APIRouter()
@@ -142,7 +143,6 @@ def draft_communication_gemini(request: GeminiDraftRequest, db: Session = Depend
         member_names = [m.name for m in members]
         member_skills = [m.skill for m in members]
 
-        # Pull event name from active config if available
         config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
         event_name = config.event_name if config else "the event"
 
@@ -232,7 +232,6 @@ def send_communication(request: SendRequest, db: Session = Depends(get_db)):
     if log.status == "SENT":
         raise HTTPException(status_code=400, detail="This communication has already been sent")
 
-    # Fire the real email via SendGrid
     result = send_email(log.recipient_email, log.subject, log.message)
 
     log.status = "SENT"
@@ -270,15 +269,9 @@ def send_communication(request: SendRequest, db: Session = Depends(get_db)):
 
 @router.post("/comms/announce")
 def send_announcement(request: AnnounceRequest, db: Session = Depends(get_db)):
-    """
-    Committee types a short announcement.
-    Gemini drafts a proper email from it.
-    The email is sent to all participants OR to members of a specific team.
-    """
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "the event"
 
-    # Determine recipients
     if request.send_to == "all":
         participants = db.query(Participant).all()
         target_label = "all participants"
@@ -301,7 +294,6 @@ def send_announcement(request: AnnounceRequest, db: Session = Depends(get_db)):
     if not participants:
         raise HTTPException(status_code=400, detail="No participants found to send announcement to")
 
-    # Use Gemini to draft the email body from the short announcement
     prompt = f"""You are an event coordinator. A committee member sent this short announcement:
 
 "{request.announcement}"
@@ -313,24 +305,18 @@ Do not include a subject line. Just the email body."""
 
     body = call_gemini(prompt)
 
-    # Subject: use custom or auto-generate
     if request.custom_subject:
         subject = request.custom_subject
     else:
-        # Quick subject from Gemini
         subj_prompt = f"Write a short email subject line (under 10 words) for this announcement: '{request.announcement}'. Only the subject text, nothing else."
         subject = call_gemini(subj_prompt).strip().strip('"').strip("'")
         subject = f"[{event_name}] {subject}"
 
-    # Send to each recipient and log
     sent_count = 0
     failed_count = 0
-    logs_created = []
 
     for p in participants:
-        # Personalise the body slightly
         personalised_body = f"Hi {p.name},\n\n{body}"
-
         result = send_email(p.email, subject, personalised_body)
 
         log = CommunicationLog(
@@ -365,15 +351,11 @@ Do not include a subject line. Just the email body."""
 
 
 # ---------------------------------------------------------------------------
-# Stage-trigger endpoint — committee advances a stage from the dashboard
+# Stage-trigger endpoint
 # ---------------------------------------------------------------------------
 
 @router.post("/comms/trigger-stage")
 def trigger_stage_email(stage: str, db: Session = Depends(get_db)):
-    """
-    Called when the committee moves to a new pipeline stage.
-    Results / progression emails are saved as PENDING_APPROVAL, not sent immediately.
-    """
     from email_triggers import trigger_stage_emails
     result = trigger_stage_emails(stage, db)
     return result
@@ -385,7 +367,6 @@ def trigger_stage_email(stage: str, db: Session = Depends(get_db)):
 
 @router.get("/comms/pending")
 def get_pending_comms(db: Session = Depends(get_db)):
-    """Return all communications awaiting committee approval."""
     logs = (
         db.query(CommunicationLog)
         .filter(CommunicationLog.status == "PENDING_APPROVAL")
@@ -408,8 +389,7 @@ def get_pending_comms(db: Session = Depends(get_db)):
 
 
 @router.post("/comms/approve/{log_id}")
-def approve_communication(log_id: int, db: Session = Depends(get_db)):
-    """Approve a single pending communication and send it via SendGrid."""
+def approve_communication(log_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     log = db.query(CommunicationLog).filter(CommunicationLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Communication log not found")
@@ -431,6 +411,8 @@ def approve_communication(log_id: int, db: Session = Depends(get_db)):
         performed_by="committee"
     )
 
+    background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
+
     resp = {
         "message": f"Approved and sent to {log.recipient_email}",
         "email_delivery": result,
@@ -443,14 +425,11 @@ def approve_communication(log_id: int, db: Session = Depends(get_db)):
 
 @router.post("/comms/approve-batch")
 def approve_batch(request: BaseModel, db: Session = Depends(get_db)):
-    """Kept for backward compatibility if needed."""
     pass
 
 
-# NEW: Type-based approval replaces Batch-based approval
 @router.post("/comms/approve-type/{comm_type}")
-def approve_type(comm_type: str, db: Session = Depends(get_db)):
-    """Approve and send all PENDING_APPROVAL and DRAFT emails of a given type."""
+def approve_type(comm_type: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     logs = (
         db.query(CommunicationLog)
         .filter(
@@ -479,26 +458,13 @@ def approve_type(comm_type: str, db: Session = Depends(get_db)):
     db.commit()
     
     if "RESULTS" in comm_type:
-        log_action(
-            db=db,
-            action="RESULTS_PUBLISHED",
-            description=f"Leaderboard progression outcomes published. {sent_count} official notification dispatches sent to participants.",
-            performed_by="committee"
-        )
+        log_action(db=db, action="RESULTS_PUBLISHED", description=f"Leaderboard progression outcomes published. {sent_count} official notification dispatches sent to participants.", performed_by="committee")
     elif comm_type == "WELCOME":
-        log_action(
-            db=db,
-            action="WELCOME_EMAILS_SENT",
-            description=f"Successfully dispatched {sent_count} welcome emails.",
-            performed_by="committee"
-        )
+        log_action(db=db, action="WELCOME_EMAILS_SENT", description=f"Successfully dispatched {sent_count} welcome emails.", performed_by="committee")
     else:
-        log_action(
-            db=db,
-            action="TYPE_COMMUNICATION_SENT",
-            description=f"Successfully transmitted {sent_count} queued pipeline messages for category '{comm_type}'.",
-            performed_by="committee"
-        )
+        log_action(db=db, action="TYPE_COMMUNICATION_SENT", description=f"Successfully transmitted {sent_count} queued pipeline messages for category '{comm_type}'.", performed_by="committee")
+        
+    background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
         
     return {
         "message": f"Category '{comm_type}' approved",
@@ -506,17 +472,14 @@ def approve_type(comm_type: str, db: Session = Depends(get_db)):
         "failed": failed_count,
     }
 
+
 @router.post("/comms/reject/{log_id}")
-def reject_communication(log_id: int, db: Session = Depends(get_db)):
-    """Reject (discard) a single pending communication without sending it."""
+def reject_communication(log_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     log = db.query(CommunicationLog).filter(CommunicationLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Communication log not found")
     if log.status != "PENDING_APPROVAL":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot reject — current status is '{log.status}'",
-        )
+        raise HTTPException(status_code=400, detail=f"Cannot reject — current status is '{log.status}'")
     log.status = "REJECTED"
     db.commit()
     log_action(
@@ -525,13 +488,14 @@ def reject_communication(log_id: int, db: Session = Depends(get_db)):
         description=f"Discarded communication request item ID {log_id} intended for recipient {log.recipient_email}.",
         performed_by="committee"
     )
+
+    background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
+
     return {"message": f"Communication {log_id} rejected and will not be sent."}
 
 
-# NEW: Type-based rejection replaces Batch-based rejection
 @router.post("/comms/reject-type/{comm_type}")
-def reject_type(comm_type: str, db: Session = Depends(get_db)):
-    """Reject all PENDING_APPROVAL emails in a given category."""
+def reject_type(comm_type: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     logs = (
         db.query(CommunicationLog)
         .filter(
@@ -541,10 +505,8 @@ def reject_type(comm_type: str, db: Session = Depends(get_db)):
         .all()
     )
     if not logs:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No pending emails found for type '{comm_type}'",
-        )
+        raise HTTPException(status_code=404, detail=f"No pending emails found for type '{comm_type}'")
+    
     count = len(logs)
     for log in logs:
         log.status = "REJECTED"
@@ -555,12 +517,11 @@ def reject_type(comm_type: str, db: Session = Depends(get_db)):
         description=f"Rejected dispatch approval request for category '{comm_type}'. Dropped {count} queued elements.",
         performed_by="committee"
     )
+
+    background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
+
     return {"message": f"Category '{comm_type}' rejected", "rejected": count}
 
-
-# ---------------------------------------------------------------------------
-# Get log
-# ---------------------------------------------------------------------------
 
 @router.get("/comms/log")
 def get_communication_log(db: Session = Depends(get_db)):

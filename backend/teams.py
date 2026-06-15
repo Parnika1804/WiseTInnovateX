@@ -1,15 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Team, Participant, EventConfig
+from models import Team, Participant, EventConfig, Mentor
 from pydantic import BaseModel
 from typing import Optional
 from gemini import call_gemini
 from tasks import generate_team_rationale
 from activity import log_action
+from websocket_manager import manager
 import json
 import uuid
-from models import Mentor
 
 router = APIRouter()
 
@@ -153,7 +153,7 @@ def translate_rubric(request: FormationPrompt):
 
 
 @router.post("/teams/generate")
-def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = Depends(get_db)):
+def generate_teams(background_tasks: BackgroundTasks, manual_config: Optional[ManualConfig] = None, db: Session = Depends(get_db)):
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     
     team_size = 4
@@ -239,6 +239,7 @@ def generate_teams(manual_config: Optional[ManualConfig] = None, db: Session = D
         )
 
     assign_mentors_to_teams(db, created_team_records)
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
 
     return {
         "message": f"{len(created_team_records)} teams generated successfully",
@@ -261,7 +262,7 @@ class ApproveRejectRequest(BaseModel):
 
 
 @router.post("/teams/approve")
-def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get_db)):
+def approve_reject_team(request: ApproveRejectRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     team = db.query(Team).filter(Team.id == request.team_id).first()
     if not team: raise HTTPException(status_code=404, detail="Team not found")
     if request.action not in ["APPROVED", "REJECTED"]: raise HTTPException(status_code=400, detail="Action must be APPROVED or REJECTED")
@@ -277,6 +278,8 @@ def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get
         target_entity="Team",
         target_id=team.id
     )
+
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
     
     try:
         from email_triggers import _save_as_draft
@@ -317,6 +320,8 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
                 body = call_gemini(prompt)
                 subject = f"Update on Your Team Assignment | {event_name}"
                 _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_REJECTED", batch_id=batch_id)
+        
+        background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
                 
     except Exception as e:
         print(f"[TEAM STATUS EMAIL ERROR] {e}")
@@ -325,18 +330,15 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
 
 
 @router.patch("/teams/move-member")
-def move_member(request: MoveMemberRequest, db: Session = Depends(get_db)):
-    # Validate source team
+def move_member(request: MoveMemberRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     from_team = db.query(Team).filter(Team.id == request.from_team_id).first()
     if not from_team:
         raise HTTPException(status_code=404, detail="Source team not found")
 
-    # Validate destination team
     to_team = db.query(Team).filter(Team.id == request.to_team_id).first()
     if not to_team:
         raise HTTPException(status_code=404, detail="Destination team not found")
 
-    # Validate member exists
     member = db.query(Participant).filter(Participant.id == request.member_id).first()
     if not member:
         raise HTTPException(status_code=404, detail="Participant not found")
@@ -344,19 +346,15 @@ def move_member(request: MoveMemberRequest, db: Session = Depends(get_db)):
     from_ids = json.loads(from_team.member_ids)
     to_ids = json.loads(to_team.member_ids)
 
-    # Validate member is actually in source team
     if request.member_id not in from_ids:
         raise HTTPException(status_code=400, detail="Member does not belong to the source team")
 
-    # Prevent move that would leave source team empty
     if len(from_ids) <= 1:
         raise HTTPException(status_code=400, detail="Cannot move — source team would be left empty")
 
-    # Prevent duplicate
     if request.member_id in to_ids:
         raise HTTPException(status_code=400, detail="Member is already in the destination team")
 
-    # Perform move safely inside a transaction
     try:
         from_ids.remove(request.member_id)
         to_ids.append(request.member_id)
@@ -376,6 +374,8 @@ def move_member(request: MoveMemberRequest, db: Session = Depends(get_db)):
         target_entity="Team",
         target_id=to_team.id
     )
+
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
 
     return {
         "message": f"{member.name} moved from {from_team.name} to {to_team.name}",
@@ -423,8 +423,9 @@ def get_teams(qualified_only: bool = False, db: Session = Depends(get_db)):
 
 
 @router.delete("/teams/clear")
-def clear_teams(db: Session = Depends(get_db)):
+def clear_teams(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     count = db.query(Team).count()
     db.query(Team).delete()
     db.commit()
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
     return {"message": f"{count} teams cleared successfully"}
