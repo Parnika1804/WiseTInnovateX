@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import EmailEditModal from './EmailEditModal';
 import EmailViewModal from './EmailViewModal';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const API = 'http://localhost:8000';
 
@@ -79,6 +80,14 @@ const PendingApprovals = ({ onAction }) => {
       console.error('PendingApprovals load error:', e);
     }
   }, []);
+
+  // WebSocket Live Refresh
+  useWebSocket('comms', (data) => {
+    if (data.event === 'comms_updated') load();
+  });
+  useWebSocket('dashboard', (data) => {
+    if (data.event === 'dashboard_updated') load();
+  });
 
   useEffect(() => { load(); }, [load]);
 

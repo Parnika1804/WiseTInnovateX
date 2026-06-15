@@ -7,6 +7,7 @@ import ActivityLog from './ActivityLog';
 import CreateJudge from '../components/CreateJudge';
 import PendingApprovals from './PendingApprovals';
 import MentorManager from './MentorManager';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const API = 'http://localhost:8000';
 
@@ -14,11 +15,11 @@ const TABS = [
   { id: 'overview', label: '🏠 Overview' },
   { id: 'mentors', label: '🧑‍🏫 Mentors' },
   { id: 'special-mentions', label: '⭐ Special Mentions' },
-  { id: 'feedback', label: '📝 Feedback' },   // NEW
+  { id: 'feedback', label: '📝 Feedback' }, 
 ];
 
 // ---------------------------------------------------------------------------
-// Special Mentions (unchanged)
+// Special Mentions 
 // ---------------------------------------------------------------------------
 const SpecialMentions = () => {
   const [nominations, setNominations] = useState([]);
@@ -177,7 +178,7 @@ const SpecialMentions = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Feedback Summary — NEW committee view
+// Feedback Summary 
 // ---------------------------------------------------------------------------
 const FeedbackSummary = () => {
   const [summary, setSummary] = useState(null);
@@ -325,15 +326,14 @@ const CommitteeDashboard = () => {
   const [refresh, setRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // BUG #4 FIX: Added setInterval to increment refresh state every 30s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRefresh(prev => prev + 1);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleAction = () => setRefresh(prev => prev + 1);
+
+  // WebSocket Live Refresh
+  const wsStatus = useWebSocket('dashboard', (data) => {
+    if (data.event === 'dashboard_updated') {
+      handleAction();
+    }
+  });
 
   const handleFactoryReset = async () => {
     const confirm1 = window.confirm("⚠️ WARNING: Are you sure you want to start a new event?");
@@ -355,7 +355,15 @@ const CommitteeDashboard = () => {
   return (
     <div className="mt-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Command Center</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-800">Command Center</h2>
+          {wsStatus === 'open' && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              Live updates ON
+            </span>
+          )}
+        </div>
         <button
           onClick={handleFactoryReset}
           className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
@@ -402,7 +410,7 @@ const CommitteeDashboard = () => {
 
       {activeTab === 'mentors' && <MentorManager />}
       {activeTab === 'special-mentions' && <SpecialMentions />}
-      {activeTab === 'feedback' && <FeedbackSummary />}   {/* NEW */}
+      {activeTab === 'feedback' && <FeedbackSummary />}
     </div>
   );
 };

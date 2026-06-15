@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const API = 'http://localhost:8000';
 
@@ -14,7 +15,7 @@ const Leaderboard = ({ refreshTrigger }) => {
 
   const navigate = useNavigate();
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     axios.get(`${API}/scores/leaderboard`)
       .then(res => setLeaderboard(res.data))
       .catch(err => console.error("Error fetching leaderboard:", err));
@@ -22,38 +23,38 @@ const Leaderboard = ({ refreshTrigger }) => {
     axios.get(`${API}/scores/anomalies`)
       .then(res => setAnomalies(res.data.anomalies || []))
       .catch(err => console.error("Error fetching anomalies:", err));
-  };
+  }, []);
 
-  // ADDED FIX: Poll every 30 seconds to keep leaderboard and anomalies live
+  const loadLeaderboardData = useCallback(() => {
+    axios.get(`${API}/scores/finalized`)
+      .then(res => {
+        if (res.data.finalized) {
+          setPodium(res.data.podium);
+        } else {
+          fetchData();
+        }
+      })
+      .catch(() => fetchData());
+  }, [fetchData]);
+
+  // WebSocket Live Refresh
+  const wsStatus = useWebSocket('leaderboard', (data) => {
+    if (data.event === 'leaderboard_updated') {
+      loadLeaderboardData();
+    }
+  });
+
+  // Initial load
   useEffect(() => {
-    const loadLeaderboardData = () => {
-      axios.get(`${API}/scores/finalized`)
-        .then(res => {
-          if (res.data.finalized) {
-            setPodium(res.data.podium);
-          } else {
-            fetchData();
-          }
-        })
-        .catch(() => fetchData());
-    };
-
-    // Initial load
     loadLeaderboardData();
-    
-    // Set up polling
-    const intervalId = setInterval(loadLeaderboardData, 30000);
-
-    // Cleanup interval on unmount
-    return () => clearInterval(intervalId);
-  }, [refreshTrigger]);
+  }, [loadLeaderboardData, refreshTrigger]);
 
   const handleResolve = async (scoreId) => {
     if (!window.confirm("Mark this anomaly as reviewed and resolved? This will release the team's results.")) return;
     setResolvingId(scoreId);
     try {
       await axios.post(`${API}/scores/resolve/${scoreId}`);
-      fetchData();
+      loadLeaderboardData();
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to resolve anomaly.");
     } finally {
@@ -67,7 +68,7 @@ const Leaderboard = ({ refreshTrigger }) => {
     try {
       await axios.post(`${API}/scores/reject/${scoreId}`);
       alert(`Score rejected. ${judgeName} has been notified to re-evaluate.`);
-      fetchData();
+      loadLeaderboardData();
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to reject anomaly.");
     } finally {
@@ -105,7 +106,6 @@ const Leaderboard = ({ refreshTrigger }) => {
     3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', badge: 'bg-orange-400 text-white' },
   };
 
-  // Show podium view after finalize
   if (podium) {
     return (
       <div className="w-full">
@@ -116,7 +116,6 @@ const Leaderboard = ({ refreshTrigger }) => {
 
         {/* Podium */}
         <div className="flex justify-center items-end gap-4 mb-8">
-          {/* 2nd place */}
           {podium[1] && (
             <div className="flex flex-col items-center">
               <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-5 text-center w-48 shadow-sm">
@@ -130,7 +129,6 @@ const Leaderboard = ({ refreshTrigger }) => {
             </div>
           )}
 
-          {/* 1st place — tallest */}
           {podium[0] && (
             <div className="flex flex-col items-center">
               <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 text-center w-48 shadow-md">
@@ -144,7 +142,6 @@ const Leaderboard = ({ refreshTrigger }) => {
             </div>
           )}
 
-          {/* 3rd place */}
           {podium[2] && (
             <div className="flex flex-col items-center">
               <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-5 text-center w-48 shadow-sm">
@@ -263,7 +260,15 @@ const Leaderboard = ({ refreshTrigger }) => {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-2xl font-bold text-gray-800">Live Leaderboard</h3>
+          {wsStatus === 'open' && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              LIVE
+            </span>
+          )}
+        </div>
         <button
           onClick={handleFinalizeEvaluation}
           disabled={finalizing || leaderboard.length === 0}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const API = 'http://localhost:8000';
 
@@ -7,6 +8,13 @@ const CommsLogTable = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
   const [pendingBatches, setPendingBatches] = useState({});
   const [processingIds, setProcessingIds] = useState(new Set());
+
+  // WebSocket Live Refresh
+  const wsStatus = useWebSocket('comms', (data) => {
+    if (data.event === 'comms_updated') {
+      fetchLogs();
+    }
+  });
 
   useEffect(() => {
     fetchLogs();
@@ -130,11 +138,21 @@ const CommsLogTable = ({ refreshTrigger }) => {
     }
   };
 
-  // Pending batch summary banners
   const batchIds = Object.keys(pendingBatches);
 
   return (
     <div className="mt-6">
+      {/* ── Status Header ── */}
+      <div className="flex items-center gap-3 mb-4">
+        <h3 className="text-lg font-bold text-gray-800">Communication History</h3>
+        {wsStatus === 'open' && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            LIVE
+          </span>
+        )}
+      </div>
+
       {/* ── Pending approval batch banners ── */}
       {batchIds.length > 0 && (
         <div className="mb-4 space-y-3">

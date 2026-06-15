@@ -1,14 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const ActivityLog = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
 
-  useEffect(() => {
+  const fetchLogs = useCallback(() => {
     axios.get('http://localhost:8000/activity')
       .then(res => setLogs(res.data))
       .catch(err => console.error('Error fetching activity:', err));
-  }, [refreshTrigger]);
+  }, []);
+
+  // WebSocket Live Refresh
+  useWebSocket('dashboard', (data) => {
+    if (data.event === 'dashboard_updated') {
+      fetchLogs();
+    }
+  });
+
+  useEffect(() => {
+    fetchLogs();
+  }, [refreshTrigger, fetchLogs]);
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -22,7 +34,6 @@ const ActivityLog = ({ refreshTrigger }) => {
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="font-semibold text-blue-700">[{log.action}]</span>
                 
-                {/* NEW: Conditionally render Target Entity and ID if they exist */}
                 {log.target_entity && (
                   <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200">
                     Target: {log.target_entity} {log.target_id ? `#${log.target_id}` : ''}
@@ -37,7 +48,6 @@ const ActivityLog = ({ refreshTrigger }) => {
                 <span>•</span>
                 <span>🕒 {new Date(log.created_at).toLocaleString()}</span>
                 
-                {/* NEW: Conditionally render IP Address if it exists */}
                 {log.ip_address && (
                   <>
                     <span>•</span>
