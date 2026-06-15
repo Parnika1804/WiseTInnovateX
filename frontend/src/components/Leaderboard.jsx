@@ -37,9 +37,8 @@ const Leaderboard = ({ refreshTrigger }) => {
         if (res.data.finalized) {
           setPodium(res.data.podium);
           setSpecialMentionWinner(res.data.special_mention_winner || null);
-          axios.get(`${API}/special-mention/approved`)
-            .then(r => setSpecialMentions(r.data || []))
-            .catch(() => {});
+          // Don't fetch specialMentions separately after finalization —
+          // the winner card is the canonical SM display on the results page.
         } else {
           fetchData();
         }
@@ -113,6 +112,8 @@ const Leaderboard = ({ refreshTrigger }) => {
     3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', badge: 'bg-orange-400 text-white' },
   };
 
+  // FIX: SpecialMentionLeaderboard is only shown on the LIVE leaderboard view,
+  // never after finalization — the winner card is the canonical post-results display.
   const SpecialMentionLeaderboard = () => {
     if (specialMentions.length === 0) return null;
     return (
@@ -205,7 +206,9 @@ const Leaderboard = ({ refreshTrigger }) => {
           )}
         </div>
 
-        {/* Special Mention Winner Card */}
+        {/* Special Mention Winner Card — only shown when there IS a winner.
+            FIX: SpecialMentionLeaderboard table is NOT rendered here to prevent
+            the same person appearing twice (winner card + table row). */}
         {specialMentionWinner && (
           <div className="mb-8">
             <div className="text-center mb-4">
@@ -214,16 +217,26 @@ const Leaderboard = ({ refreshTrigger }) => {
             </div>
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-2xl p-6 shadow-md text-center max-w-md mx-auto">
               <div className="text-5xl mb-3">⭐</div>
-              {specialMentionWinner.members.map((m) => (
-                <div key={m.id}>
-                  <p className="font-black text-purple-900 text-2xl">{m.name}</p>
-                  <span className="inline-block bg-purple-200 text-purple-800 text-xs font-bold px-3 py-1 rounded-full mt-1 mb-2">
-                    {m.skill}
-                  </span>
-                </div>
-              ))}
-              <p className="text-gray-500 text-sm mt-1">From team <span className="font-bold text-gray-700">{specialMentionWinner.team_name}</span></p>
-              <p className="text-purple-700 text-sm font-semibold mt-1">Final Score: {specialMentionWinner.final_score} pts</p>
+              {/* FIX: guard against null/empty members array to prevent crash */}
+              {(specialMentionWinner.members && specialMentionWinner.members.length > 0)
+                ? specialMentionWinner.members.map((m) => (
+                    <div key={m.id}>
+                      <p className="font-black text-purple-900 text-2xl">{m.name}</p>
+                      <span className="inline-block bg-purple-200 text-purple-800 text-xs font-bold px-3 py-1 rounded-full mt-1 mb-2">
+                        {m.skill}
+                      </span>
+                    </div>
+                  ))
+                : (
+                    <p className="font-black text-purple-900 text-2xl">Special Mention Awardee</p>
+                  )
+              }
+              <p className="text-gray-500 text-sm mt-1">
+                From team <span className="font-bold text-gray-700">{specialMentionWinner.team_name}</span>
+              </p>
+              <p className="text-purple-700 text-sm font-semibold mt-1">
+                Final Score: {specialMentionWinner.final_score} pts
+              </p>
               <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
                 <p className="text-gray-500 text-xs italic">"{specialMentionWinner.reason}"</p>
               </div>
@@ -270,11 +283,13 @@ const Leaderboard = ({ refreshTrigger }) => {
           </button>
         </div>
 
-        <SpecialMentionLeaderboard />
+        {/* FIX: SpecialMentionLeaderboard NOT rendered here after finalization.
+            The winner card above is the only SM display on the results page. */}
       </div>
     );
   }
 
+  // Live leaderboard view (pre-finalization)
   return (
     <div className="w-full">
       {anomalies.length > 0 && (
@@ -424,6 +439,8 @@ const Leaderboard = ({ refreshTrigger }) => {
         * Teams flagged with an anomaly have a judge score deviating &gt; 20% from the panel average. Click any row to view individual judge scores.
       </p>
 
+      {/* FIX: SpecialMentionLeaderboard only shown on LIVE view (pre-finalization).
+          After finalization, the winner card above handles SM display exclusively. */}
       <SpecialMentionLeaderboard />
     </div>
   );

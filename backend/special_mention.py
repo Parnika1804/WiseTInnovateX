@@ -98,10 +98,34 @@ def approve_nomination(request: ApproveRequest, db: Session = Depends(get_db)):
     if request.action not in ["APPROVED", "REJECTED"]:
         raise HTTPException(status_code=400, detail="Action must be APPROVED or REJECTED")
 
+    # FIX: Validate that we're in the final round before allowing approval.
+    # SM nominees compete in the final round — approving in an earlier round is wrong.
+    if request.action == "APPROVED":
+        config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+        if config:
+            scoring_data = json.loads(config.scoring)
+            current_round = scoring_data.get("current_round", 1)
+            advancement_rules = scoring_data.get("advancement_rules", [])
+
+            is_final_round = False
+            if advancement_rules and len(advancement_rules) >= current_round:
+                rule_str = advancement_rules[current_round - 1].get("rule", "").lower()
+                if "final" in rule_str or current_round >= len(advancement_rules):
+                    is_final_round = True
+            else:
+                # No advancement rules defined — treat as final
+                is_final_round = True
+
+            if not is_final_round:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Special Mention nominations can only be approved in the final round. Currently in Round {current_round}."
+                )
+
     nomination.status = request.action
     nomination.reviewed_by = request.reviewed_by
 
-    # KEY FIX: mark the team as special mention so judges can score them separately
+    # Mark the team as special mention so judges can score them separately
     if request.action == "APPROVED":
         team = db.query(Team).filter(Team.id == nomination.team_id).first()
         if team:

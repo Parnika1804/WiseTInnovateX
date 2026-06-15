@@ -210,9 +210,20 @@ def get_finalized_podium(db: Session = Depends(get_db)):
     if not log:
         return {"finalized": False, "podium": None}
 
-    # Get the final round number (max round that has scores)
+    # FIX: Get the final round number from non-SM qualified teams only.
+    # Using a global max could be skewed if SM teams were scored in a different round.
     from sqlalchemy import func
-    max_round_result = db.query(func.max(Score.round_number)).scalar()
+    non_sm_team_ids = [
+        t.id for t in db.query(Team).filter(
+            Team.status == "APPROVED",
+            Team.is_special_mention == False
+        ).all()
+    ]
+    max_round_result = (
+        db.query(func.max(Score.round_number))
+        .filter(Score.team_id.in_(non_sm_team_ids))
+        .scalar()
+    ) if non_sm_team_ids else None
     final_round = max_round_result or 1
 
     # Exclude special mention teams from regular podium
@@ -262,11 +273,11 @@ def get_finalized_podium(db: Session = Depends(get_db)):
             "members": [{"id": m.id, "name": m.name, "skill": m.skill} for m in members],
             "team_name": team.name if team else None,
             "reason": sm.reason,
-            "avg": round(avg, 2)
+            "final_score": round(avg, 2)
         })
 
     if sm_scores:
-        sm_scores.sort(key=lambda x: x["avg"], reverse=True)
+        sm_scores.sort(key=lambda x: x["final_score"], reverse=True)
         special_mention_winner = sm_scores[0]
 
     return {"finalized": True, "podium": podium, "special_mention_winner": special_mention_winner}
