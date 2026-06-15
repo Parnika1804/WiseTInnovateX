@@ -12,6 +12,7 @@ const Leaderboard = ({ refreshTrigger }) => {
   const [resolvingId, setResolvingId] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
   const [podium, setPodium] = useState(null);
+  const [specialMentionWinner, setSpecialMentionWinner] = useState(null);
   const [specialMentions, setSpecialMentions] = useState([]);
 
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const Leaderboard = ({ refreshTrigger }) => {
       .then(res => {
         if (res.data.finalized) {
           setPodium(res.data.podium);
+          setSpecialMentionWinner(res.data.special_mention_winner || null);
           axios.get(`${API}/special-mention/approved`)
             .then(r => setSpecialMentions(r.data || []))
             .catch(() => {});
@@ -92,6 +94,7 @@ const Leaderboard = ({ refreshTrigger }) => {
     try {
       const res = await axios.post(`${API}/scores/finalize`);
       setPodium(res.data.podium);
+      setSpecialMentionWinner(res.data.special_mention_winner || null);
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to finalize evaluation.");
       console.error(error);
@@ -110,7 +113,6 @@ const Leaderboard = ({ refreshTrigger }) => {
     3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', badge: 'bg-orange-400 text-white' },
   };
 
-  // Special Mention Leaderboard Section (shown in both live and finalized view)
   const SpecialMentionLeaderboard = () => {
     if (specialMentions.length === 0) return null;
     return (
@@ -203,6 +205,32 @@ const Leaderboard = ({ refreshTrigger }) => {
           )}
         </div>
 
+        {/* Special Mention Winner Card */}
+        {specialMentionWinner && (
+          <div className="mb-8">
+            <div className="text-center mb-4">
+              <h3 className="text-2xl font-black text-purple-800">⭐ Special Mention Award</h3>
+              <p className="text-purple-500 text-sm">Wildcard finalist recognized for outstanding contribution</p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-2xl p-6 shadow-md text-center max-w-md mx-auto">
+              <div className="text-5xl mb-3">⭐</div>
+              {specialMentionWinner.members.map((m) => (
+                <div key={m.id}>
+                  <p className="font-black text-purple-900 text-2xl">{m.name}</p>
+                  <span className="inline-block bg-purple-200 text-purple-800 text-xs font-bold px-3 py-1 rounded-full mt-1 mb-2">
+                    {m.skill}
+                  </span>
+                </div>
+              ))}
+              <p className="text-gray-500 text-sm mt-1">From team <span className="font-bold text-gray-700">{specialMentionWinner.team_name}</span></p>
+              <p className="text-purple-700 text-sm font-semibold mt-1">Final Score: {specialMentionWinner.final_score} pts</p>
+              <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
+                <p className="text-gray-500 text-xs italic">"{specialMentionWinner.reason}"</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Full results table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
           <table className="w-full text-left border-collapse">
@@ -242,7 +270,6 @@ const Leaderboard = ({ refreshTrigger }) => {
           </button>
         </div>
 
-        {/* Special Mention Leaderboard */}
         <SpecialMentionLeaderboard />
       </div>
     );
@@ -250,7 +277,6 @@ const Leaderboard = ({ refreshTrigger }) => {
 
   return (
     <div className="w-full">
-      {/* Anomaly Resolution */}
       {anomalies.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
@@ -260,7 +286,6 @@ const Leaderboard = ({ refreshTrigger }) => {
           <p className="text-red-700 text-sm mb-5">
             The evaluation engine has paused the pipeline. The following scores deviate significantly from the panel average (&gt; 20% variance). Review the judge's notes and resolve the discrepancies to unlock the leaderboard.
           </p>
-
           <div className="space-y-4">
             {anomalies.map(anomaly => (
               <div key={anomaly.id} className="bg-white border border-red-200 rounded-lg p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
@@ -275,7 +300,6 @@ const Leaderboard = ({ refreshTrigger }) => {
                     {anomaly.notes}
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
                   <button
                     onClick={() => handleResolve(anomaly.id)}
@@ -298,7 +322,6 @@ const Leaderboard = ({ refreshTrigger }) => {
         </div>
       )}
 
-      {/* Round banner */}
       {leaderboard.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3">
           <span className="text-blue-600 text-xl">🔄</span>
@@ -365,7 +388,6 @@ const Leaderboard = ({ refreshTrigger }) => {
                       )}
                     </td>
                   </tr>
-
                   {expandedTeamId === team.team_id && (
                     <tr className="bg-slate-50 border-b-2 border-slate-200">
                       <td colSpan="4" className="p-6">
@@ -402,7 +424,6 @@ const Leaderboard = ({ refreshTrigger }) => {
         * Teams flagged with an anomaly have a judge score deviating &gt; 20% from the panel average. Click any row to view individual judge scores.
       </p>
 
-      {/* Special Mention Leaderboard */}
       <SpecialMentionLeaderboard />
     </div>
   );

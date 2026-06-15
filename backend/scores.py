@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from models import Team, Score, Participant, EventConfig, User, CommunicationLog, ActivityLog
+from models import Team, Score, Participant, EventConfig, User, CommunicationLog, ActivityLog, SpecialMention
 from sqlalchemy.orm import Session
 from database import get_db
 from pydantic import BaseModel
@@ -118,7 +118,6 @@ def submit_score(request: ScoreRequest, background_tasks: BackgroundTasks, db: S
     db.commit()
 
     log_action(db, "SCORE_SUBMITTED", f"Score of {request.score} submitted for team {request.team_id}", "judge", "Score", new_score.id)
-
     background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
 
     if is_anomaly:
@@ -220,7 +219,29 @@ def get_finalized_podium(db: Session = Depends(get_db)):
         for idx, e in enumerate(team_scores[:3])
     ]
 
-    return {"finalized": True, "podium": podium}
+    # Special mention winner
+    special_mention_winner = None
+    approved_sm = db.query(SpecialMention).filter(SpecialMention.status == "APPROVED").all()
+    sm_scores = []
+    for sm in approved_sm:
+        member_ids = json.loads(sm.nominated_member_ids)
+        members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        team = db.query(Team).filter(Team.id == sm.team_id).first()
+        scores = db.query(Score).filter(Score.team_id == sm.team_id).all()
+        avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
+        sm_scores.append({
+            "nomination_id": sm.id,
+            "members": [{"id": m.id, "name": m.name, "skill": m.skill} for m in members],
+            "team_name": team.name if team else None,
+            "reason": sm.reason,
+            "avg": round(avg, 2)
+        })
+
+    if sm_scores:
+        sm_scores.sort(key=lambda x: x["avg"], reverse=True)
+        special_mention_winner = sm_scores[0]
+
+    return {"finalized": True, "podium": podium, "special_mention_winner": special_mention_winner}
 
 # ---------------------------------------------------------
 # Anomalies
@@ -367,12 +388,65 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
                 db.add(log)
                 drafted_count += 1
 
+        # --- Special Mention Winner ---
+        approved_sm = db.query(SpecialMention).filter(SpecialMention.status == "APPROVED").all()
+        special_mention_winner = None
+        sm_scores = []
+
+        for sm in approved_sm:
+            sm_team_scores = db.query(Score).filter(
+                Score.team_id == sm.team_id,
+                Score.round_number == current_round
+            ).all()
+            avg = sum(s.score for s in sm_team_scores) / len(sm_team_scores) if sm_team_scores else 0.0
+            sm_scores.append({"sm": sm, "avg": round(avg, 2)})
+
+        if sm_scores:
+            sm_scores.sort(key=lambda x: x["avg"], reverse=True)
+            winner_sm = sm_scores[0]["sm"]
+            winner_avg = sm_scores[0]["avg"]
+            special_mention_winner = winner_sm
+
+            member_ids = json.loads(winner_sm.nominated_member_ids)
+            sm_members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+            sm_team = db.query(Team).filter(Team.id == winner_sm.team_id).first()
+
+            for member in sm_members:
+                subject = f"⭐ Special Mention Award — {event_name}"
+                body = (
+                    f"Dear {member.name},\n\n"
+                    f"Congratulations! You have been awarded the Special Mention Award at {event_name}.\n\n"
+                    f"Your mentor recognized your outstanding contribution to team '{sm_team.name if sm_team else ''}' "
+                    f"and nominated you as a wildcard finalist. You competed in the final round with a score of "
+                    f"{winner_avg}/{max_score}.\n\n"
+                    f"Reason for nomination: {winner_sm.reason}\n\n"
+                    f"We are incredibly proud of your talent and dedication. Keep building!\n\nEvent Committee"
+                )
+                log = CommunicationLog(
+                    recipient_email=member.email, subject=subject, message=body,
+                    comm_type="SPECIAL_MENTION_WINNER", status="PENDING_APPROVAL", batch_id=batch_id
+                )
+                db.add(log)
+                drafted_count += 1
+
         db.commit()
 
         podium = [
             {"rank": idx + 1, "medal": medals.get(idx), "team_name": e["team"].name, "team_id": e["team"].id, "final_score": e["avg"]}
             for idx, e in enumerate(team_scores[:3])
         ]
+
+        sm_winner_data = None
+        if special_mention_winner:
+            member_ids = json.loads(special_mention_winner.nominated_member_ids)
+            sm_members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+            sm_team = db.query(Team).filter(Team.id == special_mention_winner.team_id).first()
+            sm_winner_data = {
+                "members": [{"id": m.id, "name": m.name, "skill": m.skill} for m in sm_members],
+                "team_name": sm_team.name if sm_team else None,
+                "reason": special_mention_winner.reason,
+                "final_score": sm_scores[0]["avg"] if sm_scores else 0.0
+            }
 
         log_action(db, "EVALUATION_FINALIZED", f"Final results declared. Winner: {team_scores[0]['team'].name}. {drafted_count} result emails drafted for approval.", "committee")
         
@@ -384,6 +458,7 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
             "message": "Final event results declared successfully.",
             "is_final": True,
             "podium": podium,
+            "special_mention_winner": sm_winner_data,
             "total_teams": len(team_scores),
             "emails_drafted": drafted_count,
             "batch_id": batch_id,
