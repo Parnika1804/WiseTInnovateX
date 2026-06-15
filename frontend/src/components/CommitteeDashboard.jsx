@@ -325,6 +325,14 @@ const CommitteeDashboard = () => {
   const [refresh, setRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // BUG #4 FIX: Added setInterval to increment refresh state every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefresh(prev => prev + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleAction = () => setRefresh(prev => prev + 1);
 
   const handleFactoryReset = async () => {

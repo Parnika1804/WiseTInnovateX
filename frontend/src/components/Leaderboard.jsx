@@ -24,16 +24,28 @@ const Leaderboard = ({ refreshTrigger }) => {
       .catch(err => console.error("Error fetching anomalies:", err));
   };
 
- useEffect(() => {
-    axios.get(`${API}/scores/finalized`)
-      .then(res => {
-        if (res.data.finalized) {
-          setPodium(res.data.podium);
-        } else {
-          fetchData();
-        }
-      })
-      .catch(() => fetchData());
+  // ADDED FIX: Poll every 30 seconds to keep leaderboard and anomalies live
+  useEffect(() => {
+    const loadLeaderboardData = () => {
+      axios.get(`${API}/scores/finalized`)
+        .then(res => {
+          if (res.data.finalized) {
+            setPodium(res.data.podium);
+          } else {
+            fetchData();
+          }
+        })
+        .catch(() => fetchData());
+    };
+
+    // Initial load
+    loadLeaderboardData();
+    
+    // Set up polling
+    const intervalId = setInterval(loadLeaderboardData, 30000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
   }, [refreshTrigger]);
 
   const handleResolve = async (scoreId) => {

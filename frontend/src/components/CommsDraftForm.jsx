@@ -96,7 +96,12 @@ const EmailInbox = () => {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // BUG #4 FIX: Added setInterval and clearInterval for 30-second polling
+  useEffect(() => { 
+    load(); 
+    const intervalId = setInterval(load, 30000);
+    return () => clearInterval(intervalId);
+  }, [load]);
 
   const handleApprove = async (logId, email) => {
     setLoadingId(`approve-${logId}`);
