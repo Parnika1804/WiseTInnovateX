@@ -42,7 +42,11 @@ def nominate(request: NominateRequest, db: Session = Depends(get_db)):
 
     existing = db.query(SpecialMention).filter(SpecialMention.team_id == request.team_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="A nomination already exists for this team.")
+        if existing.status in ["PENDING", "APPROVED"]:
+            raise HTTPException(status_code=400, detail="A nomination already exists for this team.")
+        # If REJECTED, delete it and allow fresh nomination
+        db.delete(existing)
+        db.commit()
 
     nomination = SpecialMention(
         team_id=request.team_id,

@@ -519,6 +519,7 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
 
         for e in eliminated_teams:
             e["team"].is_qualified = False
+            e["team"].is_special_mention = False  # Clear stale SM approval if team is eliminated
 
         for entry in team_scores:
             team = entry["team"]
