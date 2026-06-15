@@ -92,9 +92,13 @@ def submit_score(request: ScoreRequest, background_tasks: BackgroundTasks, db: S
     if existing:
         raise HTTPException(status_code=400, detail="You have already submitted a score for this team in this round.")
 
+    # Allow scoring for both qualified teams AND special mention teams
     team = db.query(Team).filter(Team.id == request.team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
+
+    if not team.is_qualified and not team.is_special_mention:
+        raise HTTPException(status_code=400, detail="This team is not eligible for scoring in this round.")
 
     if request.score < 0 or request.score > max_score:
         raise HTTPException(status_code=400, detail=f"Score must be between 0 and {max_score}")
@@ -154,9 +158,11 @@ def get_leaderboard(db: Session = Depends(get_db)):
         max_score = scoring.get("max_score", 10.0)
         current_round = scoring.get("current_round", 1)
 
+    # Only show regular qualified teams in live leaderboard — not SM teams
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
-        Team.is_qualified == True
+        Team.is_qualified == True,
+        Team.is_special_mention == False
     ).all()
 
     leaderboard = []
@@ -204,11 +210,27 @@ def get_finalized_podium(db: Session = Depends(get_db)):
     if not log:
         return {"finalized": False, "podium": None}
 
-    teams = db.query(Team).filter(Team.status == "APPROVED").all()
+    # Get the final round number (max round that has scores)
+    from sqlalchemy import func
+    max_round_result = db.query(func.max(Score.round_number)).scalar()
+    final_round = max_round_result or 1
+
+    # Exclude special mention teams from regular podium
+    teams = db.query(Team).filter(
+        Team.status == "APPROVED",
+        Team.is_special_mention == False
+    ).all()
+
     team_scores = []
     for team in teams:
-        scores = db.query(Score).filter(Score.team_id == team.id).all()
-        avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
+        # Only use final round scores for podium
+        scores = db.query(Score).filter(
+            Score.team_id == team.id,
+            Score.round_number == final_round
+        ).all()
+        if not scores:
+            continue
+        avg = sum(s.score for s in scores) / len(scores)
         team_scores.append({"team": team, "avg": round(avg, 2)})
 
     team_scores.sort(key=lambda x: x["avg"], reverse=True)
@@ -219,7 +241,7 @@ def get_finalized_podium(db: Session = Depends(get_db)):
         for idx, e in enumerate(team_scores[:3])
     ]
 
-    # Special mention winner
+    # Special mention winner — final round scores only
     special_mention_winner = None
     approved_sm = db.query(SpecialMention).filter(SpecialMention.status == "APPROVED").all()
     sm_scores = []
@@ -227,8 +249,14 @@ def get_finalized_podium(db: Session = Depends(get_db)):
         member_ids = json.loads(sm.nominated_member_ids)
         members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
         team = db.query(Team).filter(Team.id == sm.team_id).first()
-        scores = db.query(Score).filter(Score.team_id == sm.team_id).all()
-        avg = sum(s.score for s in scores) / len(scores) if scores else 0.0
+        # Final round scores only
+        scores = db.query(Score).filter(
+            Score.team_id == sm.team_id,
+            Score.round_number == final_round
+        ).all()
+        if not scores:
+            continue
+        avg = sum(s.score for s in scores) / len(scores)
         sm_scores.append({
             "nomination_id": sm.id,
             "members": [{"id": m.id, "name": m.name, "skill": m.skill} for m in members],
@@ -343,9 +371,11 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
     if "final" in current_rule_str or current_round >= len(advancement_rules):
         is_final_round = True
 
+    # Regular qualified teams only (exclude SM teams from main finalization)
     teams = db.query(Team).filter(
         Team.status == "APPROVED",
-        Team.is_qualified == True
+        Team.is_qualified == True,
+        Team.is_special_mention == False
     ).all()
 
     if not teams:
@@ -398,7 +428,11 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
                 Score.team_id == sm.team_id,
                 Score.round_number == current_round
             ).all()
-            avg = sum(s.score for s in sm_team_scores) / len(sm_team_scores) if sm_team_scores else 0.0
+            if not sm_team_scores:
+                # No scores submitted for this SM team — skip, don't award 0
+                print(f"[SPECIAL MENTION] No scores found for team_id={sm.team_id} in round {current_round}. Skipping.")
+                continue
+            avg = sum(s.score for s in sm_team_scores) / len(sm_team_scores)
             sm_scores.append({"sm": sm, "avg": round(avg, 2)})
 
         if sm_scores:

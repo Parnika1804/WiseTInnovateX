@@ -15,10 +15,10 @@ const MentorPortal = () => {
   const [loading, setLoading] = useState(true);
   const [isFinalized, setIsFinalized] = useState(false);
   const [roundsHappened, setRoundsHappened] = useState(false);
-  const [isSecondLastRound, setIsSecondLastRound] = useState(false); // NEW
+  const [isSecondLastRound, setIsSecondLastRound] = useState(false);
 
-  // Nomination state — back to multi-select
-  const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+  // FIX: single member selection (radio), not multi-select
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
@@ -58,7 +58,6 @@ const MentorPortal = () => {
         setMembers(assignedTeam.members || []);
       }
 
-      // Check rounds + get current round and total rounds from EventConfig
       try {
         const leaderboardRes = await axios.get(`${API}/scores/leaderboard`);
         if (leaderboardRes.data && leaderboardRes.data.length > 0) {
@@ -66,7 +65,6 @@ const MentorPortal = () => {
         }
       } catch (e) {}
 
-      // Check if we are in the second-to-last round
       try {
         const configRes = await axios.get(`${API}/event/config`);
         if (configRes.data.status === 'found') {
@@ -76,22 +74,18 @@ const MentorPortal = () => {
           let advancementRules = scoring?.advancement_rules || [];
           if (typeof advancementRules === 'string') advancementRules = JSON.parse(advancementRules);
           const totalRounds = advancementRules.length;
-          // Second-to-last round means currentRound === totalRounds - 1
-          // After that round is finalized, current_round becomes totalRounds (the final)
-          // So nomination window: currentRound === totalRounds (team was eliminated in round totalRounds-1)
+          // Show nomination form when we're in the final round (team was eliminated in semi-final)
           if (totalRounds >= 2 && currentRound === totalRounds) {
             setIsSecondLastRound(true);
           }
         }
       } catch (e) {}
 
-      // Check if event is finalized
       try {
         const finalRes = await axios.get(`${API}/scores/finalized`);
         if (finalRes.data.finalized) setIsFinalized(true);
       } catch (e) {}
 
-      // Check existing nomination
       try {
         const nominationsRes = await axios.get(`${API}/special-mention`);
         const existing = nominationsRes.data.find(n => n.team_id === mentor.assigned_team_id);
@@ -105,15 +99,10 @@ const MentorPortal = () => {
     }
   };
 
-  const toggleMember = (id) => {
-    setSelectedMemberIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
   const handleNominate = async () => {
-    if (selectedMemberIds.length === 0) {
-      setSubmitStatus('❌ Please select at least one member to nominate.');
+    // FIX: exactly one member required
+    if (!selectedMemberId) {
+      setSubmitStatus('❌ Please select exactly one member to nominate.');
       return;
     }
     if (!reason.trim()) {
@@ -126,7 +115,7 @@ const MentorPortal = () => {
       await axios.post(`${API}/special-mention/nominate`, {
         mentor_id: mentorInfo.id,
         team_id: team.id,
-        nominated_member_ids: selectedMemberIds,
+        nominated_member_ids: [selectedMemberId], // Always exactly one
         reason: reason.trim()
       });
       setSubmitStatus('✅ Nomination submitted successfully!');
@@ -164,7 +153,7 @@ const MentorPortal = () => {
 
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
 
-        {/* Team Card — always shown */}
+        {/* Team Card */}
         {team && (
           <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -229,16 +218,16 @@ const MentorPortal = () => {
               <h3 className="text-lg font-bold text-red-800 mb-1">Your Team Was Eliminated</h3>
               <p className="text-sm text-red-700">
                 Your team did not advance to the next round.
-                {isSecondLastRound && ' You can nominate members for a Special Mention wildcard entry to the finals below.'}
+                {isSecondLastRound && ' You can nominate one member for a Special Mention wildcard entry to the finals below.'}
               </p>
             </div>
 
-            {/* Special Mention — ONLY in second-to-last round */}
+            {/* Special Mention — only in semi-final elimination window */}
             {isSecondLastRound && (
               <div className="bg-white border border-indigo-200 rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-indigo-800 mb-1">⭐ Nominate for Special Mention</h3>
                 <p className="text-sm text-slate-500 mb-5">
-                  Select one or more members who deserve a wildcard entry to the finals — due to exams, medical reasons, or exceptional individual effort.
+                  Select <strong>one member</strong> who deserves a wildcard entry to the finals — due to exams, medical reasons, or exceptional individual effort.
                 </p>
 
                 {nomination ? (
@@ -250,39 +239,37 @@ const MentorPortal = () => {
                       : 'bg-slate-50 border-slate-200 text-slate-600'
                   }`}>
                     {nomination.status === 'PENDING' && '⏳ Your nomination is under committee review.'}
-                    {nomination.status === 'APPROVED' && '⭐ Nomination approved! Your nominated members will compete in the finals as Special Mention wildcards.'}
+                    {nomination.status === 'APPROVED' && '⭐ Nomination approved! Your nominated member will compete in the finals as a Special Mention wildcard.'}
                     {nomination.status === 'REJECTED' && '🏁 Your nomination was reviewed but not approved this time. Thank you for supporting your team.'}
                   </div>
                 ) : (
                   <>
-                    {/* Multi-select members */}
+                    {/* FIX: Single select — radio buttons */}
                     <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-semibold text-slate-700">Select Members to Nominate</label>
-                        <div className="flex gap-2">
-                          <button onClick={() => setSelectedMemberIds(members.map(m => m.id))} className="text-xs text-indigo-600 hover:underline">Select All</button>
-                          <span className="text-slate-300">|</span>
-                          <button onClick={() => setSelectedMemberIds([])} className="text-xs text-slate-500 hover:underline">Clear</button>
-                        </div>
-                      </div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Select One Member to Nominate
+                      </label>
                       <div className="space-y-2">
                         {members.map((m) => (
                           <div
                             key={m.id}
-                            onClick={() => toggleMember(m.id)}
+                            onClick={() => setSelectedMemberId(m.id)}
                             className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                              selectedMemberIds.includes(m.id)
+                              selectedMemberId === m.id
                                 ? 'bg-indigo-50 border-indigo-300'
                                 : 'bg-slate-50 border-slate-200 hover:border-indigo-200'
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                                selectedMemberIds.includes(m.id)
-                                  ? 'bg-indigo-600 border-indigo-600'
+                              {/* Radio circle */}
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                selectedMemberId === m.id
+                                  ? 'border-indigo-600'
                                   : 'border-slate-300'
                               }`}>
-                                {selectedMemberIds.includes(m.id) && <span className="text-white text-xs">✓</span>}
+                                {selectedMemberId === m.id && (
+                                  <div className="w-2 h-2 rounded-full bg-indigo-600" />
+                                )}
                               </div>
                               <span className="font-medium text-slate-800">{m.name}</span>
                             </div>
@@ -299,7 +286,7 @@ const MentorPortal = () => {
                         onChange={e => setReason(e.target.value)}
                         rows={4}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 resize-vertical text-sm"
-                        placeholder="e.g. These members had university exams during the hackathon and couldn't contribute fully despite strong technical abilities..."
+                        placeholder="e.g. This member had university exams during the hackathon and couldn't contribute fully despite strong technical abilities..."
                       />
                     </div>
 

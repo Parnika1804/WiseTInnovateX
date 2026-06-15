@@ -18,7 +18,7 @@ const JudgePortal = () => {
   const [specialMentionTeams, setSpecialMentionTeams] = useState([]);
   const [scoredTeamIds, setScoredTeamIds] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [activeSection, setActiveSection] = useState('main'); // 'main' or 'special'
+  const [activeSection, setActiveSection] = useState('main');
   const [score, setScore] = useState('');
   const [maxScore, setMaxScore] = useState(10);
   const [currentRound, setCurrentRound] = useState(1);
@@ -66,9 +66,17 @@ const JudgePortal = () => {
         if (res.data.length > 0) setSelectedTeam(res.data[0]);
       }).catch(console.error);
 
-    // Fetch approved special mention teams
+    // Fetch approved special mention teams and normalize shape
     axios.get(`${API}/special-mention/approved`)
-      .then(res => setSpecialMentionTeams(res.data))
+      .then(res => {
+        // Normalize: give each SM entry a consistent id and name for scoring
+        const normalized = res.data.map(sm => ({
+          ...sm,
+          id: sm.team_id,           // FIX: scoring uses selectedTeam.id
+          name: sm.team_name,        // FIX: display uses team.name
+        }));
+        setSpecialMentionTeams(normalized);
+      })
       .catch(console.error);
 
     fetchScoredTeams();
@@ -130,16 +138,16 @@ const JudgePortal = () => {
     ? Array.from(new Set(selectedTeam.members.map(m => m.project_link).filter(link => link && link.trim() !== '')))
     : [];
 
-  const allTeams = activeSection === 'main' ? teams : [];
-
   const renderTeamCard = (t, isSpecialMention = false) => {
-    const isScored = scoredTeamIds.includes(t.id);
+    const teamId = t.id; // Already normalized
+    const teamName = t.name; // Already normalized
+    const isScored = scoredTeamIds.includes(teamId);
     return (
       <button
-        key={t.id}
+        key={teamId}
         onClick={() => { setSelectedTeam(t); setScore(''); setNotes(''); setSubmitStatus(''); }}
         className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all flex items-center gap-2 ${
-          selectedTeam?.id === t.id
+          selectedTeam?.id === teamId
             ? 'bg-slate-900 text-white border-slate-900'
             : isScored
               ? 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'
@@ -147,7 +155,7 @@ const JudgePortal = () => {
         }`}
       >
         {isSpecialMention && <span>⭐</span>}
-        {t.team_name || t.name} {isScored && '✓'}
+        {teamName} {isScored && '✓'}
       </button>
     );
   };
@@ -182,7 +190,7 @@ const JudgePortal = () => {
             🏆 Main Finalists ({teams.length})
           </button>
           <button
-            onClick={() => { setActiveSection('special'); setSelectedTeam(null); setScore(''); setNotes(''); setSubmitStatus(''); }}
+            onClick={() => { setActiveSection('special'); setSelectedTeam(specialMentionTeams[0] || null); setScore(''); setNotes(''); setSubmitStatus(''); }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
               activeSection === 'special' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
             }`}
@@ -205,11 +213,9 @@ const JudgePortal = () => {
               <p className="font-semibold">No approved teams available for Round {currentRound}.</p>
             </div>
           ) : (
-            <>
-              <div className="flex flex-wrap gap-2 mb-6">
-                {teams.map(t => renderTeamCard(t, false))}
-              </div>
-            </>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {teams.map(t => renderTeamCard(t, false))}
+            </div>
           )
         )}
 
@@ -266,6 +272,7 @@ const JudgePortal = () => {
                   </div>
                 )}
 
+                {/* Regular team members */}
                 {selectedTeam.members && selectedTeam.members.length > 0 ? (
                   selectedTeam.members.map(m => (
                     <div key={m.id} className="mb-4 last:mb-0 p-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -289,12 +296,13 @@ const JudgePortal = () => {
                     </div>
                   ))
                 ) : (
-                  // Special mention — show nominated members
+                  // Special mention — show only the nominated member
                   selectedTeam.nominated_members && selectedTeam.nominated_members.map(m => (
                     <div key={m.id} className="mb-4 last:mb-0 p-3 bg-amber-50 rounded-lg border border-amber-100">
                       <p className="font-semibold text-slate-800">
                         {m.name} <span className="text-sm font-normal text-slate-500">({m.skill})</span>
                       </p>
+                      <span className="text-xs text-amber-600 font-medium">⭐ Nominated wildcard finalist</span>
                     </div>
                   ))
                 )}
@@ -305,7 +313,7 @@ const JudgePortal = () => {
 
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm h-fit">
               <h3 className="text-lg font-bold text-slate-900 mb-4">
-                Round {currentRound} Evaluation — <span className={activeSection === 'special' ? 'text-amber-500' : 'text-blue-600'}>{selectedTeam.team_name || selectedTeam.name}</span>
+                Round {currentRound} Evaluation — <span className={activeSection === 'special' ? 'text-amber-500' : 'text-blue-600'}>{selectedTeam.name}</span>
               </h3>
 
               {activeSection === 'special' && (
@@ -319,7 +327,7 @@ const JudgePortal = () => {
                   <div className="text-green-500 text-5xl mb-4">✅</div>
                   <h3 className="text-xl font-bold text-green-900 mb-2">Score Locked In</h3>
                   <p className="text-sm text-green-700">
-                    You have successfully completed the evaluation for {selectedTeam.team_name || selectedTeam.name} in Round {currentRound}.
+                    You have successfully completed the evaluation for {selectedTeam.name} in Round {currentRound}.
                   </p>
                 </div>
               ) : (
