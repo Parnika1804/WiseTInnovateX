@@ -340,8 +340,6 @@ Do not include a subject line. Just the email body."""
     }
 
 
-
-
 # ---------------------------------------------------------------------------
 # Stage-trigger endpoint — committee advances a stage from the dashboard
 # ---------------------------------------------------------------------------
@@ -439,13 +437,22 @@ def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
             status_code=404,
             detail=f"No pending emails found for batch '{request.batch_id}'",
         )
+        
     is_results_batch = any(log.comm_type in ["RESULTS_QUALIFIED", "RESULTS_NOT_QUALIFIED"] for log in logs)
+    is_welcome_batch = any(log.comm_type == "WELCOME" for log in logs)
 
     if is_results_batch:
         log_action(
             db=db,
             action="RESULTS_APPROVED",
             description=f"The evaluation results pipeline clearance was granted for communication batch ID: {request.batch_id}.",
+            performed_by="committee"
+        )
+    elif is_welcome_batch:
+        log_action(
+            db=db,
+            action="APPROVAL_GRANTED",
+            description=f"Welcome email dispatch authorization granted for batch ID: {request.batch_id}.",
             performed_by="committee"
         )
     else:
@@ -466,12 +473,21 @@ def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
             sent_count += 1
         else:
             failed_count += 1
+            
     db.commit()
+    
     if is_results_batch:
         log_action(
             db=db,
             action="RESULTS_PUBLISHED",
             description=f"Leaderboard progression outcomes successfully published. {sent_count} official notification dispatches sent to participants.",
+            performed_by="committee"
+        )
+    elif is_welcome_batch:
+        log_action(
+            db=db,
+            action="WELCOME_EMAILS_SENT",
+            description=f"Successfully dispatched {sent_count} welcome emails for batch {request.batch_id}.",
             performed_by="committee"
         )
     else:
@@ -481,6 +497,7 @@ def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
             description=f"Successfully transmitted a collection of {sent_count} queued pipeline messages for batch {request.batch_id}.",
             performed_by="committee"
         )
+        
     return {
         "message": f"Batch '{request.batch_id}' approved",
         "sent": sent_count,

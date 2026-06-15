@@ -44,6 +44,15 @@ def send_welcome_emails(participants: list, event_name: str, db: Session) -> dic
         subject = f"Welcome to {event_name} — You're registered!"
         _save_as_draft(db, p.email, subject, body, comm_type="WELCOME", batch_id=batch_id)
         sent_count += 1
+        
+    log_action(
+        db=db, 
+        action="WELCOME_EMAILS_DRAFTED",
+        description=f"{sent_count} welcome emails queued for approval.",
+        performed_by="system", 
+        target_entity="CommunicationLog"
+    )
+    
     return {"welcome_emails_drafted": sent_count, "batch_id": batch_id, "status": "PENDING_APPROVAL"}
 
 def send_team_assignment_emails(team: Team, members: list, event_name: str, db: Session) -> dict:
