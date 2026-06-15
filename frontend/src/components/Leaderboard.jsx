@@ -12,6 +12,7 @@ const Leaderboard = ({ refreshTrigger }) => {
   const [resolvingId, setResolvingId] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
   const [podium, setPodium] = useState(null);
+  const [specialMentions, setSpecialMentions] = useState([]);
 
   const navigate = useNavigate();
 
@@ -23,6 +24,10 @@ const Leaderboard = ({ refreshTrigger }) => {
     axios.get(`${API}/scores/anomalies`)
       .then(res => setAnomalies(res.data.anomalies || []))
       .catch(err => console.error("Error fetching anomalies:", err));
+
+    axios.get(`${API}/special-mention/approved`)
+      .then(res => setSpecialMentions(res.data || []))
+      .catch(err => console.error("Error fetching special mentions:", err));
   }, []);
 
   const loadLeaderboardData = useCallback(() => {
@@ -30,6 +35,9 @@ const Leaderboard = ({ refreshTrigger }) => {
       .then(res => {
         if (res.data.finalized) {
           setPodium(res.data.podium);
+          axios.get(`${API}/special-mention/approved`)
+            .then(r => setSpecialMentions(r.data || []))
+            .catch(() => {});
         } else {
           fetchData();
         }
@@ -37,14 +45,12 @@ const Leaderboard = ({ refreshTrigger }) => {
       .catch(() => fetchData());
   }, [fetchData]);
 
-  // WebSocket Live Refresh
   const wsStatus = useWebSocket('leaderboard', (data) => {
     if (data.event === 'leaderboard_updated') {
       loadLeaderboardData();
     }
   });
 
-  // Initial load
   useEffect(() => {
     loadLeaderboardData();
   }, [loadLeaderboardData, refreshTrigger]);
@@ -81,9 +87,7 @@ const Leaderboard = ({ refreshTrigger }) => {
       alert("You must resolve all scoring anomalies before ending the evaluation.");
       return;
     }
-
     if (!window.confirm("End the evaluation phase? The AI will now calculate winners and draft result emails.")) return;
-
     setFinalizing(true);
     try {
       const res = await axios.post(`${API}/scores/finalize`);
@@ -104,6 +108,49 @@ const Leaderboard = ({ refreshTrigger }) => {
     1: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', badge: 'bg-yellow-400 text-white' },
     2: { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-700', badge: 'bg-gray-400 text-white' },
     3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', badge: 'bg-orange-400 text-white' },
+  };
+
+  // Special Mention Leaderboard Section (shown in both live and finalized view)
+  const SpecialMentionLeaderboard = () => {
+    if (specialMentions.length === 0) return null;
+    return (
+      <div className="mt-8">
+        <div className="flex items-center gap-3 mb-4">
+          <h3 className="text-2xl font-bold text-gray-800">⭐ Special Mention</h3>
+          <span className="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full border border-purple-200">
+            WILDCARD FINALISTS
+          </span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-purple-50 border-b border-purple-200">
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-purple-500">Member</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-purple-500">From Team</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-purple-500">Skill</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-purple-500">Reason</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-purple-50">
+              {specialMentions.map((sm) =>
+                sm.nominated_members.map((member) => (
+                  <tr key={`${sm.nomination_id}-${member.id}`} className="hover:bg-purple-50 transition-colors">
+                    <td className="p-4 font-bold text-purple-800">⭐ {member.name}</td>
+                    <td className="p-4 text-gray-600 font-medium">{sm.team_name}</td>
+                    <td className="p-4">
+                      <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-semibold">
+                        {member.skill}
+                      </span>
+                    </td>
+                    <td className="p-4 text-gray-500 text-sm italic">{sm.reason}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
   };
 
   if (podium) {
@@ -156,7 +203,7 @@ const Leaderboard = ({ refreshTrigger }) => {
           )}
         </div>
 
-        {/* Full results table below podium */}
+        {/* Full results table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -194,6 +241,9 @@ const Leaderboard = ({ refreshTrigger }) => {
             Go to Comms →
           </button>
         </div>
+
+        {/* Special Mention Leaderboard */}
+        <SpecialMentionLeaderboard />
       </div>
     );
   }
@@ -309,8 +359,8 @@ const Leaderboard = ({ refreshTrigger }) => {
                           ON HOLD (Anomaly)
                         </span>
                       ) : (
-                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
-                          CLEARED
+                        <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
+                          SCORED
                         </span>
                       )}
                     </td>
@@ -351,6 +401,9 @@ const Leaderboard = ({ refreshTrigger }) => {
       <p className="text-xs text-gray-400 mt-3 font-medium">
         * Teams flagged with an anomaly have a judge score deviating &gt; 20% from the panel average. Click any row to view individual judge scores.
       </p>
+
+      {/* Special Mention Leaderboard */}
+      <SpecialMentionLeaderboard />
     </div>
   );
 };

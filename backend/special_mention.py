@@ -24,23 +24,23 @@ class ApproveRequest(BaseModel):
 
 @router.post("/special-mention/nominate")
 def nominate(request: NominateRequest, db: Session = Depends(get_db)):
-    # Validate mentor exists
+    # Enforce single member only
+    if len(request.nominated_member_ids) != 1:
+        raise HTTPException(status_code=400, detail="You must nominate exactly one member.")
+
     mentor = db.query(Mentor).filter(Mentor.id == request.mentor_id).first()
     if not mentor:
         raise HTTPException(status_code=404, detail="Mentor not found")
 
-    # Validate team exists and is eliminated
     team = db.query(Team).filter(Team.id == request.team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     if team.is_qualified:
         raise HTTPException(status_code=400, detail="Team is still qualified. Only eliminated teams can be nominated.")
 
-    # Validate mentor is assigned to this team
     if mentor.assigned_team_id != request.team_id:
         raise HTTPException(status_code=403, detail="You can only nominate members from your assigned team.")
 
-    # Check if nomination already exists for this team
     existing = db.query(SpecialMention).filter(SpecialMention.team_id == request.team_id).first()
     if existing:
         raise HTTPException(status_code=400, detail="A nomination already exists for this team.")
@@ -56,7 +56,6 @@ def nominate(request: NominateRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nomination)
 
-    # Draft AI-generated notification emails to committee
     try:
         from email_triggers import send_special_mention_nomination_email
         send_special_mention_nomination_email(db, nomination)
@@ -104,7 +103,7 @@ def approve_nomination(request: ApproveRequest, db: Session = Depends(get_db)):
     nomination.reviewed_by = request.reviewed_by
     db.commit()
 
-    # Draft AI-generated decision emails to nominated participants
+    # Only notify the single nominated member
     try:
         from email_triggers import send_special_mention_decision_emails
         send_special_mention_decision_emails(db, nomination, approved=(request.action == "APPROVED"))
