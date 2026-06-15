@@ -24,7 +24,6 @@ class ApproveRequest(BaseModel):
 
 @router.post("/special-mention/nominate")
 def nominate(request: NominateRequest, db: Session = Depends(get_db)):
-    # Enforce single member only
     if len(request.nominated_member_ids) != 1:
         raise HTTPException(status_code=400, detail="You must nominate exactly one member.")
 
@@ -101,9 +100,21 @@ def approve_nomination(request: ApproveRequest, db: Session = Depends(get_db)):
 
     nomination.status = request.action
     nomination.reviewed_by = request.reviewed_by
+
+    # KEY FIX: mark the team as special mention so judges can score them separately
+    if request.action == "APPROVED":
+        team = db.query(Team).filter(Team.id == nomination.team_id).first()
+        if team:
+            team.is_special_mention = True
+
+    elif request.action == "REJECTED":
+        # If previously approved then rejected, clear the flag
+        team = db.query(Team).filter(Team.id == nomination.team_id).first()
+        if team:
+            team.is_special_mention = False
+
     db.commit()
 
-    # Only notify the single nominated member
     try:
         from email_triggers import send_special_mention_decision_emails
         send_special_mention_decision_emails(db, nomination, approved=(request.action == "APPROVED"))
@@ -129,6 +140,7 @@ def get_approved_nominations(db: Session = Depends(get_db)):
             "nomination_id": n.id,
             "team_id": n.team_id,
             "team_name": team.name if team else None,
+            "is_special_mention": team.is_special_mention if team else False,
             "nominated_members": [{"id": m.id, "name": m.name, "skill": m.skill} for m in members],
             "reason": n.reason
         })

@@ -14,7 +14,6 @@ class Participant(Base):
     background = Column(String, nullable=True)
     institution = Column(String, nullable=True)
 
-    # Extended profile
     study_year = Column(String, nullable=True)
     experience_level = Column(String, nullable=True)
     prior_hackathons = Column(Integer, nullable=True)
@@ -23,7 +22,6 @@ class Participant(Base):
     availability = Column(String, nullable=True)
     role_preference = Column(String, nullable=True)
 
-    # Portfolio
     tech_stack = Column(String, nullable=True)
     project_link = Column(String, nullable=True)
     resume_link = Column(String, nullable=True)
@@ -41,9 +39,10 @@ class Team(Base):
     name = Column(String, nullable=False)
     member_ids = Column(String, nullable=False)
     rationale = Column(String, nullable=True)
-    mentor_rationale = Column(String, nullable=True)  # <-- Added for Bug #5
+    mentor_rationale = Column(String, nullable=True)
     status = Column(String, default="PENDING")
     is_qualified = Column(Boolean, default=True)
+    is_special_mention = Column(Boolean, default=False)  # set True when nomination approved
     event_config_id = Column(Integer, ForeignKey("event_configs.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -143,8 +142,8 @@ class SpecialMention(Base):
     id = Column(Integer, primary_key=True, index=True)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
     mentor_id = Column(Integer, ForeignKey("mentors.id"), nullable=False)
-    nominated_member_ids = Column(String, nullable=False)  # JSON array of participant IDs
+    nominated_member_ids = Column(String, nullable=False)
     reason = Column(String, nullable=False)
-    status = Column(String, default="PENDING")  # PENDING / APPROVED / REJECTED
-    reviewed_by = Column(String, nullable=True)  # committee member who approved/rejected
+    status = Column(String, default="PENDING")
+    reviewed_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
