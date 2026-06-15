@@ -1,18 +1,18 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Participant, User, EventConfig
 import csv
 import io
+import uuid
 from auth import create_token, hash_password
-from email_triggers import _save_and_send
+from email_triggers import _save_as_draft
 from activity import log_action
 
 router = APIRouter()
 
 @router.post("/roster/upload")
 async def upload_roster(
-    background_tasks: BackgroundTasks, 
     file: UploadFile = File(...), 
     db: Session = Depends(get_db)
 ):
@@ -46,9 +46,7 @@ async def upload_roster(
         except ValueError:
             hackathons_count = 0
 
-        # Upsert the User record — create only if one doesn't already exist for this email.
-        # Without this check the INSERT fails with UNIQUE constraint when the same CSV
-        # is uploaded more than once or when a prior self-registration used the same email.
+        # Upsert the User record
         user = db.query(User).filter(User.email == email).first()
         if not user:
             user = User(
@@ -58,7 +56,7 @@ async def upload_roster(
                 role="Participant"
             )
             db.add(user)
-            db.flush()  # get user.id without committing yet
+            db.flush()  
 
         participant = Participant(
             name=row.get("name"),
@@ -80,10 +78,7 @@ async def upload_roster(
             registration_status="approved"
         )
         db.add(participant)
-        # Snapshot into a plain dict BEFORE db.commit() expires ORM objects.
-        # After commit(), accessing user.name/.email triggers SQLAlchemy lazy
-        # reload which can return the last-committed row's data instead of this
-        # participant's data — causing Alice to be addressed as Ankita, etc.
+        
         new_participants.append({
             "id": user.id,
             "name": row.get("name"),
@@ -96,6 +91,9 @@ async def upload_roster(
 
     config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
     event_name = config.event_name if config else "our upcoming event"
+    
+    # Generate a single batch ID for this upload so they can be bulk-approved
+    batch_id = f"welcome-{uuid.uuid4().hex[:8]}"
 
     for p in new_participants:
         token_data = {
@@ -118,16 +116,18 @@ async def upload_roster(
             "Do not share this link with anyone, as it is tied directly to your account.\n"
             "Best of luck!"
         )
-        background_tasks.add_task(
-            _save_and_send,
+        
+        # Route to queue instead of sending directly
+        _save_as_draft(
             db=db,
             to_email=p["email"],
             subject=subject,
             body=body,
-            comm_type="WELCOME"
+            comm_type="WELCOME",
+            batch_id=batch_id
         )
 
-    return {"message": f"{added} participants uploaded and magic links dispatched. {skipped} skipped (already registered)."}
+    return {"message": f"{added} participants uploaded and magic links queued for approval. {skipped} skipped (already registered)."}
 
 
 @router.delete("/roster/clear")

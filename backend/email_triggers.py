@@ -36,14 +36,15 @@ def _save_as_draft(db: Session, to_email: str, subject: str, body: str, comm_typ
     return log
 
 def send_welcome_emails(participants: list, event_name: str, db: Session) -> dict:
+    batch_id = f"welcome-{uuid.uuid4().hex[:8]}"
     sent_count = 0
     for p in participants:
         prompt = f"You are an event coordinator. Write a warm, concise welcome email (3-4 sentences) for a participant joining an event.\nEvent: {event_name}\nParticipant Name: {p.name}\nParticipant Email: {p.email}\nSkills: {p.skill}\nThe email should: Welcome them by name to the event, Confirm their registration has been received, Tell them to watch their inbox for team assignment details, Wish them good luck. Do not include a subject line. Just the email body."
         body = call_gemini(prompt)
         subject = f"Welcome to {event_name} — You're registered!"
-        _save_as_draft(db, p.email, subject, body, comm_type="WELCOME")
+        _save_as_draft(db, p.email, subject, body, comm_type="WELCOME", batch_id=batch_id)
         sent_count += 1
-    return {"welcome_emails_drafted": sent_count}
+    return {"welcome_emails_drafted": sent_count, "batch_id": batch_id, "status": "PENDING_APPROVAL"}
 
 def send_team_assignment_emails(team: Team, members: list, event_name: str, db: Session) -> dict:
     member_names = [m.name for m in members]
