@@ -17,6 +17,18 @@ from mentors import router as mentors_router
 from special_mention import router as special_mention_router
 from feedback import router as feedback_router 
 from websocket_manager import manager # NEW
+from sqlalchemy import text
+from database import engine
+
+def run_migrations():
+    with engine.connect() as conn:
+        try:
+            conn.execute(text('ALTER TABLE teams ADD COLUMN is_special_mention BOOLEAN DEFAULT 0'))
+            conn.commit()
+        except:
+            pass  # Column already exists
+
+run_migrations()
 
 app = FastAPI(title="EventFlow API")
 

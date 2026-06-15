@@ -80,7 +80,7 @@ Return ONLY a valid JSON array, no markdown, no explanation, in this exact forma
         if "```" in raw:
             raw = raw.split("```")[1].replace("json", "").strip()
         start = raw.find("[")
-        end = raw.rfind("]") + 1
+        end = raw.find("]", start) + 1  # find FIRST closing bracket, not last
         pairings = json.loads(raw[start:end])
 
         for pair in pairings:
@@ -163,8 +163,10 @@ def generate_teams(background_tasks: BackgroundTasks, manual_config: Optional[Ma
 
     if config and config.team_formation:
         rules = json.loads(config.team_formation)
-        team_size = rules.get("team_size", 4)
-        skill_balance = rules.get("skill_balance", True)
+        team_size = rules.get("team_size") or 4
+        skill_balance = rules.get("skill_balance")
+        if skill_balance is None:
+            skill_balance = True
         config_source = "dynamic"
         event_config_id = config.id
     elif manual_config:
