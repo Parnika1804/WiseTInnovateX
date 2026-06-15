@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const CreateJudge = () => {
   const [name, setName] = useState('');
@@ -13,8 +14,13 @@ const CreateJudge = () => {
     setStatus({ message: 'Generating magic link and dispatching email...', type: 'info' });
 
     try {
-      await axios.post('http://localhost:8000/auth/create-judge', { name, email });
+      const res = await axios.post('http://localhost:8000/auth/create-judge', { name, email });
       setStatus({ message: '✅ Judge invited! Magic link emailed successfully.', type: 'success' });
+      
+      // Trigger Toast
+      const count = res.data?.judge_invite_emails_drafted || 1;
+      notifyEmailDraft(count);
+
       setName('');
       setEmail('');
     } catch (error) {
@@ -26,6 +32,7 @@ const CreateJudge = () => {
     }
   };
 
+  // ... (Rest of the JSX remains exactly the same)
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
       <h3 className="text-xl font-bold mb-1">Invite a Judge</h3>

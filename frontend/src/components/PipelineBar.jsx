@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const API = 'http://localhost:8000';
 
@@ -20,6 +21,11 @@ const PipelineBar = () => {
         } else {
           setError('');
           setData(res.data);
+          
+          // Trigger Toast if stage advancing drafts emails
+          if (res.data.stage_emails_drafted) {
+             notifyEmailDraft(res.data.stage_emails_drafted);
+          }
         }
       })
       .catch(() => setError('Could not load pipeline status.'));

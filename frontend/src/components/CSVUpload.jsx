@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const CSVUpload = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
@@ -14,10 +15,15 @@ const CSVUpload = ({ onUploadSuccess }) => {
     formData.append('file', file);
 
     try {
-      await axios.post('http://localhost:8000/roster/upload', formData, {
+      const res = await axios.post('http://localhost:8000/roster/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setNotification("Participants uploaded! Welcome emails are pending approval - go to the Comms page to review and approve.");
+      
+      // Trigger Toast
+      const draftedCount = res.data?.welcome_emails_drafted || 1;
+      notifyEmailDraft(draftedCount);
+
       setFile(null); 
       if (onUploadSuccess) onUploadSuccess(); 
     } catch (error) {

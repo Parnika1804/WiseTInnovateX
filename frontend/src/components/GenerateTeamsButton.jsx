@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const GenerateTeamsButton = ({ onGenerated }) => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -7,8 +8,14 @@ const GenerateTeamsButton = ({ onGenerated }) => {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      await axios.post('http://localhost:8000/teams/generate', { team_size: 3, skill_balance: true, constraints: null });
+      const res = await axios.post('http://localhost:8000/teams/generate', { team_size: 3, skill_balance: true, constraints: null });
       alert("Teams successfully generated!");
+      
+      // Trigger Toast
+      if (res.data?.team_assignment_emails_drafted) {
+        notifyEmailDraft(res.data.team_assignment_emails_drafted);
+      }
+
       if (onGenerated) onGenerated();
     } catch (error) {
       console.error("Error generating teams:", error);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const API = 'http://localhost:8000';
 
@@ -74,6 +75,10 @@ const MentorManager = () => {
     try {
       const res = await axios.post(`${API}/mentors/send-intro-emails`);
       setEmailStatus(`✅ ${res.data.mentor_emails_drafted} emails drafted and queued for approval in Comms tab.`);
+      
+      if (res.data.mentor_emails_drafted) {
+        notifyEmailDraft(res.data.mentor_emails_drafted);
+      }
     } catch (err) {
       setEmailStatus(`❌ ${err.response?.data?.detail || 'Failed to draft emails.'}`);
     } finally {
@@ -87,6 +92,10 @@ const MentorManager = () => {
     try {
       const res = await axios.post(`${API}/mentors/send-portal-links`);
       setLinkStatus(`✅ ${res.data.mentor_link_emails_drafted} mentor portal link emails drafted and queued for approval in Comms tab.`);
+      
+      if (res.data.mentor_link_emails_drafted) {
+        notifyEmailDraft(res.data.mentor_link_emails_drafted);
+      }
     } catch (err) {
       setLinkStatus(`❌ ${err.response?.data?.detail || 'Failed to draft portal link emails.'}`);
     } finally {

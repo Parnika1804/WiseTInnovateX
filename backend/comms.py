@@ -61,6 +61,30 @@ class AnnounceRequest(BaseModel):
     send_to: str = "all"       # "all" | "team:1" | "team:3" etc.
     custom_subject: Optional[str] = None  # optional override subject
 
+class LogEditRequest(BaseModel):
+    subject: str
+    message: str
+
+
+# ---------------------------------------------------------------------------
+# Edit (PATCH) Log
+# ---------------------------------------------------------------------------
+@router.patch("/comms/log/{log_id}")
+def edit_communication_log(log_id: int, request: LogEditRequest, db: Session = Depends(get_db)):
+    """Edits the subject and message of a PENDING_APPROVAL log."""
+    log = db.query(CommunicationLog).filter(CommunicationLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Communication log not found")
+    
+    if log.status != "PENDING_APPROVAL":
+        raise HTTPException(status_code=400, detail="Only pending approvals can be edited")
+        
+    log.subject = request.subject
+    log.message = request.message
+    db.commit()
+    
+    return {"message": "Log updated successfully"}
+
 
 # ---------------------------------------------------------------------------
 # Draft (manual)
