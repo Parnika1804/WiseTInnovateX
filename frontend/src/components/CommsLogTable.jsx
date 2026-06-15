@@ -6,7 +6,7 @@ const API = 'http://localhost:8000';
 
 const CommsLogTable = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
-  const [pendingBatches, setPendingBatches] = useState({});
+  const [pendingGroups, setPendingGroups] = useState({});
   const [processingIds, setProcessingIds] = useState(new Set());
 
   // WebSocket Live Refresh
@@ -26,13 +26,14 @@ const CommsLogTable = ({ refreshTrigger }) => {
       const all = response.data;
       setLogs(all);
 
-      // Group PENDING_APPROVAL entries by batch_id for batch approve/reject
-      const batches = {};
-      all.filter(l => l.status === 'PENDING_APPROVAL' && l.batch_id).forEach(l => {
-        if (!batches[l.batch_id]) batches[l.batch_id] = [];
-        batches[l.batch_id].push(l);
+      // Group PENDING_APPROVAL entries by comm_type instead of batch_id
+      const groups = {};
+      all.filter(l => l.status === 'PENDING_APPROVAL').forEach(l => {
+        const type = l.comm_type || 'UNCATEGORIZED';
+        if (!groups[type]) groups[type] = [];
+        groups[type].push(l);
       });
-      setPendingBatches(batches);
+      setPendingGroups(groups);
     } catch (error) {
       console.error('Failed to fetch logs', error);
     }
@@ -82,33 +83,33 @@ const CommsLogTable = ({ refreshTrigger }) => {
     }
   };
 
-  const handleApproveBatch = async (batchId) => {
-    const count = pendingBatches[batchId]?.length || 0;
-    if (!window.confirm(`Approve and send all ${count} pending emails in this batch?`)) return;
-    setProcessing(`batch-${batchId}`, true);
+  const handleApproveGroup = async (commType) => {
+    const count = pendingGroups[commType]?.length || 0;
+    if (!window.confirm(`Approve and send all ${count} pending emails for ${commType}?`)) return;
+    setProcessing(`group-${commType}`, true);
     try {
-      const res = await axios.post(`${API}/comms/approve-batch`, { batch_id: batchId });
+      const res = await axios.post(`${API}/comms/approve-type/${commType}`);
       alert(`✅ Sent ${res.data.sent} email(s). Failed: ${res.data.failed}`);
       await fetchLogs();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Batch approval failed.');
+      alert(err.response?.data?.detail || 'Group approval failed.');
     } finally {
-      setProcessing(`batch-${batchId}`, false);
+      setProcessing(`group-${commType}`, false);
     }
   };
 
-  const handleRejectBatch = async (batchId) => {
-    const count = pendingBatches[batchId]?.length || 0;
-    if (!window.confirm(`Reject and discard all ${count} pending emails in this batch?`)) return;
-    setProcessing(`batch-${batchId}`, true);
+  const handleRejectGroup = async (commType) => {
+    const count = pendingGroups[commType]?.length || 0;
+    if (!window.confirm(`Reject and discard all ${count} pending emails for ${commType}?`)) return;
+    setProcessing(`group-${commType}`, true);
     try {
-      const res = await axios.post(`${API}/comms/reject-batch`, { batch_id: batchId });
+      const res = await axios.post(`${API}/comms/reject-type/${commType}`);
       alert(`🗑️ Rejected ${res.data.rejected} email(s).`);
       await fetchLogs();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Batch rejection failed.');
+      alert(err.response?.data?.detail || 'Group rejection failed.');
     } finally {
-      setProcessing(`batch-${batchId}`, false);
+      setProcessing(`group-${commType}`, false);
     }
   };
 
@@ -138,7 +139,7 @@ const CommsLogTable = ({ refreshTrigger }) => {
     }
   };
 
-  const batchIds = Object.keys(pendingBatches);
+  const groupTypes = Object.keys(pendingGroups);
 
   return (
     <div className="mt-6">
@@ -153,36 +154,35 @@ const CommsLogTable = ({ refreshTrigger }) => {
         )}
       </div>
 
-      {/* ── Pending approval batch banners ── */}
-      {batchIds.length > 0 && (
+      {/* ── Pending approval type banners ── */}
+      {groupTypes.length > 0 && (
         <div className="mb-4 space-y-3">
-          {batchIds.map(batchId => {
-            const items = pendingBatches[batchId];
-            const sample = items[0];
-            const isBusy = processingIds.has(`batch-${batchId}`);
+          {groupTypes.map(commType => {
+            const items = pendingGroups[commType];
+            const isBusy = processingIds.has(`group-${commType}`);
             return (
-              <div key={batchId}
+              <div key={commType}
                 className="flex items-center justify-between gap-4 p-4 bg-amber-50 border border-amber-300 rounded-lg">
                 <div>
                   <p className="font-semibold text-amber-800 text-sm">
                     ⏳ {items.length} email{items.length !== 1 ? 's' : ''} pending approval
                     &nbsp;—&nbsp;
-                    <span className="font-normal">{getTypeBadge(sample?.comm_type)}</span>
+                    <span className="font-normal">{getTypeBadge(commType)}</span>
                   </p>
                   <p className="text-xs text-amber-600 mt-0.5">
-                    Batch <code className="bg-amber-100 px-1 rounded">{batchId.slice(0, 8)}…</code>
+                    Category: <code className="bg-amber-100 px-1 rounded">{commType}</code>
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
-                    onClick={() => handleApproveBatch(batchId)}
+                    onClick={() => handleApproveGroup(commType)}
                     disabled={isBusy}
                     className="px-4 py-1.5 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 disabled:opacity-50"
                   >
                     {isBusy ? 'Processing…' : `✅ Approve All (${items.length})`}
                   </button>
                   <button
-                    onClick={() => handleRejectBatch(batchId)}
+                    onClick={() => handleRejectGroup(commType)}
                     disabled={isBusy}
                     className="px-4 py-1.5 bg-red-100 text-red-700 text-sm font-semibold rounded-md hover:bg-red-200 disabled:opacity-50"
                   >
