@@ -15,8 +15,8 @@ cursor = conn.cursor()
 migrations = [
     # (table, column, column_definition)
     ("teams",               "event_config_id",     "INTEGER REFERENCES event_configs(id)"),
-    ("communication_logs",  "comm_type",            "TEXT DEFAULT 'MANUAL'"),
-    ("communication_logs",  "sent_at",              "DATETIME"),
+    ("communication_logs",  "comm_type",           "TEXT DEFAULT 'MANUAL'"),
+    ("communication_logs",  "sent_at",             "DATETIME"),
     ("participants",        "source",               "TEXT NOT NULL DEFAULT 'csv'"),
     ("participants",        "registration_status",  "TEXT NOT NULL DEFAULT 'approved'"),
     ("event_configs",       "current_stage_index",  "INTEGER NOT NULL DEFAULT 0"),
@@ -27,6 +27,8 @@ migrations = [
     ("activity_logs",       "ip_address",           "TEXT"),
     ("teams",  "is_qualified",  "BOOLEAN NOT NULL DEFAULT 1"),
     ("scores", "round_number",  "INTEGER NOT NULL DEFAULT 1"),
+    
+    ("teams",  "mentor_rationale", "TEXT"),
 ]
 
 for table, column, definition in migrations:

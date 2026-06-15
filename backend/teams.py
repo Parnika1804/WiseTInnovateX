@@ -8,6 +8,7 @@ from gemini import call_gemini
 from tasks import generate_team_rationale
 from activity import log_action
 import json
+import uuid
 from models import Mentor
 
 router = APIRouter()
@@ -288,6 +289,7 @@ def approve_reject_team(request: ApproveRejectRequest, db: Session = Depends(get
         if request.action == "APPROVED":
             member_names = [m.name for m in members]
             member_skills = [m.skill for m in members]
+            batch_id = f"team-formation-{uuid.uuid4().hex[:8]}"
 
             for member in members:
                 prompt = f"""You are an event coordinator. Write a warm and professional team assignment email for a participant.
@@ -300,9 +302,10 @@ Write a concise welcome email (3-4 sentences) that announces their assignment, l
                 
                 body = call_gemini(prompt)
                 subject = f"Your Team Assignment — {team.name} | {event_name}"
-                _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_ASSIGNMENT")
+                _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_ASSIGNMENT", batch_id=batch_id)
                 
         elif request.action == "REJECTED":
+            batch_id = f"team-rejected-{uuid.uuid4().hex[:8]}"
             for member in members:
                 prompt = f"""You are an event coordinator. Write a polite and reassuring email to a hackathon participant informing them that their proposed team was not approved by the committee.
 Event: {event_name}
@@ -313,7 +316,7 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
                 
                 body = call_gemini(prompt)
                 subject = f"Update on Your Team Assignment | {event_name}"
-                _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_REJECTED")
+                _save_as_draft(db, to_email=member.email, subject=subject, body=body, comm_type="TEAM_REJECTED", batch_id=batch_id)
                 
     except Exception as e:
         print(f"[TEAM STATUS EMAIL ERROR] {e}")

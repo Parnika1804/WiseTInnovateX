@@ -38,6 +38,10 @@ def get_mentors(db: Session = Depends(get_db)):
     result = []
     for m in mentors:
         team = db.query(Team).filter(Team.id == m.assigned_team_id).first() if m.assigned_team_id else None
+        
+        # Safely pull the rationale if it exists
+        rationale = getattr(team, 'mentor_rationale', None) if team else None
+
         result.append({
             "id": m.id,
             "name": m.name,
@@ -45,7 +49,8 @@ def get_mentors(db: Session = Depends(get_db)):
             "expertise": m.expertise,
             "phone": m.phone,
             "assigned_team_id": m.assigned_team_id,
-            "assigned_team_name": team.name if team else None
+            "assigned_team_name": team.name if team else None,
+            "mentor_rationale": rationale
         })
     return result
 
@@ -99,6 +104,12 @@ def reassign_mentor(team_id: int, request: ReassignRequest, db: Session = Depend
     db.commit()
 
     team = db.query(Team).filter(Team.id == team_id).first()
+    
+    # Generate and store AI rationale for this assignment
+    if team:
+        from gemini import generate_mentor_rationale
+        generate_mentor_rationale(new_mentor, team, db)
+
     return {
         "message": f"{new_mentor.name} reassigned to {team.name if team else 'team'}",
         "mentor_id": new_mentor.id,

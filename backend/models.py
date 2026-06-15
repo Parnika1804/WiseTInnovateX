@@ -41,6 +41,7 @@ class Team(Base):
     name = Column(String, nullable=False)
     member_ids = Column(String, nullable=False)
     rationale = Column(String, nullable=True)
+    mentor_rationale = Column(String, nullable=True)  # <-- Added for Bug #5
     status = Column(String, default="PENDING")
     is_qualified = Column(Boolean, default=True)
     event_config_id = Column(Integer, ForeignKey("event_configs.id"), nullable=True)

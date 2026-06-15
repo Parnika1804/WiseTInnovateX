@@ -417,50 +417,28 @@ def approve_communication(log_id: int, db: Session = Depends(get_db)):
     return resp
 
 
-class ApproveBatchRequest(BaseModel):
-    batch_id: str
-
-
 @router.post("/comms/approve-batch")
-def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
-    """Approve and send all PENDING_APPROVAL emails in a given batch."""
+def approve_batch(request: BaseModel, db: Session = Depends(get_db)):
+    """Kept for backward compatibility if needed."""
+    pass
+
+
+# NEW: Type-based approval replaces Batch-based approval
+@router.post("/comms/approve-type/{comm_type}")
+def approve_type(comm_type: str, db: Session = Depends(get_db)):
+    """Approve and send all PENDING_APPROVAL and DRAFT emails of a given type."""
     logs = (
         db.query(CommunicationLog)
         .filter(
-            CommunicationLog.batch_id == request.batch_id,
-            CommunicationLog.status == "PENDING_APPROVAL",
+            CommunicationLog.comm_type == comm_type,
+            CommunicationLog.status.in_(["PENDING_APPROVAL", "DRAFT"]),
         )
         .all()
     )
     if not logs:
         raise HTTPException(
             status_code=404,
-            detail=f"No pending emails found for batch '{request.batch_id}'",
-        )
-        
-    is_results_batch = any(log.comm_type in ["RESULTS_QUALIFIED", "RESULTS_NOT_QUALIFIED"] for log in logs)
-    is_welcome_batch = any(log.comm_type == "WELCOME" for log in logs)
-
-    if is_results_batch:
-        log_action(
-            db=db,
-            action="RESULTS_APPROVED",
-            description=f"The evaluation results pipeline clearance was granted for communication batch ID: {request.batch_id}.",
-            performed_by="committee"
-        )
-    elif is_welcome_batch:
-        log_action(
-            db=db,
-            action="APPROVAL_GRANTED",
-            description=f"Welcome email dispatch authorization granted for batch ID: {request.batch_id}.",
-            performed_by="committee"
-        )
-    else:
-        log_action(
-            db=db,
-            action="APPROVAL_GRANTED",
-            description=f"Batch dispatch authorization granted for processing container ID: {request.batch_id}.",
-            performed_by="committee"
+            detail=f"No pending emails found for type '{comm_type}'",
         )
 
     sent_count = 0
@@ -476,34 +454,33 @@ def approve_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
             
     db.commit()
     
-    if is_results_batch:
+    if "RESULTS" in comm_type:
         log_action(
             db=db,
             action="RESULTS_PUBLISHED",
-            description=f"Leaderboard progression outcomes successfully published. {sent_count} official notification dispatches sent to participants.",
+            description=f"Leaderboard progression outcomes published. {sent_count} official notification dispatches sent to participants.",
             performed_by="committee"
         )
-    elif is_welcome_batch:
+    elif comm_type == "WELCOME":
         log_action(
             db=db,
             action="WELCOME_EMAILS_SENT",
-            description=f"Successfully dispatched {sent_count} welcome emails for batch {request.batch_id}.",
+            description=f"Successfully dispatched {sent_count} welcome emails.",
             performed_by="committee"
         )
     else:
         log_action(
             db=db,
-            action="BATCH_COMMUNICATION_SENT",
-            description=f"Successfully transmitted a collection of {sent_count} queued pipeline messages for batch {request.batch_id}.",
+            action="TYPE_COMMUNICATION_SENT",
+            description=f"Successfully transmitted {sent_count} queued pipeline messages for category '{comm_type}'.",
             performed_by="committee"
         )
         
     return {
-        "message": f"Batch '{request.batch_id}' approved",
+        "message": f"Category '{comm_type}' approved",
         "sent": sent_count,
         "failed": failed_count,
     }
-
 
 @router.post("/comms/reject/{log_id}")
 def reject_communication(log_id: int, db: Session = Depends(get_db)):
@@ -527,21 +504,22 @@ def reject_communication(log_id: int, db: Session = Depends(get_db)):
     return {"message": f"Communication {log_id} rejected and will not be sent."}
 
 
-@router.post("/comms/reject-batch")
-def reject_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
-    """Reject all PENDING_APPROVAL emails in a given batch."""
+# NEW: Type-based rejection replaces Batch-based rejection
+@router.post("/comms/reject-type/{comm_type}")
+def reject_type(comm_type: str, db: Session = Depends(get_db)):
+    """Reject all PENDING_APPROVAL emails in a given category."""
     logs = (
         db.query(CommunicationLog)
         .filter(
-            CommunicationLog.batch_id == request.batch_id,
-            CommunicationLog.status == "PENDING_APPROVAL",
+            CommunicationLog.comm_type == comm_type,
+            CommunicationLog.status.in_(["PENDING_APPROVAL", "DRAFT"]),
         )
         .all()
     )
     if not logs:
         raise HTTPException(
             status_code=404,
-            detail=f"No pending emails found for batch '{request.batch_id}'",
+            detail=f"No pending emails found for type '{comm_type}'",
         )
     count = len(logs)
     for log in logs:
@@ -550,10 +528,10 @@ def reject_batch(request: ApproveBatchRequest, db: Session = Depends(get_db)):
     log_action(
         db=db,
         action="APPROVAL_REJECTED",
-        description=f"Rejected batch dispatch approval request container '{request.batch_id}'. Dropped {count} queued transmission log elements.",
+        description=f"Rejected dispatch approval request for category '{comm_type}'. Dropped {count} queued elements.",
         performed_by="committee"
     )
-    return {"message": f"Batch '{request.batch_id}' rejected", "rejected": count}
+    return {"message": f"Category '{comm_type}' rejected", "rejected": count}
 
 
 # ---------------------------------------------------------------------------

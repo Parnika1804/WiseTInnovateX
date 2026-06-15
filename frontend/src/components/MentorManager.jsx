@@ -18,6 +18,7 @@ const MentorManager = () => {
   const [reassignRow, setReassignRow] = useState(null); // team_id being reassigned
   const [selectedNewMentor, setSelectedNewMentor] = useState('');
   const [reassigning, setReassigning] = useState(false);
+  const [expandedRow, setExpandedRow] = useState(null); // Tracks the expanded row for AI rationale
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -132,17 +133,19 @@ const MentorManager = () => {
     }
   };
 
+  const toggleRow = (id) => {
+    setExpandedRow(prev => prev === id ? null : id);
+  };
+
   const assignedCount = mentors.filter(m => m.assigned_team_id).length;
   const unassignedCount = mentors.length - assignedCount;
 
-  // Mentors available to be reassigned (unassigned ones + the current mentor of the row)
   const availableMentors = (teamId) =>
     mentors.filter(m => !m.assigned_team_id || m.assigned_team_id === teamId);
 
   return (
     <div className="space-y-6">
 
-      {/* Header stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Mentors</p>
@@ -158,12 +161,10 @@ const MentorManager = () => {
         </div>
       </div>
 
-      {/* Actions card */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Mentor Management</h3>
 
         <div className="flex flex-wrap gap-3 items-center">
-          {/* CSV Upload */}
           <div>
             <input
               type="file"
@@ -185,7 +186,6 @@ const MentorManager = () => {
             </label>
           </div>
 
-          {/* Send Portal Links */}
           <button
             onClick={handleSendPortalLinks}
             disabled={sendingLinks || mentors.length === 0}
@@ -194,7 +194,6 @@ const MentorManager = () => {
             {sendingLinks ? '⏳ Generating...' : '🔗 Send Mentor Portal Links'}
           </button>
 
-          {/* Draft intro emails */}
           <button
             onClick={handleSendEmails}
             disabled={sendingEmails || mentors.length === 0}
@@ -203,7 +202,6 @@ const MentorManager = () => {
             {sendingEmails ? '⏳ Drafting...' : '✉️ Draft Intro Emails'}
           </button>
 
-          {/* Refresh */}
           <button
             onClick={fetchMentors}
             disabled={loading}
@@ -212,7 +210,6 @@ const MentorManager = () => {
             🔄 Refresh
           </button>
 
-          {/* Clear */}
           <button
             onClick={handleClear}
             disabled={clearing || mentors.length === 0}
@@ -222,12 +219,10 @@ const MentorManager = () => {
           </button>
         </div>
 
-        {/* CSV format hint */}
         <p className="text-xs text-slate-400 mt-3">
           CSV format: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">name, email, expertise, phone</code>
         </p>
 
-        {/* Status messages */}
         {uploadStatus && (
           <div className={`mt-3 p-3 rounded-lg text-sm font-medium ${
             uploadStatus.startsWith('✅') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
@@ -258,7 +253,6 @@ const MentorManager = () => {
         )}
       </div>
 
-      {/* Mentors table */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-800">Mentor Assignments</h3>
@@ -289,74 +283,107 @@ const MentorManager = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {mentors.map((mentor) => (
-                  <tr key={mentor.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-slate-800">{mentor.name}</td>
-                    <td className="px-6 py-4 text-slate-600">{mentor.email}</td>
-                    <td className="px-6 py-4 text-slate-600">{mentor.expertise || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-6 py-4 text-slate-600">{mentor.phone || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-6 py-4">
-                      {mentor.assigned_team_name ? (
-                        <span className="font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                          {mentor.assigned_team_name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {mentor.assigned_team_id ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-                          ✓ Assigned
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                          ⏳ Pending
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {mentor.assigned_team_id ? (
-                        reassignRow === mentor.assigned_team_id ? (
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={selectedNewMentor}
-                              onChange={(e) => setSelectedNewMentor(e.target.value)}
-                              className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                            >
-                              <option value="">Pick mentor...</option>
-                              {availableMentors(mentor.assigned_team_id)
-                                .filter(m => m.id !== mentor.id)
-                                .map(m => (
-                                  <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                            </select>
-                            <button
-                              onClick={() => handleReassignConfirm(mentor.assigned_team_id)}
-                              disabled={!selectedNewMentor || reassigning}
-                              className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-orange-500 hover:bg-orange-600 disabled:bg-orange-200 disabled:cursor-not-allowed text-white transition-colors"
-                            >
-                              {reassigning ? '...' : 'Confirm'}
-                            </button>
-                            <button
-                              onClick={() => { setReassignRow(null); setSelectedNewMentor(''); }}
-                              className="text-xs px-2 py-1.5 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                  <React.Fragment key={mentor.id}>
+                    <tr 
+                      className={`hover:bg-slate-50 transition-colors ${mentor.mentor_rationale ? 'cursor-pointer' : ''}`}
+                      onClick={(e) => {
+                        // Prevent row expansion if clicking a button or dropdown
+                        if (!e.target.closest('button') && !e.target.closest('select') && mentor.mentor_rationale) {
+                          toggleRow(mentor.id);
+                        }
+                      }}
+                    >
+                      <td className="px-6 py-4 font-semibold text-slate-800">
+                        <div className="flex items-center gap-2">
+                          {mentor.mentor_rationale && (
+                            <span className="text-xs text-purple-600">
+                              {expandedRow === mentor.id ? '▼' : '▶'}
+                            </span>
+                          )}
+                          {mentor.name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{mentor.email}</td>
+                      <td className="px-6 py-4 text-slate-600">{mentor.expertise || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-6 py-4 text-slate-600">{mentor.phone || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-6 py-4">
+                        {mentor.assigned_team_name ? (
+                          <span className="font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                            {mentor.assigned_team_name}
+                          </span>
                         ) : (
-                          <button
-                            onClick={() => handleReassignClick(mentor.assigned_team_id)}
-                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 transition-colors"
-                          >
-                            🔀 Reassign
-                          </button>
-                        )
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
-                    </td>
-                  </tr>
+                          <span className="text-slate-300">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {mentor.assigned_team_id ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+                            ✓ Assigned
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                            ⏳ Pending
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {mentor.assigned_team_id ? (
+                          reassignRow === mentor.assigned_team_id ? (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={selectedNewMentor}
+                                onChange={(e) => setSelectedNewMentor(e.target.value)}
+                                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                              >
+                                <option value="">Pick mentor...</option>
+                                {availableMentors(mentor.assigned_team_id)
+                                  .filter(m => m.id !== mentor.id)
+                                  .map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                  ))}
+                              </select>
+                              <button
+                                onClick={() => handleReassignConfirm(mentor.assigned_team_id)}
+                                disabled={!selectedNewMentor || reassigning}
+                                className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-orange-500 hover:bg-orange-600 disabled:bg-orange-200 disabled:cursor-not-allowed text-white transition-colors"
+                              >
+                                {reassigning ? '...' : 'Confirm'}
+                              </button>
+                              <button
+                                onClick={() => { setReassignRow(null); setSelectedNewMentor(''); }}
+                                className="text-xs px-2 py-1.5 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleReassignClick(mentor.assigned_team_id)}
+                              className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 transition-colors"
+                            >
+                              🔀 Reassign
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                    
+                    {/* Collapsible AI Rationale Row */}
+                    {expandedRow === mentor.id && mentor.mentor_rationale && (
+                      <tr className="bg-slate-50 border-b-2 border-slate-200">
+                        <td colSpan="7" className="p-6">
+                          <div className="bg-white border border-purple-200 rounded-lg p-5 shadow-inner">
+                            <h4 className="text-sm font-bold text-purple-600 uppercase tracking-wider mb-2 border-b border-purple-100 pb-2">
+                              ✨ AI Assignment Rationale
+                            </h4>
+                            <p className="text-sm text-slate-600 italic m-0">"{mentor.mentor_rationale}"</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

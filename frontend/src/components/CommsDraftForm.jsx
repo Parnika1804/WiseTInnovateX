@@ -96,7 +96,6 @@ const EmailInbox = () => {
     }
   }, []);
 
-  // BUG #4 FIX: Added setInterval and clearInterval for 30-second polling
   useEffect(() => { 
     load(); 
     const intervalId = setInterval(load, 30000);
@@ -129,11 +128,12 @@ const EmailInbox = () => {
     }
   };
 
-  const batchMap = {};
+  // Group strictly by comm_type so there is only one header per category
+  const typeMap = {};
   pendingComms.forEach(c => {
-    const key = c.batch_id || `single-${c.id}`;
-    if (!batchMap[key]) batchMap[key] = [];
-    batchMap[key].push(c);
+    const key = c.comm_type || "OTHER";
+    if (!typeMap[key]) typeMap[key] = [];
+    typeMap[key].push(c);
   });
 
   return (
@@ -160,42 +160,42 @@ const EmailInbox = () => {
           <p className="text-sm">No emails pending approval.</p>
         </div>
       ) : (
-        Object.entries(batchMap).map(([batchId, comms]) => (
-          <div key={batchId} className="mb-4 border border-blue-100 rounded-xl overflow-hidden">
+        Object.entries(typeMap).map(([commType, comms]) => (
+          <div key={commType} className="mb-4 border border-blue-100 rounded-xl overflow-hidden">
             <div className="bg-blue-50 px-4 py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs font-bold text-blue-700">{comms[0]?.comm_type?.replace(/_/g, ' ')}</span>
+                <span className="text-xs font-bold text-blue-700">{commType.replace(/_/g, ' ')}</span>
                 <span className="text-xs text-blue-500 ml-2">· {comms.length} emails</span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    setLoadingId(`batch-approve-${batchId}`);
+                    setLoadingId(`type-approve-${commType}`);
                     try {
-                      await axios.post(`${API}/comms/approve-batch`, { batch_id: batchId });
+                      await axios.post(`${API}/comms/approve-type/${commType}`);
                       showToast(`${comms.length} emails approved and sent.`);
                       load();
                     } catch (e) {
-                      showToast(e.response?.data?.detail || 'Batch approve failed.', false);
+                      showToast(e.response?.data?.detail || 'Approve failed.', false);
                     } finally { setLoadingId(null); }
                   }}
-                  disabled={loadingId === `batch-approve-${batchId}`}
+                  disabled={loadingId === `type-approve-${commType}`}
                   className="px-3 py-1 text-xs font-bold bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors disabled:opacity-50"
                 >
                   ✓ Approve All
                 </button>
                 <button
                   onClick={async () => {
-                    setLoadingId(`batch-reject-${batchId}`);
+                    setLoadingId(`type-reject-${commType}`);
                     try {
-                      await axios.post(`${API}/comms/reject-batch`, { batch_id: batchId });
-                      showToast('Batch rejected.');
+                      await axios.post(`${API}/comms/reject-type/${commType}`);
+                      showToast('Emails rejected.');
                       load();
                     } catch (e) {
-                      showToast(e.response?.data?.detail || 'Batch reject failed.', false);
+                      showToast(e.response?.data?.detail || 'Reject failed.', false);
                     } finally { setLoadingId(null); }
                   }}
-                  disabled={loadingId === `batch-reject-${batchId}`}
+                  disabled={loadingId === `type-reject-${commType}`}
                   className="px-3 py-1 text-xs font-bold bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors disabled:opacity-50"
                 >
                   ✗ Reject All

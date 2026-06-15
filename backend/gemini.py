@@ -41,7 +41,6 @@ def _hardcoded_fallback(prompt: str) -> str:
     """
     prompt_lower = prompt.lower()
 
-    # Email: welcome
     if "welcome" in prompt_lower and "participant" in prompt_lower:
         return (
             "Dear Participant,\n\n"
@@ -51,7 +50,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "We wish you the very best of luck!"
         )
 
-    # Email: team assignment
     if "team assignment" in prompt_lower or "assigned team" in prompt_lower:
         return (
             "Dear Participant,\n\n"
@@ -60,7 +58,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "We wish your team the very best!"
         )
 
-    # Email: mentor assignment
     if "mentor" in prompt_lower and ("assigned" in prompt_lower or "assignment" in prompt_lower):
         return (
             "Dear Mentor,\n\n"
@@ -70,7 +67,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "We appreciate your support!"
         )
 
-    # Email: evaluation reminder
     if "evaluation" in prompt_lower or "judging" in prompt_lower:
         return (
             "Dear Participant,\n\n"
@@ -80,7 +76,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "Good luck!"
         )
 
-    # Email: results qualified
     if "congratulat" in prompt_lower and ("qualif" in prompt_lower or "advanced" in prompt_lower):
         return (
             "Dear Participant,\n\n"
@@ -89,7 +84,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "Keep up the excellent work!"
         )
 
-    # Email: results not qualified
     if "not advance" in prompt_lower or "did not" in prompt_lower or "thank you for participating" in prompt_lower:
         return (
             "Dear Participant,\n\n"
@@ -98,7 +92,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "We hope to see you at future events. Keep building!"
         )
 
-    # Email: special mention approved
     if "special mention" in prompt_lower and "approved" in prompt_lower:
         return (
             "Dear Participant,\n\n"
@@ -107,7 +100,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "You will be judged separately for the Special Mention award. Best of luck!"
         )
 
-    # Email: special mention rejected
     if "special mention" in prompt_lower and ("not approved" in prompt_lower or "rejected" in prompt_lower):
         return (
             "Dear Participant,\n\n"
@@ -116,7 +108,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "your hard work has not gone unnoticed. Keep building — great things are ahead!"
         )
 
-    # Email: mentor portal magic link
     if "portal" in prompt_lower and "mentor" in prompt_lower and "link" in prompt_lower:
         return (
             "Dear Mentor,\n\n"
@@ -124,7 +115,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "and submit nominations. This link is personal — please do not share it with anyone."
         )
 
-    # Email: stage update
     if "stage" in prompt_lower and ("starting" in prompt_lower or "active" in prompt_lower):
         return (
             "Dear Participant,\n\n"
@@ -133,7 +123,6 @@ def _hardcoded_fallback(prompt: str) -> str:
             "Good luck!"
         )
 
-    # Assessment guide fallback
     if "assessment guide" in prompt_lower or "rubric" in prompt_lower or "evaluate" in prompt_lower:
         return (
             "• Innovation: How original and creative is the solution?\n"
@@ -142,22 +131,18 @@ def _hardcoded_fallback(prompt: str) -> str:
             "• Presentation: Is the idea communicated clearly and confidently?"
         )
 
-    # Team rationale fallback
     if "rationale" in prompt_lower or "team composition" in prompt_lower:
         return (
             "This team brings together a diverse set of skills that complement each other well. "
             "The combination of technical and creative abilities positions them strongly for the challenges ahead."
         )
 
-    # JSON mentor matching fallback — return empty array, round-robin will handle it
     if "mentor" in prompt_lower and "team_id" in prompt_lower:
         return "[]"
 
-    # JSON advancement fallback — return empty array, top 50% fallback handles it
     if "advancement" in prompt_lower or "qualify" in prompt_lower:
         return "[]"
 
-    # Generic fallback
     return (
         "Thank you for being part of this event. "
         "Please check your portal or contact the organizers for further information."
@@ -165,7 +150,6 @@ def _hardcoded_fallback(prompt: str) -> str:
 
 
 def call_gemini(prompt: str) -> str:
-    # Try all Gemini keys first
     for idx, key in enumerate(AVAILABLE_KEYS):
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
@@ -181,10 +165,32 @@ def call_gemini(prompt: str) -> str:
             print(f"❌ Gemini key #{idx + 1} failed: {e}")
             continue
 
-    # All Gemini keys failed — fall back to Groq
     print("⚠️ All Gemini keys exhausted — falling back to Groq")
     try:
         return call_groq(prompt)
     except Exception as e:
         print(f"⚠️ Groq also failed: {e} — falling back to hardcoded algorithm")
         return _hardcoded_fallback(prompt)
+
+
+# NEW: AI Mentor Rationale Generator
+def generate_mentor_rationale(mentor, team, db) -> str:
+    from models import Participant
+    import json
+    
+    member_ids = json.loads(team.member_ids) if team.member_ids else []
+    members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+    skills = [m.skill for m in members if m.skill]
+    
+    prompt = f"""You are an event management AI assistant. Write a short rationale (2-3 sentences) explaining why this mentor is a great fit for this specific team.
+Mentor Name: {mentor.name}
+Mentor Expertise: {mentor.expertise or 'General Management'}
+Team Name: {team.name}
+Team Skills: {', '.join(skills)}
+
+Explain how the mentor's expertise aligns with or supports the team's combined skillsets."""
+    
+    rationale = call_gemini(prompt)
+    team.mentor_rationale = rationale
+    db.commit()
+    return rationale
