@@ -327,9 +327,11 @@ const CommsDraftForm = ({ onDraftSaved }) => {
 
       {/* Stage Bulk Trigger */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
-        <h3 className="font-bold text-blue-800 mb-1">⚡ Stage Email Trigger</h3>
-        <p className="text-sm text-blue-600 mb-4">Draft stage emails for all participants — goes to approval queue.</p>
-        <div className="flex gap-3 items-center flex-wrap">
+<h3 className="text-lg font-bold text-slate-900">
+  Automated Campaigns
+</h3>
+        <p className="text-sm text-slate-500 mt-1 mb-5">Draft stage emails for all participants — goes to approval queue.</p>
+        <div className="flex flex-wrap gap-4 items-center">
           <select value={triggerStage} onChange={e => setTriggerStage(e.target.value)}
             className="px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white">
             {STAGE_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -349,9 +351,11 @@ const CommsDraftForm = ({ onDraftSaved }) => {
       </div>
 
       {/* Manual Gemini Draft */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="font-bold text-gray-800 mb-1">✨ Auto-Draft with Gemini</h3>
-        <p className="text-sm text-gray-500 mb-4">Preview an AI-drafted email before sending.</p>
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+<h3 className="text-lg font-bold text-slate-900">
+  AI Email Assistant
+</h3>
+        <p className="text-sm text-slate-500 mt-1 mb-5">Preview an AI-drafted email before sending.</p>
         <div className="flex flex-col gap-3 mb-4">
           <input type="email" placeholder="Recipient Email" value={email} onChange={e => setEmail(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -365,7 +369,20 @@ const CommsDraftForm = ({ onDraftSaved }) => {
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
           )}
           <button onClick={handleGenerateDraft} disabled={isGenerating}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+            className="
+px-4 py-3
+bg-gradient-to-r
+from-indigo-600
+to-purple-600
+text-white
+text-sm
+font-semibold
+rounded-2xl
+hover:shadow-lg
+hover:-translate-y-0.5
+transition-all
+disabled:opacity-50
+">
             {isGenerating ? 'Generating...' : 'Generate Preview'}
           </button>
         </div>

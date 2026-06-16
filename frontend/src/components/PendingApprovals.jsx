@@ -20,25 +20,70 @@ const SectionHead = ({ icon, label, count }) => (
 );
 
 const Card = ({ children, highlight }) => (
-  <div className={`p-4 rounded-lg border mb-3 ${
-    highlight ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200'
+  <div className={`p-4 rounded-2xl border mb-3 ${
+    highlight ? 'bg-amber-50 border-amber-200 hover:shadow-md transition-all duration-300' : 'bg-slate-50 border-slate-200 hover:bg-white hover:shadow-md transition-all duration-300'
   }`}>
     {children}
   </div>
 );
 
-const ActionBtn = ({ onClick, disabled, variant, children }) => {
+const ActionBtn = ({
+  onClick,
+  disabled = false,
+  variant = 'blue',
+  loading = false,
+  children,
+}) => {
   const styles = {
-    green: 'bg-green-600 hover:bg-green-700 text-white',
-    red:   'bg-red-500 hover:bg-red-600 text-white',
-    blue:  'bg-blue-600 hover:bg-blue-700 text-white',
+    green:
+      'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow',
+    red:
+      'bg-red-500 hover:bg-red-600 text-white shadow-sm hover:shadow',
+    blue:
+      'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow',
+    gray:
+      'bg-slate-200 hover:bg-slate-300 text-slate-700',
   };
+
   return (
     <button
+      type="button"
       onClick={onClick}
-      disabled={disabled}
-      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors disabled:opacity-50 ${styles[variant]}`}
+      disabled={disabled || loading}
+      className={`
+        inline-flex items-center justify-center gap-2
+        px-3 py-2
+        text-xs font-semibold
+        rounded-lg
+        transition-all duration-200
+        disabled:opacity-50 disabled:cursor-not-allowed
+        ${styles[variant] || styles.blue}
+      `}
     >
+      {loading && (
+        <svg
+          className="animate-spin h-3.5 w-3.5"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+          />
+        </svg>
+      )}
+
       {children}
     </button>
   );
@@ -49,16 +94,19 @@ const PendingApprovals = ({ onAction }) => {
   const [anomalies,    setAnomalies]    = useState([]);
   const [pendingComms, setPendingComms] = useState([]);
   const [loadingId,    setLoadingId]    = useState(null);
-  const [toast,        setToast]        = useState('');
+  const [toast,        setToast]        = useState(null);
   const [expanded,     setExpanded]     = useState({});
 
   const emailCount = pendingComms.length;
   const totalCount = pendingTeams.length + anomalies.length + emailCount;
 
   const showToast = (msg, ok = true) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(''), 3500);
-  };
+  setToast({ msg, ok });
+
+  setTimeout(() => {
+    setToast(null);
+  }, 3500);
+};
 
   const load = useCallback(async () => {
     try {
@@ -146,58 +194,90 @@ const PendingApprovals = ({ onAction }) => {
   }, {});
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 relative">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-bold text-gray-800">Pending Approvals</h3>
-          {totalCount > 0 && (
-            <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
-              {totalCount}
-            </span>
-          )}
-        </div>
-        <button onClick={load} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-          ↻ Refresh
-        </button>
-      </div>
+<div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 relative w-full">
+        <div className="flex items-start justify-between mb-6">
+  <div>
+    <div className="flex items-center gap-3">
+      <h3 className="text-xl font-bold text-slate-900">
+        Action Center
+      </h3>
 
-      {totalCount === 0 && (
-        <div className="text-center py-8 text-gray-400">
-          <div className="text-3xl mb-2">✓</div>
-          <p className="text-sm">No pending approvals — you're all caught up.</p>
-        </div>
+      {totalCount > 0 && (
+        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
+          {totalCount}
+        </span>
       )}
+    </div>
 
+    <p className="mt-1 text-sm text-slate-500">
+      Review approvals and alerts.
+    </p>
+  </div>
+
+  <button
+    onClick={load}
+    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm hover:bg-white hover:shadow-sm transition-all"
+  >
+    Refresh
+  </button>
+</div>
+{totalCount === 0 && (
+  <div className="py-10 text-center">
+
+    <div className="text-5xl mb-4">
+      🎉
+    </div>
+
+    <h4 className="text-lg font-semibold text-slate-800">
+      You're all caught up
+    </h4>
+
+    <p className="mt-2 text-sm text-slate-500">
+      No pending actions.
+    </p>
+
+  </div>
+)}
       {/* EMAILS - Summary Only */}
       {Object.entries(commsGrouped).map(([type, logs]) => (
-        <div key={type} className="mb-4">
-          <div className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
-            <div className="flex items-center gap-2">
-              <span className="text-base">📬</span>
-              <span className="text-sm font-semibold text-blue-900">
-                {logs.length} {type.replace(/_/g, ' ')} emails ready to approve
-              </span>
-              <Badge count={logs.length} />
-            </div>
-            <div className="flex gap-2">
-              <ActionBtn 
-                variant="green" 
-                onClick={() => handleApproveAll(type, logs.length)}
-                disabled={loadingId === `batch-approve-${type}`}
-              >
-                Approve All
-              </ActionBtn>
-              <ActionBtn 
-                variant="red" 
-                onClick={() => handleRejectAll(type)}
-                disabled={loadingId === `batch-reject-${type}`}
-              >
-                Reject All
-              </ActionBtn>
-            </div>
-          </div>
+  <div key={type} className="mb-4">
+    <div
+      className="bg-gradient-to-r from-blue-50 to-indigo-50
+      px-5 py-4 rounded-2xl
+      border border-blue-100"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">📬</span>
+
+          <span className="text-sm font-semibold text-blue-900">
+            {logs.length} {type.replace(/_/g, ' ')} emails ready to approve
+          </span>
+
+          <Badge count={logs.length} />
         </div>
-      ))}
+
+        <div className="flex gap-2">
+          <ActionBtn
+            variant="green"
+            loading={loadingId === `batch-approve-${type}`}
+            onClick={() => handleApproveAll(type, logs.length)}
+          >
+            Approve All
+          </ActionBtn>
+
+          <ActionBtn
+            variant="red"
+            loading={loadingId === `batch-reject-${type}`}
+            onClick={() => handleRejectAll(type)}
+          >
+            Reject All
+          </ActionBtn>
+        </div>
+      </div>
+    </div>
+  </div>
+))}
 
       {/* PENDING TEAMS */}
       {pendingTeams.length > 0 && (
@@ -223,8 +303,8 @@ const PendingApprovals = ({ onAction }) => {
                   )}
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
-                  <ActionBtn variant="green" disabled={loadingId === `team-${team.id}-APPROVED`} onClick={() => handleTeam(team.id, 'APPROVED')}>Approve</ActionBtn>
-                  <ActionBtn variant="red" disabled={loadingId === `team-${team.id}-REJECTED`} onClick={() => handleTeam(team.id, 'REJECTED')}>Reject</ActionBtn>
+                  <ActionBtn variant="green" loading={loadingId === `team-${team.id}-APPROVED`} onClick={() => handleTeam(team.id, 'APPROVED')}>Approve</ActionBtn>
+                  <ActionBtn variant="red" loading={loadingId === `team-${team.id}-REJECTED`} onClick={() => handleTeam(team.id, 'REJECTED')}>Reject</ActionBtn>
                 </div>
               </div>
             </Card>
@@ -246,9 +326,15 @@ const PendingApprovals = ({ onAction }) => {
                   </p>
                   {a.notes && <p className="text-xs text-gray-500 mt-1 italic">"{a.notes}"</p>}
                 </div>
-                <ActionBtn variant="blue" disabled={loadingId === `anomaly-${a.id}`} onClick={() => handleResolve(a.id)}>Resolve</ActionBtn>
-              </div>
-            </Card>
+                <ActionBtn
+  variant="blue"
+  loading={loadingId === `anomaly-${a.id}`}
+  onClick={() => handleResolve(a.id)}
+>
+  Resolve
+</ActionBtn>
+</div>
+</Card>
           ))}
         </div>
       )}

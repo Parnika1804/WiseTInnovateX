@@ -43,30 +43,43 @@ const AnnouncementForm = ({ onSent }) => {
   const approvedTeams = teams.filter(t => t.status === 'APPROVED');
 
   return (
-    <div style={{
-      padding: '20px',
-      border: '2px solid #fd7e14',
-      borderRadius: '10px',
-      backgroundColor: '#fff9f5',
-      marginBottom: '20px',
-    }}>
-      <h3 style={{ margin: '0 0 4px 0', color: '#c05621' }}>📢 Send Announcement</h3>
-      <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#666' }}>
-        Type a short update — AI will draft the full email and send it instantly.
-      </p>
+  <div
+    className="
+      bg-white
+      rounded-3xl
+      border border-slate-200
+      shadow-sm
+      p-6
+    "
+  >
+<h3 className="text-lg font-bold text-slate-900">
+  Quick Announcement
+</h3>
+      <p className="text-sm text-slate-500 mt-1 mb-6">
+  Share important updates instantly with participants.
+</p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="space-y-4">
         {/* Announcement text */}
         <textarea
           placeholder='e.g. "Venue changed to Room 201 in Block B" or "Round 2 starts tomorrow at 10 AM"'
           value={announcement}
           onChange={e => setAnnouncement(e.target.value)}
           rows={3}
-          style={{
-            padding: '10px', borderRadius: '6px',
-            border: '1px solid #f0a070', fontSize: '14px',
-            resize: 'vertical', fontFamily: 'inherit',
-          }}
+          className="
+w-full
+rounded-2xl
+border border-slate-200
+bg-slate-50
+px-4 py-3
+text-sm
+focus:border-blue-500
+focus:ring-2
+focus:ring-blue-100
+outline-none
+transition-all
+resize-none
+"
         />
 
         {/* Optional subject override */}
@@ -75,20 +88,32 @@ const AnnouncementForm = ({ onSent }) => {
           placeholder="Custom subject line (optional — AI will generate one if blank)"
           value={customSubject}
           onChange={e => setCustomSubject(e.target.value)}
-          style={{ padding: '8px', borderRadius: '6px', border: '1px solid #f0a070', fontSize: '13px' }}
+          className="
+w-full
+rounded-2xl
+border border-slate-200
+bg-slate-50
+px-4 py-3
+text-sm
+focus:border-blue-500
+focus:ring-2
+focus:ring-blue-100
+outline-none
+transition-all
+"
         />
 
         {/* Recipients selector */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ fontWeight: '600', fontSize: '13px', color: '#555' }}>Send to:</label>
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-slate-50 p-4">
+          <label className="font-semibold text-sm text-slate-700">Send to:</label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio" value="all"
               checked={sendTo === 'all'}
               onChange={() => setSendTo('all')}
             />
-            <span style={{ fontSize: '13px' }}>All Participants</span>
+            <span className="text-sm text-slate-600">All Participants</span>
           </label>
 
           {approvedTeams.length > 0 && (
@@ -98,12 +123,20 @@ const AnnouncementForm = ({ onSent }) => {
                 checked={sendTo.startsWith('team:')}
                 onChange={() => setSendTo(`team:${approvedTeams[0]?.id || ''}`)}
               />
-              <span style={{ fontSize: '13px' }}>Specific Team:</span>
+              <span className="text-sm text-slate-600">Specific Team:</span>
               <select
                 value={sendTo.startsWith('team:') ? sendTo : ''}
                 onChange={e => setSendTo(e.target.value)}
                 disabled={!sendTo.startsWith('team:')}
-                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px' }}
+                className="
+rounded-xl
+border border-slate-200
+bg-white
+px-3 py-2
+text-sm
+focus:border-blue-500
+outline-none
+"
               >
                 {approvedTeams.map(t => (
                   <option key={t.id} value={`team:${t.id}`}>{t.name}</option>
@@ -116,13 +149,21 @@ const AnnouncementForm = ({ onSent }) => {
         <button
           onClick={handleSend}
           disabled={isSending || !announcement.trim()}
-          style={{
-            backgroundColor: isSending ? '#aaa' : '#fd7e14',
-            color: 'white', padding: '10px 16px',
-            border: 'none', borderRadius: '6px',
-            cursor: isSending ? 'not-allowed' : 'pointer',
-            fontWeight: '600', fontSize: '14px', alignSelf: 'flex-start',
-          }}
+          className={`
+  px-6 py-3
+  rounded-2xl
+  font-semibold
+  text-white
+  transition-all
+  duration-300
+  hover:-translate-y-0.5
+  hover:shadow-lg
+  ${
+    isSending || !announcement.trim()
+      ? 'bg-slate-300 cursor-not-allowed'
+      : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+  }
+`}
         >
           {isSending ? '✉️ Sending...' : '📤 Draft & Send Now'}
         </button>
@@ -130,12 +171,14 @@ const AnnouncementForm = ({ onSent }) => {
 
       {/* Success result */}
       {result && (
-        <div style={{
-          marginTop: '14px', padding: '12px',
-          backgroundColor: '#f0fff4', border: '1px solid #68d391',
-          borderRadius: '6px',
-        }}>
-          <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#276749' }}>
+        <div className="
+  mt-5
+  rounded-2xl
+  border border-green-200
+  bg-green-50
+  p-4
+">
+          <p className="font-semibold text-green-700">
             ✅ Announcement sent! ({result.sent} delivered{result.failed > 0 ? `, ${result.failed} failed` : ''})
           </p>
           <p style={{ margin: '0 0 4px 0', fontSize: '13px' }}>
@@ -149,11 +192,15 @@ const AnnouncementForm = ({ onSent }) => {
 
       {/* Error */}
       {error && (
-        <div style={{
-          marginTop: '14px', padding: '10px',
-          backgroundColor: '#fff5f5', border: '1px solid #fc8181',
-          borderRadius: '6px', color: '#c53030', fontSize: '13px',
-        }}>
+        <div className="
+  mt-5
+  rounded-2xl
+  border border-red-200
+  bg-red-50
+  p-4
+  text-sm
+  text-red-700
+">
           ❌ {error}
         </div>
       )}

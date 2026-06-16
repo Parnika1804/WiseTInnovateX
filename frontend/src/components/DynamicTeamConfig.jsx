@@ -50,12 +50,12 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
 
       {/* Header */}
-      <div className="bg-blue-50 border-b border-blue-100 p-5 flex items-start justify-between">
+      <div className="p-6 border-b border-slate-200 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+          <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
             🏆 Round Configuration
           </h3>
-          <p className="text-sm text-blue-700 mt-1">
+          <p className="text-sm text-slate-500 mt-2">
             Define how many rounds this event has and what percentage of teams advance after each round.
           </p>
         </div>
@@ -79,7 +79,15 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
           <input
             type="number" min="1" max="10" value={numRounds}
             onChange={(e) => { setNumRounds(Math.max(1, parseInt(e.target.value) || 1)); setIsConfirmed(false); }}
-            className="w-24 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="
+w-32
+px-4 py-3
+text-lg font-semibold
+border border-slate-200
+rounded-2xl
+focus:ring-2 focus:ring-blue-500
+focus:outline-none
+"
           />
         </div>
 
@@ -90,7 +98,13 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
               What percentage of teams qualify for the next round?
             </p>
             {qualifyPercents.map((pct, idx) => (
-              <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <div key={idx} className="
+flex items-center gap-5
+bg-slate-50
+p-5
+rounded-2xl
+border border-slate-200
+">
                 <span className="text-sm font-bold text-blue-700 w-24 shrink-0">
                   Round {idx + 1}
                   {idx === numRounds - 1 && (
@@ -122,7 +136,7 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
           </div>
         )}
 
-        <div className="pt-2 flex justify-end gap-3">
+        <div className="pt-4 flex justify-end gap-4">
           {isConfirmed && (
             <button type="button" onClick={() => setIsConfirmed(false)}
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
@@ -130,7 +144,9 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
             </button>
           )}
           <button type="submit" disabled={saving}
-            className={`px-6 py-2.5 rounded-lg font-semibold text-white transition-colors ${
+            className={`px-8 py-3
+rounded-2xl
+shadow-sm font-semibold text-white transition-colors ${
               saving ? 'bg-blue-300 cursor-not-allowed'
               : isConfirmed ? 'bg-green-600 hover:bg-green-700'
               : 'bg-blue-600 hover:bg-blue-700'

@@ -70,18 +70,29 @@ const TeamList = ({ refreshTrigger }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '10px', marginBottom: '16px' }}>
-        <h3 style={{ margin: 0 }}>Review Proposed Teams ({teams.length})</h3>
+      <div className="
+flex flex-wrap items-center justify-between
+gap-4
+border-b border-slate-200
+pb-5 mb-6
+">
+        <h3 className="text-2xl font-bold text-slate-900">Review Proposed Teams ({teams.length})</h3>
         {teams.length > 0 && (
           <button
             onClick={handleClearTeams}
             disabled={clearing}
-            style={{
-              backgroundColor: clearing ? '#aaa' : '#e53e3e',
-              color: 'white', border: 'none', padding: '6px 14px',
-              borderRadius: '6px', cursor: clearing ? 'not-allowed' : 'pointer',
-              fontSize: '13px', fontWeight: '600',
-            }}
+            className={`
+px-5 py-2.5
+rounded-2xl
+font-semibold
+text-white
+transition-all
+${
+  clearing
+    ? 'bg-slate-300 cursor-not-allowed'
+    : 'bg-red-500 hover:bg-red-600 hover:shadow-md'
+}
+`}
           >
             {clearing ? 'Clearing...' : '🗑 Clear All Teams'}
           </button>
@@ -101,11 +112,38 @@ const TeamList = ({ refreshTrigger }) => {
       )}
 
       {teams.length === 0 ? (
-        <p style={{ color: '#888', fontSize: '14px' }}>No teams generated yet. Use the AI Team Formation above to generate.</p>
+<div className="
+bg-white
+rounded-3xl
+border border-slate-200
+p-12
+text-center
+text-slate-500
+">
+✨ No teams generated yet.
+</div>
       ) : (
-        <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-          {teams.map((team) => (
-            <div key={team.id} style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+  <div
+    className="
+    grid
+    gap-6
+    md:grid-cols-2
+    xl:grid-cols-3
+    "
+  >
+    {teams.map((team) => (
+            <div
+  key={team.id}
+  className="
+  bg-white
+  border border-slate-200
+  rounded-3xl
+  shadow-sm
+  p-6
+  hover:shadow-md
+  transition-all
+  "
+>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '10px' }}>
                 <h4 style={{ margin: 0 }}>{team.name}</h4>
@@ -126,7 +164,17 @@ const TeamList = ({ refreshTrigger }) => {
                   {team.members && team.members.length > 0
                     ? team.members.map((member) => (
                       <li key={member.id} style={{ marginBottom: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8f9fa', padding: '6px 10px', borderRadius: '6px' }}>
+                        <div
+  className="
+  flex
+  items-center
+  justify-between
+  bg-slate-50
+  rounded-2xl
+  p-3
+  border border-slate-100
+  "
+>
                           <span>
                             <strong>{member.name}</strong>
                             {member.skill && <span style={{ color: '#666', marginLeft: '6px', fontSize: '12px' }}>({member.skill})</span>}
@@ -182,8 +230,19 @@ const TeamList = ({ refreshTrigger }) => {
                 </ul>
               </div>
 
-              <div style={{ fontSize: '13px', color: '#333', backgroundColor: '#f0f7ff', borderLeft: '3px solid #0056b3', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>
-                <strong>✨ AI Rationale:</strong><br />
+              <div
+  className="
+  bg-violet-50
+  border border-violet-100
+  rounded-2xl
+  p-4
+  text-sm
+  mt-4
+  "
+>
+               <div className="font-bold text-violet-700 mb-2">
+  ✨ AI Rationale
+</div>
                 {team.rationale}
               </div>
 

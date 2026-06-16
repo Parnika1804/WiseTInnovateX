@@ -1,4 +1,11 @@
 import React from 'react';
+import {
+  LayoutDashboard,
+  Settings,
+  Users,
+  Mail,
+  Trophy,
+} from "lucide-react";
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
@@ -26,26 +33,49 @@ const Navbar = () => {
           
           {/* Unified segment button styling for clean navigation */}
           {user.role === 'Committee' && (
-            <div className="hidden md:flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl text-sm font-medium">
+            <div className="hidden md:flex flex-1 items-center gap-1 bg-slate-100/80 p-1 rounded-2xl mx-8">
               {[
-                { name: 'Dashboard', path: '/' },
-                { name: 'Setup Event', path: '/setup' },
-                { name: 'Teams', path: '/teams' },
-                { name: 'Comms', path: '/comms' },
-                { name: 'Evaluations', path: '/evaluation' }
-              ].map((item) => {
+  {
+    name: 'Dashboard',
+    path: '/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    name: 'Setup',
+    path: '/setup',
+    icon: Settings,
+  },
+  {
+    name: 'Teams',
+    path: '/teams',
+    icon: Users,
+  },
+  {
+    name: 'Comms',
+    path: '/comms',
+    icon: Mail,
+  },
+  {
+    name: 'Evaluation',
+    path: '/evaluation',
+    icon: Trophy,
+  },
+].map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 ${
                       isActive
                         ? "bg-white text-blue-600 shadow-sm font-semibold"
                         : "text-slate-600 hover:text-blue-600 hover:bg-white/50"
                     }`}
                   >
-                    {item.name}
+                    <>
+  <item.icon size={16} />
+  {item.name}
+</>
                   </Link>
                 );
               })}
@@ -62,9 +92,11 @@ const Navbar = () => {
           
           <button 
             onClick={handleLogout}
-            className="text-sm px-4 py-2 text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl font-medium transition-all duration-200 border border-slate-200 hover:border-red-100"
+            className="text-sm px-4 py-2 text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl font-medium transition-all duration-200 border border-slate-200 hover:border-red-100 "
           >
-            Logout
+            <>
+  Logout
+</>
           </button>
         </div>
       </div>

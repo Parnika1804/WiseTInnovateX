@@ -23,38 +23,51 @@ const ActivityLog = ({ refreshTrigger }) => {
   }, [refreshTrigger, fetchLogs]);
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-      <h3 className="text-base font-bold text-gray-800 mb-4">System Activity Log</h3>
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full overflow-hidden">
+            <h3 className="text-base font-bold text-gray-800 mb-4">System Activity Log</h3>
       {logs.length === 0 ? (
         <p className="text-sm text-gray-400">No activity logged yet.</p>
       ) : (
-        <ul className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto pr-2">
-          {logs.map(log => (
-            <li key={log.id} className="py-3 text-sm">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="font-semibold text-blue-700">[{log.action}]</span>
-                
-                {log.target_entity && (
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200">
-                    Target: {log.target_entity} {log.target_id ? `#${log.target_id}` : ''}
-                  </span>
-                )}
-              </div>
-              
-              <span className="text-gray-700 block mb-1">{log.description}</span>
-              
-              <div className="text-xs text-gray-400 flex flex-wrap items-center gap-2">
-                <span>👤 {log.performed_by}</span>
-                <span>•</span>
-                <span>🕒 {new Date(log.created_at).toLocaleString()}</span>
-                
-                {log.ip_address && (
-                  <>
-                    <span>•</span>
-                    <span title="Source IP">🌐 {log.ip_address}</span>
-                  </>
-                )}
-              </div>
+<ul className="divide-y divide-slate-100 flex-1 overflow-y-auto pr-2">
+              {logs.map(log => (
+            <li key={log.id} className="relative pl-8 pb-6">
+              <>
+  <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-50"></div>
+
+  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:bg-white hover:shadow-md">
+
+    <div className="flex items-center justify-between gap-4">
+
+      <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+        {log.action}
+      </span>
+
+      <span className="text-xs text-slate-400">
+        {new Date(log.created_at).toLocaleString()}
+      </span>
+
+    </div>
+
+    <p className="mt-3 text-sm text-slate-700 leading-relaxed">
+      {log.description}
+    </p>
+
+    <div className="mt-4 flex flex-wrap gap-2">
+
+      <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-500 border border-slate-200">
+        👤 {log.performed_by}
+      </span>
+
+      {log.target_entity && (
+        <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-500 border border-slate-200">
+          🎯 {log.target_entity}
+        </span>
+      )}
+
+    </div>
+
+  </div>
+</>
             </li>
           ))}
         </ul>

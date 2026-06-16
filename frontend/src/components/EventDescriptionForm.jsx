@@ -151,22 +151,76 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
   };
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-      <div className="mb-6 border-b border-gray-100 pb-4">
-        <h2 className="text-2xl font-bold text-gray-800">Dynamic Event Setup</h2>
-        <p className="text-gray-500 text-sm mt-1">
-          Describe how you want to run this event. Our AI will map out the pipeline, scoring rules, and team structures automatically.
-        </p>
-      </div>
+<div
+  className="
+    bg-white/80
+    backdrop-blur-xl
+    p-10
+    rounded-[32px]
+    shadow-[0_8px_32px_rgba(15,23,42,0.08)]
+    border border-white/50
+  "
+>
+        <div className="mb-8">
+
+  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 text-sm font-semibold mb-5">
+    ✨ AI Event Designer
+  </div>
+
+  <h2 className="text-4xl font-black text-slate-900 mb-3">
+    Configure Your Event
+  </h2>
+
+  <p className="text-slate-500 text-lg max-w-3xl leading-relaxed">
+    Describe your hackathon naturally and let EventFlow design
+    the pipeline, judging structure, advancement strategy, and
+    scoring framework automatically.
+  </p>
+
+</div>
 
       {/* View 1: Initial Description Phase */}
       {!clarificationData ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           <textarea
-            className={`w-full p-4 h-40 rounded-lg bg-gray-50 border focus:ring-2 focus:outline-none transition-all resize-y ${
-              status.type === 'error' ? 'border-red-400 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100'
-            }`}
-            placeholder="e.g., We are hosting a hackathon called InnovateX. Teams must have 4 members. The stages are Registration, Ideation, and Final Pitch. Scoring is out of 10 points. Top 10 advance to finals..."
+            className={`
+w-full
+min-h-[220px]
+p-6
+rounded-[28px]
+bg-slate-50/80
+border
+text-slate-800
+text-base
+leading-relaxed
+shadow-inner
+resize-none
+transition-all duration-300
+focus:bg-white
+focus:ring-4
+focus:ring-indigo-100
+focus:border-indigo-400
+${
+status.type === 'error'
+? 'border-red-300'
+: 'border-slate-200'
+}
+`}
+            placeholder={`Example:
+
+"We are hosting InnovateX 2026.
+
+Teams should have 4 members.
+
+There will be 3 rounds:
+• Ideation
+• Prototype Development
+• Final Pitch
+
+Each round is scored out of 10.
+Top 10 teams qualify for finals."
+`}
+
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={isLoading}
@@ -187,21 +241,23 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
               type="submit"
               disabled={isLoading}
               className={`px-8 py-3 rounded-lg font-semibold text-white transition-all ${
-                isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-sm'
-              }`}
+  isLoading
+    ? 'bg-blue-400 cursor-not-allowed'
+    : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 shadow-sm'
+}`}
             >
-              {isLoading ? '🤖 AI is analyzing...' : 'Generate Pipeline & Rules'}
+              {isLoading ? '🤖 Designing your event...' : 'Generate Pipeline & Rules'}
             </button>
           </div>
         </form>
       ) : (
         /* View 2: Clarification Phase */
         <div className="animate-fade-in">
-          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-md">
+          <div className="bg-amber-50/80 border border-amber-200 rounded-3xl p-6 mb-6">
             <div className="flex items-start">
               <span className="text-xl mr-3">🤖</span>
               <div>
-                <h3 className="text-amber-800 font-bold mb-1">More Information Needed</h3>
+                <h3 className="text-amber-800 font-bold mb-1">AI Needs Additional Context</h3>
                 <p className="text-amber-700 text-sm">{clarificationData.message}</p>
               </div>
             </div>
@@ -209,7 +265,7 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
 
           <form onSubmit={handleClarificationSubmit} className="space-y-5">
             {clarificationData.questions.map((q, index) => (
-              <div key={q.field} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div key={q.field} className="bg-slate-50 rounded-2xl p-6 border border-slate-200 hover:border-indigo-200 transition-all">
                 <label className="block font-semibold text-gray-800 mb-2">
                   <span className="text-blue-600 mr-2">Q{index + 1}.</span>
                   {q.question}
@@ -261,8 +317,8 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
       {showAdvancementRules && (
         <div className="mt-8 border-t border-gray-100 pt-6">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl">📊</span>
-            <h3 className="text-lg font-bold text-gray-800">Set Advancement Rules Per Round</h3>
+            <span className="text-xl"></span>
+            <h3 className="text-lg font-bold text-gray-800">🏁 Define Advancement Criteria</h3>
           </div>
           <p className="text-sm text-gray-500 mb-5">
             Define how many teams advance after each round. You can use percentages like "top 50%" or fixed numbers like "top 3 teams".
@@ -270,7 +326,7 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
 
           <div className="space-y-3">
             {advancementRules.map((r, idx) => (
-              <div key={idx} className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div key={idx} className="flex items-center gap-4 bg-slate-50 rounded-2xl border border-slate-200 p-5 hover:shadow-sm transition-all">
                 <div className="flex-shrink-0 w-32">
                   <span className="text-sm font-bold text-blue-700">{r.label || r.stage_name}</span>
                 </div>
@@ -299,7 +355,7 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
                   savingRules ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {savingRules ? 'Saving...' : 'Save Advancement Rules'}
+                {savingRules ? 'Saving...' : 'Finalize Advancement Strategy'}
               </button>
             )}
           </div>

@@ -59,7 +59,7 @@ const SpecialMentions = () => {
   const reviewed = nominations.filter(n => n.status !== 'PENDING');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Nominations</p>
@@ -120,7 +120,7 @@ const SpecialMentions = () => {
                       <p className="text-sm text-slate-700">{n.mentor_reason}</p>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 min-w-fit">
+                  <div className="flex gap-2 min-w-max">
                     <button onClick={() => handleAction(n.id, 'APPROVED')}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors">
                       ✓ Approve
@@ -354,9 +354,17 @@ const CommitteeDashboard = () => {
 
   return (
     <div className="mt-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-gray-800">Command Center</h2>
+          <div>
+  <h2 className="text-4xl font-black tracking-tight text-slate-900">
+    Welcome,Committe
+  </h2>
+
+  <p className="mt-2 text-slate-500">
+    Manage your hackathon operations from one place.
+  </p>
+</div>
           {wsStatus === 'open' && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
@@ -366,34 +374,142 @@ const CommitteeDashboard = () => {
         </div>
         <button
           onClick={handleFactoryReset}
-          className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
+          className="
+px-5
+py-3
+rounded-2xl
+font-semibold
+text-red-600
+bg-white
+border
+border-red-200
+shadow-sm
+transition-all
+duration-300
+hover:-translate-y-1
+hover:shadow-lg
+hover:bg-red-600
+hover:text-white
+"
         >
           <span>♻️</span> Start New Event (Reset Data)
         </button>
       </div>
 
-      <PipelineBar key={`pipeline-${refresh}`} />
+      <div
+  className="
+  rounded-[32px]
+  border border-white/40
+  bg-white/70
+  backdrop-blur-xl
+  p-8
+  shadow-[0_8px_32px_rgba(15,23,42,0.08)]
+  "
+>
+  <PipelineBar key={`pipeline-${refresh}`} />
+</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-8 mb-8">
 
-      <div className="flex gap-1 mt-6 mb-6 border-b border-slate-200">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? 'border-slate-800 text-slate-800 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+  {[
+    {
+      title: "Participants",
+      value: "Live",
+      icon: "👥",
+    },
+
+    {
+      title: "Approvals",
+      value: "Pending",
+      icon: "📝",
+    },
+
+    {
+      title: "Mentors",
+      value: "Active",
+      icon: "🧑‍🏫",
+    },
+
+    {
+      title: "Updates",
+      value: "Real-Time",
+      icon: "⚡",
+    },
+  ].map((item) => (
+
+    <div
+      key={item.title}
+      className="
+      rounded-[28px]
+bg-white/80
+backdrop-blur-md
+border border-white/40
+p-6
+shadow-[0_8px_32px_rgba(15,23,42,0.06)] hover:shadow-lg transition-all duration-300
+      transition-all
+      duration-300
+      hover:-translate-y-1
+      hover:shadow-xl
+      "
+    >
+
+      <div className="text-3xl mb-4">
+        {item.icon}
       </div>
 
+      <p className="text-sm text-slate-500">
+        {item.title}
+      </p>
+
+      <p className="text-2xl font-black text-slate-900">
+        {item.value}
+      </p>
+
+    </div>
+
+  ))}
+</div>
+
+      <div
+  className="
+    mb-8
+    rounded-[28px]
+    border border-white/40
+    bg-white/80
+    backdrop-blur-md
+    p-3
+    shadow-[0_8px_32px_rgba(15,23,42,0.06)]
+  "
+>
+  <div className="flex flex-nowrap gap-2 overflow-x-auto">
+    {TABS.map(tab => (
+      <button
+        key={tab.id}
+        onClick={() => setActiveTab(tab.id)}
+        className={`
+          flex items-center gap-2
+          px-6 py-4
+          rounded-2xl
+          font-semibold
+          whitespace-nowrap
+          transition-all duration-300
+          ${
+            activeTab === tab.id
+              ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          }
+        `}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+</div>
+
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch">
+
+<div className="xl:col-span-8 space-y-8 min-w-0">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <CSVUpload onUploadSuccess={handleAction} />
               <div className="mt-6">
                 <ParticipantTable refreshTrigger={refresh} />
@@ -401,10 +517,13 @@ const CommitteeDashboard = () => {
             </div>
             <CreateJudge />
           </div>
-          <div className="space-y-6">
-            <PendingApprovals onAction={handleAction} />
-            <ActivityLog refreshTrigger={refresh} />
-          </div>
+<div className="xl:col-span-4 flex flex-col gap-6">
+  <PendingApprovals onAction={handleAction} />
+
+  <div className="max-h-[835px]">
+    <ActivityLog refreshTrigger={refresh} />
+  </div>
+</div>
         </div>
       )}
 

@@ -78,12 +78,32 @@ const CommsLogTable = ({ refreshTrigger }) => {
       </div>
 
       {/* ── Main log table ── */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div
+  className="
+  bg-white
+  rounded-3xl
+  border border-slate-200
+  shadow-sm
+  overflow-hidden
+  "
+>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-sm">
-                <th className="p-4 font-semibold text-gray-700">To</th>
+            <thead className="sticky top-0 z-10">
+              <tr
+  className="
+  border-b border-slate-200
+  bg-slate-50/90
+  backdrop-blur-sm
+  text-sm
+  "
+>
+                <th className="
+px-6 py-4
+font-semibold
+text-slate-700
+tracking-wide
+">To</th>
                 <th className="p-4 font-semibold text-gray-700">Subject</th>
                 <th className="p-4 font-semibold text-gray-700">Type</th>
                 <th className="p-4 font-semibold text-gray-700">Status</th>
@@ -114,7 +134,7 @@ const CommsLogTable = ({ refreshTrigger }) => {
                         {/* Only the delete button remains here */}
                         <button
                           onClick={() => handleDeleteLog(log.id)}
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition-colors text-xs"
+                          className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                         >
                           🗑️
                         </button>
