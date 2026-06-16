@@ -1,88 +1,219 @@
-# EventFlow Orchestrator: Master Handoff & Dev Guide
+# EventFlow Orchestrator
 
-## 1. Project Overview
+AI-powered event management platform for hackathons and innovation challenges.
 
-EventFlow is an AI-powered hackathon management platform that automates the full lifecycle—from setup and team formation to communication and precision evaluation.
-
-### Architecture
-
-* **Frontend:** React + Vite (Standardizes portal-based interactions).
-* **Backend:** FastAPI (Handles routing and orchestration).
-* **Brain:** Google Gemini Pro/Flash (via `google-genai` SDK).
-* **Task Queue:** Celery + Redis (Handles long-running AI operations asynchronously).
+Developed as part of the **WiseTInnovateX** project.
 
 ---
 
-## 2. Environment Setup
+## Features
 
-### Backend (Python)
+### Event Setup
 
-1. **Directory:** Navigate to `/backend`.
-2. **Virtual Env:** `python -m venv venv` $\rightarrow$ `venv\Scripts\activate`.
-3. **Install:** `pip install -r requirements.txt`.
-4. **Environment Variables:** Store keys in a `.env` file (never hardcode in production):
-* `GEMINI_API_KEY`: Get from [aistudio.google.com](https://aistudio.google.com).
-* `SENDGRID_API_KEY`: For production email delivery.
+* AI-assisted event configuration from natural language descriptions
+* Multi-round event pipeline generation
+* Advancement criteria management
 
+### Participant Management
 
+* CSV participant roster upload
+* Automated participant onboarding
+* Team assignment workflows
 
-### Celery (Required for AI)
+### AI Team Formation
 
-1. **Redis:** Ensure Redis server is active.
-2. **Execution:** `celery -A celery_app worker --loglevel=info --pool=solo`.
-* *Note: The worker must stay active to process team rationales and email drafts.*
+* Describe team formation rules in plain English
+* AI converts requirements into structured rubrics
+* Editable JSON-based rubric validation
+* Automatic team generation
 
+### Communication Hub
 
+* AI-generated announcements
+* Bulk email broadcasting
+* Team-specific messaging
+* Judge invitation workflows
+* Magic-link authentication
 
-### Frontend (React)
+### Evaluation System
 
-1. **Directory:** Navigate to `/frontend`.
-2. **Install:** `npm install`.
-3. **Execution:** `npm run dev` (Runs at `http://localhost:5173`).
+* Judge dashboard
+* Multi-round scoring
+* Advancement approvals
+* Leaderboards and rankings
 
----
+### Monitoring & Operations
 
-## 3. Development Roadmap & Key Modules
-
-| Module | Purpose | Key Routes / Logic |
-| --- | --- | --- |
-| `gemini.py` | AI Wrapper | Centralized `call_gemini` function. |
-| `tasks.py` | Celery Tasks | `generate_team_rationale`, `draft_communication`, `generate_assessment_guide`. |
-| `models.py` | Database | Participant, Team, Score, Logs. |
-| `scores.py` | Evaluation | `GET /scores/leaderboard` (with anomaly flagging), `GET /scores/anomalies`. |
-| `comms.py` | Messaging | `POST /comms/draft/gemini` (AI Drafting), `POST /comms/send`. |
-| `participant.py` | Portals | `GET /participant/{participant_id}` (Progression logic). |
-
----
-
-## 4. Phase 2: Feature Implementation Checklist
-
-The following features are now live and should be utilized in all front-end builds:
-
-* **AI Rationale:** Display under team cards via `GET /teams`.
-* **AI Comms Drafting:** Use `POST /comms/draft/gemini` to create drafts, followed by `POST /comms/send`.
-* **Assessment Guides:** Fetch via `GET /scores/assessment-guide/{team_id}` to provide judges context.
-* **Anomaly Detection:** Use `has_anomaly` boolean from `GET /scores/leaderboard` to toggle red warning badges.
-* **Progression Logic:** `GET /participant/{participant_id}` now includes `progression` metadata for the portal.
-* **Security:** Access is locked via JWT tokens passed as URL parameters (`?token=...`).
+* Pending approvals center
+* Real-time activity logs
+* Dashboard notifications
+* Celery-powered background task processing
 
 ---
 
-## 5. Deployment & Operational Rules
+# Technology Stack
 
-1. **Safety First:** Committee approval is required before triggering any `POST /comms/send` request.
-2. **Rate Limiting:** If a 429 error occurs, the system defaults to a retry queue via Celery; avoid manual spamming of the Gemini endpoint.
-3. **Anomaly Threshold:** Adjust the `ANOMALY_THRESHOLD` constant in `scores.py` to tune the sensitivity of the judge-bias detector.
-4. **CORS Policy:** Localhost (`http://localhost:5173`) is currently white-listed. Ensure the CORS middleware in `main.py` is updated to include your final production domain before deploying to Vercel/Render.
+## Frontend
+
+* React
+* Vite
+* Tailwind CSS
+* Framer Motion
+* Axios
+
+## Backend
+
+* FastAPI
+* SQLAlchemy
+* Pydantic
+
+## Background Processing
+
+* Celery
+* Redis
+
+## AI Services
+
+* Google Gemini (Pro / Flash)
+* Groq API (supplementary generation)
 
 ---
 
-## 6. Initial Setup Protocol
+# Local Development Setup
 
-Whenever starting a new dev session, verify state in this order:
+## Terminal 1 — Redis
 
-1. **Sync:** `git pull origin main` (or `dev`).
-2. **Backend:** `python main.py` (Verify logs show server startup).
-3. **Worker:** Start Celery worker (Verify worker is connected to Redis).
-4. **Frontend:** `npm run dev` (Verify no console errors).
-5. **Test:** Navigate to `http://localhost:8000/docs` to run a smoke test on the `GET /pipeline/status` route.
+```bash
+docker run -p 6379:6379 redis
+```
+
+or
+
+```bash
+redis-server
+```
+
+---
+
+## Terminal 2 — Celery Worker
+
+```bash
+cd WiseTInnovateX/backend
+
+venv\Scripts\activate
+
+celery -A celery_app worker --loglevel=info --pool=solo
+```
+
+---
+
+## Terminal 3 — Backend Server
+
+```bash
+cd WiseTInnovateX/backend
+
+venv\Scripts\activate
+
+python main.py
+```
+
+Backend runs at:
+
+```text
+http://localhost:8000
+```
+
+Swagger documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+---
+
+## Terminal 4 — Frontend
+
+```bash
+cd WiseTInnovateX/frontend
+
+npm install
+
+npm run dev
+```
+
+Frontend runs at:
+
+```text
+http://localhost:5173
+```
+
+---
+
+# Environment Variables
+
+Create a `.env` file inside `backend/`.
+
+Required variables:
+
+```env
+GEMINI_API_KEY_1=
+GEMINI_API_KEY_2=
+GEMINI_API_KEY_3=
+GEMINI_API_KEY_4=
+
+GROQ_API_KEY=
+
+SMTP_HOST=
+SMTP_PORT=
+
+SMTP_USER=
+SMTP_PASSWORD=
+
+FROM_EMAIL=
+FROM_NAME=
+```
+
+---
+
+# Smoke Test Checklist
+
+* [ ] Redis starts successfully
+* [ ] Celery worker connects without errors
+* [ ] Backend launches successfully
+* [ ] Frontend loads without console errors
+* [ ] API documentation is accessible
+* [ ] Participant CSV upload works
+* [ ] Welcome emails are generated
+* [ ] Teams can be formed successfully
+* [ ] Judge invitations are sent
+* [ ] Activity log updates correctly
+
+---
+
+# Project Structure
+
+```text
+WiseTInnovateX/
+├── backend/
+├── frontend/
+├── README.md
+└── docs/
+```
+
+---
+
+# Future Improvements
+
+* Docker Compose setup
+* Role-based analytics dashboards
+* Real-time WebSocket notifications
+* AI-generated evaluation feedback
+* Deployment to cloud infrastructure
+
+---
+
+## Authors
+
+Developed for the WiseTInnovateX initiative.
+
+EventFlow Orchestrator © 2026
