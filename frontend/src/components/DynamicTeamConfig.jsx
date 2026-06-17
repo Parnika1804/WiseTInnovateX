@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const DynamicTeamConfig = ({ onRulesConfirmed }) => {
-  const [numRounds, setNumRounds]         = useState(1);
+  const [numRounds, setNumRounds] = useState(1);
   const [qualifyPercents, setQualifyPercents] = useState([50]);
-  const [isConfirmed, setIsConfirmed]     = useState(false);
-  const [saving, setSaving]               = useState(false);
-  const [saveError, setSaveError]         = useState('');
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
-    setQualifyPercents(prev => {
+    setQualifyPercents((prev) => {
       const next = [...prev];
       while (next.length < numRounds) next.push(50);
       return next.slice(0, numRounds);
@@ -18,12 +18,17 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
 
   const handlePercentChange = (idx, val) => {
     const clamped = Math.max(1, Math.min(100, Number(val)));
-    setQualifyPercents(prev => prev.map((p, i) => (i === idx ? clamped : p)));
+
+    setQualifyPercents((prev) =>
+      prev.map((p, i) => (i === idx ? clamped : p))
+    );
+
     setIsConfirmed(false);
   };
 
   const handleConfirm = async (e) => {
     e.preventDefault();
+
     setSaving(true);
     setSaveError('');
 
@@ -31,84 +36,279 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
       const rules = qualifyPercents.map((pct, idx) => ({
         round: idx + 1,
         stage_name: `Round ${idx + 1}`,
-        rule: idx === numRounds - 1
-          ? 'final round — no elimination'
-          : `top ${pct}% advance`,
+        rule:
+          idx === numRounds - 1
+            ? 'final round — no elimination'
+            : `top ${pct}% advance`,
       }));
 
-      await axios.patch('http://localhost:8000/event/config/advancement-rules', { rules });
+      await axios.patch(
+        'http://localhost:8000/event/config/advancement-rules',
+        { rules }
+      );
+
       setIsConfirmed(true);
-      if (onRulesConfirmed) onRulesConfirmed({ numRounds, qualifyPercents });
+
+      if (onRulesConfirmed) {
+        onRulesConfirmed({
+          numRounds,
+          qualifyPercents,
+        });
+      }
     } catch (err) {
-      setSaveError(err?.response?.data?.detail || 'Failed to save. Is the event configured yet?');
+      setSaveError(
+        err?.response?.data?.detail ||
+          'Failed to save. Is the event configured yet?'
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+    <div
+      className="
+        w-full
 
+        bg-white/80
+        dark:bg-slate-900/80
+
+        backdrop-blur-md
+
+        border
+        border-slate-200
+        dark:border-slate-800
+
+        rounded-2xl
+
+        shadow-sm
+
+        overflow-hidden
+
+        mb-6
+      "
+    >
       {/* Header */}
-      <div className="bg-blue-50 border-b border-blue-100 p-5 flex items-start justify-between">
+      <div
+        className="
+          bg-blue-50
+          dark:bg-blue-950/20
+
+          border-b
+          border-blue-100
+          dark:border-blue-900
+
+          p-5
+
+          flex
+          items-start
+          justify-between
+        "
+      >
         <div>
-          <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
-            🏆 Round Configuration
+          <h3 className="text-lg font-bold text-blue-900 dark:text-blue-300 flex items-center gap-2">
+             Round Configuration
           </h3>
-          <p className="text-sm text-blue-700 mt-1">
-            Define how many rounds this event has and what percentage of teams advance after each round.
+
+          <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
+            Define how many rounds this event has and what
+            percentage of teams advance after each round.
           </p>
         </div>
+
         {isConfirmed && (
-          <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          <span
+            className="
+              bg-green-100
+              dark:bg-green-950/40
+
+              text-green-800
+              dark:text-green-300
+
+              text-xs
+              font-semibold
+
+              px-2.5
+              py-1
+
+              rounded-lg
+
+              flex
+              items-center
+              gap-1
+
+              shrink-0
+
+              border
+              border-green-200
+              dark:border-green-900
+            "
+          >
+            <svg
+              className="w-3 h-3"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
             </svg>
             Confirmed
           </span>
         )}
       </div>
 
-      <form onSubmit={handleConfirm} className="p-6 space-y-5">
-
-        {/* Number of rounds */}
+      <form
+        onSubmit={handleConfirm}
+        className="p-6 space-y-5"
+      >
+        {/* Number of Rounds */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            className="
+              block
+
+              text-sm
+              font-medium
+
+              text-slate-700
+              dark:text-slate-300
+
+              mb-2
+            "
+          >
             How many rounds are you conducting?
           </label>
+
           <input
-            type="number" min="1" max="10" value={numRounds}
-            onChange={(e) => { setNumRounds(Math.max(1, parseInt(e.target.value) || 1)); setIsConfirmed(false); }}
-            className="w-24 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            type="number"
+            min="1"
+            max="10"
+            value={numRounds}
+            onChange={(e) => {
+              setNumRounds(
+                Math.max(
+                  1,
+                  parseInt(e.target.value) || 1
+                )
+              );
+
+              setIsConfirmed(false);
+            }}
+            className="
+              w-24
+
+              p-2.5
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:outline-none
+
+              transition-all
+            "
           />
         </div>
 
-        {/* Per-round qualify % */}
+        {/* Qualification Rules */}
         {numRounds > 0 && (
           <div className="space-y-3">
-            <p className="text-sm text-gray-500">
-              What percentage of teams qualify for the next round?
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              What percentage of teams qualify for the next
+              round?
             </p>
+
             {qualifyPercents.map((pct, idx) => (
-              <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <span className="text-sm font-bold text-blue-700 w-24 shrink-0">
+              <div
+                key={idx}
+                className="
+                  flex
+                  items-center
+                  gap-4
+
+                  bg-slate-50
+                  dark:bg-slate-800/50
+
+                  p-4
+
+                  rounded-xl
+
+                  border
+                  border-slate-200
+                  dark:border-slate-700
+                "
+              >
+                <span className="text-sm font-bold text-blue-700 dark:text-blue-300 w-24 shrink-0">
                   Round {idx + 1}
+
                   {idx === numRounds - 1 && (
-                    <span className="ml-1 text-xs text-gray-400 font-normal">(Final)</span>
+                    <span className="ml-1 text-xs text-slate-400 dark:text-slate-500 font-normal">
+                      (Final)
+                    </span>
                   )}
                 </span>
+
                 {idx < numRounds - 1 ? (
                   <div className="flex items-center gap-2">
                     <input
-                      type="number" min="1" max="100" value={pct}
-                      onChange={(e) => handlePercentChange(idx, e.target.value)}
-                      className="w-20 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={pct}
+                      onChange={(e) =>
+                        handlePercentChange(
+                          idx,
+                          e.target.value
+                        )
+                      }
+                      className="
+                        w-20
+
+                        p-2
+
+                        bg-white
+                        dark:bg-slate-800
+
+                        text-slate-900
+                        dark:text-slate-100
+
+                        border
+                        border-slate-200
+                        dark:border-slate-700
+
+                        rounded-lg
+
+                        focus:ring-2
+                        focus:ring-blue-500
+
+                        focus:outline-none
+
+                        text-sm
+                      "
                     />
-                    <span className="text-sm text-gray-600">% advance to Round {idx + 2}</span>
+
+                    <span className="text-sm text-slate-600 dark:text-slate-400">
+                      % advance to Round {idx + 2}
+                    </span>
                   </div>
                 ) : (
-                  <span className="text-sm text-gray-500 italic">
-                    All qualified teams compete — winners decided by scores
+                  <span className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    All qualified teams compete — winners
+                    decided by scores
                   </span>
                 )}
               </div>
@@ -116,26 +316,88 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
           </div>
         )}
 
+        {/* Error */}
         {saveError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
+          <div
+            className="
+              bg-red-50
+              dark:bg-red-950/30
+
+              border
+              border-red-200
+              dark:border-red-900
+
+              text-red-700
+              dark:text-red-300
+
+              text-sm
+
+              rounded-xl
+
+              p-4
+            "
+          >
             ⚠️ {saveError}
           </div>
         )}
 
+        {/* Buttons */}
         <div className="pt-2 flex justify-end gap-3">
           {isConfirmed && (
-            <button type="button" onClick={() => setIsConfirmed(false)}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+            <button
+              type="button"
+              onClick={() => setIsConfirmed(false)}
+              className="
+                px-4
+                py-2
+
+                rounded-xl
+
+                text-sm
+                font-medium
+
+                text-slate-600
+                dark:text-slate-300
+
+                hover:bg-slate-100
+                dark:hover:bg-slate-800
+
+                transition-colors
+              "
+            >
               Edit
             </button>
           )}
-          <button type="submit" disabled={saving}
-            className={`px-6 py-2.5 rounded-lg font-semibold text-white transition-colors ${
-              saving ? 'bg-blue-300 cursor-not-allowed'
-              : isConfirmed ? 'bg-green-600 hover:bg-green-700'
-              : 'bg-blue-600 hover:bg-blue-700'
-            }`}>
-            {saving ? 'Saving…' : isConfirmed ? '✓ Confirmed — Update' : 'Confirm Rounds'}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className={`
+              px-6
+              py-2.5
+
+              rounded-xl
+
+              font-semibold
+
+              text-white
+
+              transition-colors
+
+              ${
+                saving
+                  ? 'bg-blue-400 cursor-not-allowed'
+                  : isConfirmed
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }
+            `}
+          >
+            {saving
+              ? 'Saving...'
+              : isConfirmed
+              ? '✓ Confirmed — Update'
+              : 'Confirm Rounds'}
           </button>
         </div>
       </form>

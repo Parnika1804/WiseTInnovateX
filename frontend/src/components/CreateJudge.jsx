@@ -10,68 +10,264 @@ const CreateJudge = () => {
 
   const handleCreateJudge = async (e) => {
     e.preventDefault();
+
     setLoading(true);
-    setStatus({ message: 'Generating magic link and dispatching email...', type: 'info' });
+
+    setStatus({
+      message: 'Generating magic link and dispatching email...',
+      type: 'info',
+    });
 
     try {
-      const res = await axios.post('http://localhost:8000/auth/create-judge', { name, email });
-      setStatus({ message: '✅ Judge invited! Magic link emailed successfully.', type: 'success' });
-      
-      // Trigger Toast
-      const count = res.data?.judge_invite_emails_drafted || 1;
+      const res = await axios.post(
+        'http://localhost:8000/auth/create-judge',
+        {
+          name,
+          email,
+        }
+      );
+
+      setStatus({
+        message:
+          '✅ Judge invited! Magic link emailed successfully.',
+        type: 'success',
+      });
+
+      const count =
+        res.data?.judge_invite_emails_drafted || 1;
+
       notifyEmailDraft(count);
 
       setName('');
       setEmail('');
     } catch (error) {
       console.error(error);
-      const detail = error.response?.data?.detail || 'Failed to invite judge. Check backend logs.';
-      setStatus({ message: `❌ ${detail}`, type: 'error' });
+
+      const detail =
+        error.response?.data?.detail ||
+        'Failed to invite judge. Check backend logs.';
+
+      setStatus({
+        message: `❌ ${detail}`,
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // ... (Rest of the JSX remains exactly the same)
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-      <h3 className="text-xl font-bold mb-1">Invite a Judge</h3>
-      <p className="text-gray-500 mb-4 text-sm">
-        Enter the evaluator's details. They will receive a secure magic link granting access to evaluate <strong>all teams</strong>.
+    <div
+      className="
+        bg-white/80
+        dark:bg-slate-900/80
+
+        backdrop-blur-md
+
+        border
+        border-slate-200
+        dark:border-slate-800
+
+        rounded-2xl
+
+        shadow-sm
+
+        p-6
+        mb-6
+      "
+    >
+      <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
+        Invite a Judge
+      </h3>
+
+      <p className="text-slate-500 dark:text-slate-400 mb-5 text-sm">
+        Enter the evaluator's details. They will receive a secure
+        magic link granting access to evaluate{' '}
+        <strong>all teams</strong>.
       </p>
 
-      <form onSubmit={handleCreateJudge} className="space-y-4 max-w-md">
+      <form
+        onSubmit={handleCreateJudge}
+        className="space-y-4 max-w-md"
+      >
+        {/* Judge Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Judge Name</label>
+          <label
+            className="
+              block
+              text-sm
+              font-medium
+
+              text-slate-700
+              dark:text-slate-300
+
+              mb-2
+            "
+          >
+            Judge Name
+          </label>
+
           <input
-            type="text" required value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Dr. Alan Turing"
+            className="
+              w-full
+              p-3
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:border-blue-500
+
+              outline-none
+
+              transition-all
+            "
           />
         </div>
 
+        {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <label
+            className="
+              block
+              text-sm
+              font-medium
+
+              text-slate-700
+              dark:text-slate-300
+
+              mb-2
+            "
+          >
+            Email Address
+          </label>
+
           <input
-            type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="judge@university.edu"
+            className="
+              w-full
+              p-3
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:border-blue-500
+
+              outline-none
+
+              transition-all
+            "
           />
         </div>
 
+        {/* Submit */}
         <button
-          type="submit" disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold disabled:bg-blue-300 transition-colors"
+          type="submit"
+          disabled={loading}
+          className="
+            w-full
+
+            bg-blue-600
+            hover:bg-blue-700
+
+            text-white
+
+            py-3
+
+            rounded-xl
+
+            font-semibold
+
+            transition-all
+
+            disabled:bg-blue-400
+            disabled:cursor-not-allowed
+          "
         >
-          {loading ? 'Dispatching...' : 'Generate & Send Magic Link'}
+          {loading
+            ? 'Dispatching...'
+            : 'Generate & Send Magic Link'}
         </button>
 
+        {/* Status */}
         {status.message && (
-          <div className={`p-3 rounded-lg text-sm font-medium mt-2 ${
-            status.type === 'error' ? 'bg-red-50 text-red-700' :
-            status.type === 'success' ? 'bg-green-50 text-green-700' :
-            'bg-blue-50 text-blue-700'
-          }`}>
+          <div
+            className={`
+              p-4
+              rounded-xl
+              text-sm
+              font-medium
+              mt-2
+              border
+
+              ${
+                status.type === 'error'
+                  ? `
+                    bg-red-50
+                    dark:bg-red-950/30
+
+                    text-red-700
+                    dark:text-red-300
+
+                    border-red-200
+                    dark:border-red-900
+                  `
+                  : status.type === 'success'
+                  ? `
+                    bg-green-50
+                    dark:bg-green-950/30
+
+                    text-green-700
+                    dark:text-green-300
+
+                    border-green-200
+                    dark:border-green-900
+                  `
+                  : `
+                    bg-blue-50
+                    dark:bg-blue-950/30
+
+                    text-blue-700
+                    dark:text-blue-300
+
+                    border-blue-200
+                    dark:border-blue-900
+                  `
+              }
+            `}
+          >
             {status.message}
           </div>
         )}

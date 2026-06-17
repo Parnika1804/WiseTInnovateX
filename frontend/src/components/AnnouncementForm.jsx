@@ -13,135 +13,294 @@ const AnnouncementForm = ({ onSent }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    axios.get(`${API}/teams`).then(res => setTeams(res.data)).catch(() => {});
+    axios
+      .get(`${API}/teams`)
+      .then((res) => setTeams(res.data))
+      .catch(() => {});
   }, []);
 
   const handleSend = async () => {
-    if (!announcement.trim()) return alert('Please type an announcement.');
+    if (!announcement.trim())
+      return alert('Please type an announcement.');
+
     setIsSending(true);
     setResult(null);
     setError(null);
+
     try {
       const payload = {
         announcement: announcement.trim(),
         send_to: sendTo,
         custom_subject: customSubject.trim() || null,
       };
-      const res = await axios.post(`${API}/comms/announce`, payload);
+
+      const res = await axios.post(
+        `${API}/comms/announce`,
+        payload
+      );
+
       setResult(res.data);
+
       setAnnouncement('');
       setCustomSubject('');
       setSendTo('all');
+
       if (onSent) onSent();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send announcement.');
+      setError(
+        err.response?.data?.detail ||
+          'Failed to send announcement.'
+      );
     } finally {
       setIsSending(false);
     }
   };
 
-  const approvedTeams = teams.filter(t => t.status === 'APPROVED');
+  const approvedTeams = teams.filter(
+    (t) => t.status === 'APPROVED'
+  );
 
   return (
-    <div style={{
-      padding: '20px',
-      border: '2px solid #fd7e14',
-      borderRadius: '10px',
-      backgroundColor: '#fff9f5',
-      marginBottom: '20px',
-    }}>
-      <h3 style={{ margin: '0 0 4px 0', color: '#c05621' }}>📢 Send Announcement</h3>
-      <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#666' }}>
-        Type a short update — AI will draft the full email and send it instantly.
+    <div
+      className="
+        bg-white/80
+        dark:bg-slate-900/80
+
+        backdrop-blur-md
+
+        border
+        border-orange-200
+        dark:border-orange-900
+
+        rounded-2xl
+
+        shadow-sm
+
+        p-6
+
+        mb-6
+      "
+    >
+      {/* Header */}
+      <h3 className="text-xl font-bold text-orange-700 dark:text-orange-400 mb-1">
+         Send Announcement
+      </h3>
+
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+        Type a short update — AI will draft the full email and
+        send it instantly.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {/* Announcement text */}
+      <div className="flex flex-col gap-4">
+        {/* Announcement */}
         <textarea
           placeholder='e.g. "Venue changed to Room 201 in Block B" or "Round 2 starts tomorrow at 10 AM"'
           value={announcement}
-          onChange={e => setAnnouncement(e.target.value)}
-          rows={3}
-          style={{
-            padding: '10px', borderRadius: '6px',
-            border: '1px solid #f0a070', fontSize: '14px',
-            resize: 'vertical', fontFamily: 'inherit',
-          }}
+          onChange={(e) =>
+            setAnnouncement(e.target.value)
+          }
+          rows={4}
+          className="
+            w-full
+
+            p-3
+
+            bg-white
+            dark:bg-slate-800
+
+            text-slate-900
+            dark:text-slate-100
+
+            border
+            border-orange-200
+            dark:border-orange-900
+
+            rounded-xl
+
+            resize-y
+
+            focus:outline-none
+            focus:ring-2
+            focus:ring-orange-500
+
+            transition-all
+          "
         />
 
-        {/* Optional subject override */}
+        {/* Subject */}
         <input
           type="text"
           placeholder="Custom subject line (optional — AI will generate one if blank)"
           value={customSubject}
-          onChange={e => setCustomSubject(e.target.value)}
-          style={{ padding: '8px', borderRadius: '6px', border: '1px solid #f0a070', fontSize: '13px' }}
+          onChange={(e) =>
+            setCustomSubject(e.target.value)
+          }
+          className="
+            w-full
+
+            p-3
+
+            bg-white
+            dark:bg-slate-800
+
+            text-slate-900
+            dark:text-slate-100
+
+            border
+            border-orange-200
+            dark:border-orange-900
+
+            rounded-xl
+
+            focus:outline-none
+            focus:ring-2
+            focus:ring-orange-500
+
+            transition-all
+          "
         />
 
-        {/* Recipients selector */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ fontWeight: '600', fontSize: '13px', color: '#555' }}>Send to:</label>
+        {/* Recipients */}
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">
+            Send to:
+          </span>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-300">
             <input
-              type="radio" value="all"
+              type="radio"
+              value="all"
               checked={sendTo === 'all'}
               onChange={() => setSendTo('all')}
             />
-            <span style={{ fontSize: '13px' }}>All Participants</span>
+            All Participants
           </label>
 
           {approvedTeams.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="flex items-center gap-2 flex-wrap">
               <input
-                type="radio" value="team"
+                type="radio"
+                value="team"
                 checked={sendTo.startsWith('team:')}
-                onChange={() => setSendTo(`team:${approvedTeams[0]?.id || ''}`)}
+                onChange={() =>
+                  setSendTo(
+                    `team:${approvedTeams[0]?.id || ''}`
+                  )
+                }
               />
-              <span style={{ fontSize: '13px' }}>Specific Team:</span>
+
+              <span className="text-sm text-slate-700 dark:text-slate-300">
+                Specific Team:
+              </span>
+
               <select
-                value={sendTo.startsWith('team:') ? sendTo : ''}
-                onChange={e => setSendTo(e.target.value)}
+                value={
+                  sendTo.startsWith('team:')
+                    ? sendTo
+                    : ''
+                }
+                onChange={(e) =>
+                  setSendTo(e.target.value)
+                }
                 disabled={!sendTo.startsWith('team:')}
-                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px' }}
+                className="
+                  px-3
+                  py-2
+
+                  bg-white
+                  dark:bg-slate-800
+
+                  text-slate-900
+                  dark:text-slate-100
+
+                  border
+                  border-slate-200
+                  dark:border-slate-700
+
+                  rounded-lg
+
+                  text-sm
+                "
               >
-                {approvedTeams.map(t => (
-                  <option key={t.id} value={`team:${t.id}`}>{t.name}</option>
+                {approvedTeams.map((t) => (
+                  <option
+                    key={t.id}
+                    value={`team:${t.id}`}
+                  >
+                    {t.name}
+                  </option>
                 ))}
               </select>
             </div>
           )}
         </div>
 
+        {/* Send Button */}
         <button
           onClick={handleSend}
-          disabled={isSending || !announcement.trim()}
-          style={{
-            backgroundColor: isSending ? '#aaa' : '#fd7e14',
-            color: 'white', padding: '10px 16px',
-            border: 'none', borderRadius: '6px',
-            cursor: isSending ? 'not-allowed' : 'pointer',
-            fontWeight: '600', fontSize: '14px', alignSelf: 'flex-start',
-          }}
+          disabled={
+            isSending || !announcement.trim()
+          }
+          className="
+            px-5
+            py-3
+
+            bg-orange-600
+            hover:bg-orange-700
+
+            disabled:bg-slate-400
+            disabled:cursor-not-allowed
+
+            text-white
+
+            rounded-xl
+
+            font-semibold
+
+            transition-all
+
+            self-start
+          "
         >
-          {isSending ? '✉️ Sending...' : '📤 Draft & Send Now'}
+          {isSending
+            ? ' Sending...'
+            : ' Draft & Send Now'}
         </button>
       </div>
 
-      {/* Success result */}
+      {/* Success */}
       {result && (
-        <div style={{
-          marginTop: '14px', padding: '12px',
-          backgroundColor: '#f0fff4', border: '1px solid #68d391',
-          borderRadius: '6px',
-        }}>
-          <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#276749' }}>
-            ✅ Announcement sent! ({result.sent} delivered{result.failed > 0 ? `, ${result.failed} failed` : ''})
+        <div
+          className="
+            mt-5
+
+            p-4
+
+            rounded-xl
+
+            bg-green-50
+            dark:bg-green-950/30
+
+            border
+            border-green-200
+            dark:border-green-900
+          "
+        >
+          <p className="font-semibold text-green-700 dark:text-green-300 mb-2">
+            ✅ Announcement sent! ({result.sent}
+            delivered
+            {result.failed > 0
+              ? `, ${result.failed} failed`
+              : ''}
+            )
           </p>
-          <p style={{ margin: '0 0 4px 0', fontSize: '13px' }}>
-            <strong>Subject:</strong> {result.subject}
+
+          <p className="text-sm text-slate-700 dark:text-slate-300 mb-2">
+            <strong>Subject:</strong>{' '}
+            {result.subject}
           </p>
-          <p style={{ margin: '0', fontSize: '12px', color: '#555', fontStyle: 'italic' }}>
+
+          <p className="text-xs italic text-slate-500 dark:text-slate-400">
             {result.body_preview}
           </p>
         </div>
@@ -149,11 +308,27 @@ const AnnouncementForm = ({ onSent }) => {
 
       {/* Error */}
       {error && (
-        <div style={{
-          marginTop: '14px', padding: '10px',
-          backgroundColor: '#fff5f5', border: '1px solid #fc8181',
-          borderRadius: '6px', color: '#c53030', fontSize: '13px',
-        }}>
+        <div
+          className="
+            mt-5
+
+            p-4
+
+            rounded-xl
+
+            bg-red-50
+            dark:bg-red-950/30
+
+            border
+            border-red-200
+            dark:border-red-900
+
+            text-red-700
+            dark:text-red-300
+
+            text-sm
+          "
+        >
           ❌ {error}
         </div>
       )}

@@ -35,7 +35,7 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
 
   const StarRating = ({ label, value, onChange }) => (
     <div className="mb-4">
-      <p className="text-sm font-semibold text-slate-700 mb-2">{label}</p>
+      <p className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">{label}</p>
       <div className="flex gap-2">
         {[1, 2, 3, 4, 5].map(star => (
           <button
@@ -43,7 +43,7 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
             type="button"
             onClick={() => onChange(star)}
             className={`text-2xl transition-transform hover:scale-110 ${
-              star <= value ? 'text-amber-400' : 'text-slate-200'
+              star <= value ? 'text-amber-400' : 'text-slate-200 dark:text-slate-600'
             }`}
           >
             ★
@@ -83,20 +83,34 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
   if (checking) return null;
 
   if (submitted) return (
-    <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6 text-center">
+    <div className="
+      border rounded-xl p-6 mt-6 text-center
+      bg-green-50 dark:bg-green-950/30
+      border-green-200 dark:border-green-800
+    ">
       <div className="text-4xl mb-3">🙏</div>
-      <h4 className="text-lg font-bold text-green-800 mb-1">Thank You for Your Feedback!</h4>
-      <p className="text-sm text-green-700">Your responses help us make future events even better.</p>
+      <h4 className="text-lg font-bold mb-1 text-green-800 dark:text-green-300">
+        Thank You for Your Feedback!
+      </h4>
+      <p className="text-sm text-green-700 dark:text-green-400">
+        Your responses help us make future events even better.
+      </p>
     </div>
   );
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 mt-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
-        <div className="text-2xl">📝</div>
+    <div className="
+      border rounded-xl p-6 mt-6 shadow-sm
+      bg-white dark:bg-slate-900
+      border-slate-200 dark:border-slate-800
+    ">
+      <div className="flex items-center gap-3 mb-5 border-b pb-4 border-slate-100 dark:border-slate-800">
+        <div className="text-2xl"> </div>
         <div>
-          <h4 className="text-lg font-bold text-slate-800">Share Your Feedback</h4>
-          <p className="text-sm text-slate-500">Help us improve future events — takes 30 seconds.</p>
+          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Share Your Feedback</h4>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Help us improve future events — takes 30 seconds.
+          </p>
         </div>
       </div>
 
@@ -107,24 +121,45 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
       )}
 
       <div className="mb-4">
-        <p className="text-sm font-semibold text-slate-700 mb-2">Any additional comments? (optional)</p>
+        <p className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
+          Any additional comments? (optional)
+        </p>
         <textarea
           value={comment}
           onChange={e => setComment(e.target.value)}
           placeholder="What did you love? What could be better?"
           rows={3}
-          className="w-full border border-slate-200 rounded-lg p-3 text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
+          className="
+            w-full rounded-lg p-3 text-sm resize-none outline-none border
+            bg-white dark:bg-slate-800
+            border-slate-200 dark:border-slate-700
+            text-slate-700 dark:text-slate-300
+            placeholder-slate-400 dark:placeholder-slate-500
+            focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600
+          "
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+        <p className="
+          text-sm mb-3 rounded-lg px-3 py-2
+          text-red-600 dark:text-red-400
+          bg-red-50 dark:bg-red-950/30
+          border border-red-200 dark:border-red-800
+        ">
+          {error}
+        </p>
       )}
 
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-lg transition-colors disabled:opacity-50"
+        className="
+          w-full font-bold py-2.5 rounded-lg transition-colors disabled:opacity-50
+          bg-slate-800 hover:bg-slate-700
+          dark:bg-slate-700 dark:hover:bg-slate-600
+          text-white
+        "
       >
         {submitting ? 'Submitting...' : 'Submit Feedback'}
       </button>
@@ -157,27 +192,51 @@ const JudgeFeedback = ({ teamId }) => {
   if (!feedback.length) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 mt-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
+    <div className="
+      border rounded-xl p-6 mt-6 shadow-sm
+      bg-white dark:bg-slate-900
+      border-slate-200 dark:border-slate-800
+    ">
+      <div className="flex items-center gap-3 mb-5 border-b pb-4 border-slate-100 dark:border-slate-800">
         <div className="text-2xl">🧑‍⚖️</div>
         <div>
-          <h4 className="text-lg font-bold text-slate-800">Judge Feedback on Your Project</h4>
-          <p className="text-sm text-slate-500">Here's what the judges thought about your team's work.</p>
+          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+            Judge Feedback on Your Project
+          </h4>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Here's what the judges thought about your team's work.
+          </p>
         </div>
       </div>
       <div className="space-y-4">
         {feedback.map((f, idx) => (
-          <div key={idx} className="bg-slate-50 border border-slate-100 rounded-lg p-4">
+          <div
+            key={idx}
+            className="
+              rounded-lg p-4 border
+              bg-slate-50 dark:bg-slate-800/50
+              border-slate-100 dark:border-slate-700
+            "
+          >
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-bold text-slate-700">Judge · Round {f.round_number}</p>
-              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                Judge · Round {f.round_number}
+              </p>
+              <span className="
+                text-xs px-2 py-0.5 rounded-full font-semibold border
+                bg-blue-50 dark:bg-blue-950/40
+                text-blue-700 dark:text-blue-300
+                border-blue-200 dark:border-blue-800
+              ">
                 Score: {f.score}
               </span>
             </div>
             {f.notes ? (
-              <p className="text-sm text-slate-600 italic">"{f.notes}"</p>
+              <p className="text-sm italic text-slate-600 dark:text-slate-400">"{f.notes}"</p>
             ) : (
-              <p className="text-sm text-slate-400 italic">No written feedback provided for this round.</p>
+              <p className="text-sm italic text-slate-400 dark:text-slate-500">
+                No written feedback provided for this round.
+              </p>
             )}
           </div>
         ))}
@@ -296,12 +355,21 @@ const ParticipantPortal = () => {
   };
 
   if (error) return (
-    <div className="p-8 max-w-xl mx-auto mt-10 bg-red-50 border border-red-200 rounded-xl text-center text-red-800 shadow-sm">
+    <div className="
+      p-8 max-w-xl mx-auto mt-10 rounded-xl text-center shadow-sm border
+      bg-red-50 dark:bg-red-950/30
+      border-red-200 dark:border-red-800
+      text-red-800 dark:text-red-300
+    ">
       <p className="font-semibold">{error}</p>
     </div>
   );
 
-  if (!data) return <div className="p-8 text-center text-gray-500 font-medium mt-10">Loading Secure Portal...</div>;
+  if (!data) return (
+    <div className="p-8 text-center font-medium mt-10 text-slate-500 dark:text-slate-400">
+      Loading Secure Portal...
+    </div>
+  );
 
   const isEliminated = data.team && data.team.is_qualified === false;
   const myWin = finalResults ? finalResults.find(p => p.team_id === data.team?.id) : null;
@@ -311,24 +379,30 @@ const ParticipantPortal = () => {
 
     const statusConfig = {
       PENDING: {
-        bg: 'bg-amber-50', border: 'border-amber-200', icon: '⏳',
+        bg: 'bg-amber-50 dark:bg-amber-950/30',
+        border: 'border-amber-200 dark:border-amber-800',
+        icon: '⏳',
         title: 'Special Mention Nomination Pending',
         body: 'Your mentor has nominated you for a Special Mention. The committee is reviewing this nomination — you will be notified once a decision is made.',
-        badge: 'bg-amber-100 text-amber-800 border-amber-300',
+        badge: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700',
         badgeText: 'Under Review',
       },
       APPROVED: {
-        bg: 'bg-purple-50', border: 'border-purple-200', icon: '⭐',
-        title: 'You\'ve Been Granted Special Mention!',
-        body: 'The committee has approved your mentor\'s nomination. You will compete in the final round as a Special Mention entry alongside the qualified finalists.',
-        badge: 'bg-purple-100 text-purple-800 border-purple-300',
+        bg: 'bg-purple-50 dark:bg-purple-950/30',
+        border: 'border-purple-200 dark:border-purple-800',
+        icon: '⭐',
+        title: "You've Been Granted Special Mention!",
+        body: "The committee has approved your mentor's nomination. You will compete in the final round as a Special Mention entry alongside the qualified finalists.",
+        badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700',
         badgeText: 'Approved — Final Round Entry',
       },
       REJECTED: {
-        bg: 'bg-slate-50', border: 'border-slate-200', icon: '🏁',
+        bg: 'bg-slate-50 dark:bg-slate-800/50',
+        border: 'border-slate-200 dark:border-slate-700',
+        icon: '🏁',
         title: 'Special Mention Not Approved',
-        body: 'Your mentor\'s nomination was reviewed but could not be approved this time. Thank you for your effort and participation.',
-        badge: 'bg-slate-100 text-slate-600 border-slate-300',
+        body: "Your mentor's nomination was reviewed but could not be approved this time. Thank you for your effort and participation.",
+        badge: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600',
         badgeText: 'Not Approved',
       },
     };
@@ -341,14 +415,14 @@ const ParticipantPortal = () => {
           <div className="text-3xl">{cfg.icon}</div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h4 className="text-base font-bold text-slate-800">{cfg.title}</h4>
+              <h4 className="text-base font-bold text-slate-800 dark:text-slate-100">{cfg.title}</h4>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${cfg.badge}`}>
                 {cfg.badgeText}
               </span>
             </div>
-            <p className="text-sm text-slate-600 mb-0">{cfg.body}</p>
+            <p className="text-sm mb-0 text-slate-600 dark:text-slate-400">{cfg.body}</p>
             {specialMention.reason && (
-              <p className="text-xs text-slate-500 mt-2 italic">
+              <p className="text-xs mt-2 italic text-slate-500 dark:text-slate-400">
                 Mentor's reason: "{specialMention.reason}"
               </p>
             )}
@@ -360,12 +434,16 @@ const ParticipantPortal = () => {
 
   // STATE 1: EVENT FINALIZED AND USER IS A WINNER
   if (finalResults && myWin) return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="bg-gradient-to-br from-amber-400 to-amber-600 text-white p-8 rounded-xl mb-6 shadow-lg text-center border-4 border-amber-300">
-          <div className="text-7xl mb-4 animate-bounce">🏆</div>
-          <h2 className="text-4xl font-black mb-2 tracking-tight">Congratulations, {data.participant.name}!</h2>
-          <p className="text-xl font-medium mb-6">Your team <strong className="text-amber-100">{data.team.name}</strong> emerged victorious!</p>
+          <div className="text-7xl mb-4 animate-bounce"></div>
+          <h2 className="text-4xl font-black mb-2 tracking-tight">
+            Congratulations, {data.participant.name}!
+          </h2>
+          <p className="text-xl font-medium mb-6">
+            Your team <strong className="text-amber-100">{data.team.name}</strong> emerged victorious!
+          </p>
           <div className="inline-block bg-white text-amber-600 px-8 py-3 rounded-full font-black text-3xl shadow-md">
             {myWin.medal}
           </div>
@@ -374,10 +452,7 @@ const ParticipantPortal = () => {
           </p>
         </div>
 
-        {/* Judge feedback on project */}
         {data.team && <JudgeFeedback teamId={data.team.id} />}
-
-        {/* Feedback form for winners too */}
         <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
 
         <div className="mt-6">
@@ -389,34 +464,60 @@ const ParticipantPortal = () => {
 
   // STATE 2: EVENT FINALIZED OR USER ELIMINATED
   if ((finalResults && !myWin) || isEliminated) return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
-        <div className="bg-slate-800 text-white p-6 rounded-xl mb-6 shadow-sm">
+        <div className="
+          text-white p-6 rounded-xl mb-6 shadow-sm
+          bg-slate-800 dark:bg-slate-900
+        ">
           <h2 className="text-2xl font-bold mb-1">Hacker Portal</h2>
-          <p className="text-slate-300 m-0">Welcome back, <strong className="text-white">{data.participant.name}</strong></p>
+          <p className="text-slate-300 m-0">
+            Welcome back, <strong className="text-white">{data.participant.name}</strong>
+          </p>
         </div>
 
         <SpecialMentionCard />
 
         {specialMention?.status !== 'APPROVED' && (
-          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
+          <div className="
+            p-8 rounded-xl border shadow-sm text-center
+            bg-white dark:bg-slate-900
+            border-slate-200 dark:border-slate-800
+          ">
             <div className="text-5xl mb-4 grayscale">🏁</div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Event Concluded</h3>
-            <p className="text-slate-500 mb-4">Your team <strong className="text-slate-700">{data.team?.name}</strong> did not advance to the final podium.</p>
-            <p className="text-slate-400 text-sm">We truly appreciate your effort and participation. Keep building and we hope to see you at future events!</p>
+            <h3 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">
+              Event Concluded
+            </h3>
+            <p className="mb-4 text-slate-500 dark:text-slate-400">
+              Your team <strong className="text-slate-700 dark:text-slate-300">{data.team?.name}</strong> did not advance to the final podium.
+            </p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">
+              We truly appreciate your effort and participation. Keep building and we hope to see you at future events!
+            </p>
           </div>
         )}
 
         {specialMention?.status === 'APPROVED' && (
-          <div className="bg-white p-8 rounded-xl border border-purple-200 shadow-sm text-center">
+          <div className="
+            p-8 rounded-xl border shadow-sm text-center
+            bg-white dark:bg-slate-900
+            border-purple-200 dark:border-purple-800
+          ">
             <div className="text-5xl mb-4">🚀</div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">You're in the Finals!</h3>
-            <p className="text-slate-500 mb-4">As a Special Mention wildcard entry, your team <strong className="text-slate-700">{data.team?.name}</strong> will compete in the final round.</p>
-            <p className="text-slate-400 text-sm">Judges will evaluate your work separately. Good luck!</p>
+            <h3 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">
+              You're in the Finals!
+            </h3>
+            <p className="mb-4 text-slate-500 dark:text-slate-400">
+              As a Special Mention wildcard entry, your team{' '}
+              <strong className="text-slate-700 dark:text-slate-300">{data.team?.name}</strong>{' '}
+              will compete in the final round.
+            </p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">
+              Judges will evaluate your work separately. Good luck!
+            </p>
           </div>
         )}
 
-        {/* Feedback form — shown to eliminated participants too */}
         {finalResults && (
           <>
             {data.team && <JudgeFeedback teamId={data.team.id} />}
@@ -433,12 +534,17 @@ const ParticipantPortal = () => {
 
   // STATE 3: ACTIVE COMPETITION — no feedback form yet
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
-        <div className="bg-slate-800 text-white p-6 rounded-xl mb-6 shadow-sm flex justify-between items-center">
+        <div className="
+          text-white p-6 rounded-xl mb-6 shadow-sm flex justify-between items-center
+          bg-slate-800 dark:bg-slate-900
+        ">
           <div>
             <h2 className="text-2xl font-bold mb-1">Hacker Portal</h2>
-            <p className="text-slate-300 m-0">Welcome back, <strong className="text-white">{data.participant.name}</strong></p>
+            <p className="text-slate-300 m-0">
+              Welcome back, <strong className="text-white">{data.participant.name}</strong>
+            </p>
           </div>
           {currentRound && (
             <div className="bg-blue-600 border border-blue-500 px-4 py-2 rounded-lg text-center shadow-inner">
@@ -451,26 +557,47 @@ const ParticipantPortal = () => {
         <SpecialMentionCard />
 
         {data.progression?.is_qualified && currentRound === 1 && (
-          <div className="p-6 rounded-xl mb-8 border shadow-sm bg-blue-50 border-blue-200">
+          <div className="
+            p-6 rounded-xl mb-8 border shadow-sm
+            bg-blue-50 dark:bg-blue-950/30
+            border-blue-200 dark:border-blue-800
+          ">
             <div className="flex items-start gap-4">
               <div className="text-3xl">🚀</div>
               <div className="flex-1">
-                <h4 className="text-lg font-bold mb-1 text-blue-900">Welcome to the Hackathon!</h4>
-                <p className="text-sm mb-0 text-blue-800">Round 1 is currently active. Work with your team to build your project. Judges will begin evaluating soon!</p>
+                <h4 className="text-lg font-bold mb-1 text-blue-900 dark:text-blue-200">
+                  Welcome to the Hackathon!
+                </h4>
+                <p className="text-sm mb-0 text-blue-800 dark:text-blue-300">
+                  Round 1 is currently active. Work with your team to build your project. Judges will begin evaluating soon!
+                </p>
               </div>
             </div>
           </div>
         )}
 
         {data.progression?.is_qualified && currentRound > 1 && (
-          <div className={`p-6 rounded-xl mb-8 border shadow-sm transition-colors ${confirmed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+          <div className={`
+            p-6 rounded-xl mb-8 border shadow-sm transition-colors
+            ${confirmed
+              ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+              : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'}
+          `}>
             <div className="flex items-start gap-4">
               <div className="text-3xl">{confirmed ? '✅' : '🎉'}</div>
               <div className="flex-1">
-                <h4 className={`text-lg font-bold mb-1 ${confirmed ? 'text-green-800' : 'text-amber-900'}`}>
+                <h4 className={`text-lg font-bold mb-1 ${
+                  confirmed
+                    ? 'text-green-800 dark:text-green-300'
+                    : 'text-amber-900 dark:text-amber-200'
+                }`}>
                   {confirmed ? 'Spot Confirmed!' : `You Advanced to Round ${currentRound}!`}
                 </h4>
-                <p className={`text-sm mb-4 ${confirmed ? 'text-green-700' : 'text-amber-800'}`}>
+                <p className={`text-sm mb-4 ${
+                  confirmed
+                    ? 'text-green-700 dark:text-green-400'
+                    : 'text-amber-800 dark:text-amber-300'
+                }`}>
                   {confirmed
                     ? "You've successfully confirmed your attendance for the current round. Keep an eye on your email for further instructions."
                     : `Congratulations! Your team made the cut. Please confirm your spot for Round ${currentRound} below.`}
@@ -490,63 +617,135 @@ const ParticipantPortal = () => {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h4 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Hacker Status</h4>
+          {/* Hacker Status */}
+          <div className="
+            p-6 rounded-xl border shadow-sm
+            bg-white dark:bg-slate-900
+            border-slate-200 dark:border-slate-800
+          ">
+            <h4 className="
+              text-lg font-bold mb-4 border-b pb-2
+              text-slate-800 dark:text-slate-100
+              border-slate-100 dark:border-slate-800
+            ">
+              Hacker Status
+            </h4>
             <div className="space-y-3">
-              <p className="text-sm"><strong className="text-slate-600">Event Phase:</strong> <span className="font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{data.current_stage?.label || 'COMPETITION'}</span></p>
-              <p className="text-sm"><strong className="text-slate-600">Skill Track:</strong> <span className="font-medium">{data.participant.skill}</span></p>
-              <p className="text-sm"><strong className="text-slate-600">Institution:</strong> <span className="font-medium">{data.participant.institution || 'N/A'}</span></p>
+              <p className="text-sm">
+                <strong className="text-slate-600 dark:text-slate-400">Event Phase:</strong>{' '}
+                <span className="
+                  font-medium px-2 py-0.5 rounded
+                  bg-blue-50 dark:bg-blue-950/40
+                  text-blue-700 dark:text-blue-300
+                ">
+                  {data.current_stage?.label || 'COMPETITION'}
+                </span>
+              </p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                <strong className="text-slate-600 dark:text-slate-400">Skill Track:</strong>{' '}
+                <span className="font-medium">{data.participant.skill}</span>
+              </p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                <strong className="text-slate-600 dark:text-slate-400">Institution:</strong>{' '}
+                <span className="font-medium">{data.participant.institution || 'N/A'}</span>
+              </p>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h4 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">My Team</h4>
+          {/* My Team */}
+          <div className="
+            p-6 rounded-xl border shadow-sm
+            bg-white dark:bg-slate-900
+            border-slate-200 dark:border-slate-800
+          ">
+            <h4 className="
+              text-lg font-bold mb-4 border-b pb-2
+              text-slate-800 dark:text-slate-100
+              border-slate-100 dark:border-slate-800
+            ">
+              My Team
+            </h4>
             {data.team ? (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm m-0">
-                    <strong className="text-slate-600">Team Name:</strong>
-                    <span className="font-bold text-blue-600 ml-2">{data.team.name}</span>
+                    <strong className="text-slate-600 dark:text-slate-400">Team Name:</strong>
+                    <span className="font-bold text-blue-600 dark:text-blue-400 ml-2">{data.team.name}</span>
                   </p>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                    data.team.status === 'APPROVED' ? 'bg-green-100 text-green-800 border-green-200' :
-                    data.team.status === 'REJECTED' ? 'bg-red-100 text-red-800 border-red-200' :
-                    'bg-amber-100 text-amber-800 border-amber-200'
+                    data.team.status === 'APPROVED'
+                      ? 'bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
+                      : data.team.status === 'REJECTED'
+                      ? 'bg-red-100 dark:bg-red-950/40 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800'
+                      : 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                   }`}>
                     {data.team.status}
                   </span>
                 </div>
 
                 {data.team.status === 'REJECTED' ? (
-                  <div className="mt-4 p-4 bg-red-50 text-red-700 text-sm border border-red-200 rounded-lg">
+                  <div className="
+                    mt-4 p-4 text-sm rounded-lg border
+                    bg-red-50 dark:bg-red-950/30
+                    text-red-700 dark:text-red-300
+                    border-red-200 dark:border-red-800
+                  ">
                     <strong>Notice:</strong> Your proposed team formation was reviewed and rejected by the committee. Please await re-assignment or further instructions.
                   </div>
                 ) : (
                   <div>
-                    <ul className="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <ul className="
+                      space-y-2 p-4 rounded-lg border
+                      bg-slate-50 dark:bg-slate-800/50
+                      border-slate-100 dark:border-slate-700
+                    ">
                       {data.team_members.map((m, idx) => (
-                        <li key={idx} className="text-sm text-slate-700 flex justify-between">
+                        <li key={idx} className="text-sm flex justify-between text-slate-700 dark:text-slate-300">
                           <span className="font-medium">{m.name}</span>
-                          <span className="text-slate-500">{m.skill}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{m.skill}</span>
                         </li>
                       ))}
                     </ul>
 
                     {mentor && (
-                      <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                        <p className="text-sm font-bold text-indigo-800 mb-2">🧑‍🏫 Your Mentor</p>
-                        <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
-                        <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
-                        {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}
-                        {mentor.phone && <p className="text-sm text-indigo-700"><strong>Phone:</strong> {mentor.phone}</p>}
+                      <div className="
+                        mt-4 p-4 rounded-lg border
+                        bg-indigo-50 dark:bg-indigo-950/30
+                        border-indigo-200 dark:border-indigo-800
+                      ">
+                        <p className="text-sm font-bold mb-2 text-indigo-800 dark:text-indigo-300">
+                          🧑‍🏫 Your Mentor
+                        </p>
+                        <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                          <strong>Name:</strong> {mentor.name}
+                        </p>
+                        <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                          <strong>Email:</strong> {mentor.email}
+                        </p>
+                        {mentor.expertise && (
+                          <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                            <strong>Expertise:</strong> {mentor.expertise}
+                          </p>
+                        )}
+                        {mentor.phone && (
+                          <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                            <strong>Phone:</strong> {mentor.phone}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-center p-6 bg-slate-50 rounded-lg border border-slate-100">
-                <p className="text-sm text-slate-500 italic">You have not been assigned to a team yet. Teams will be formed once the Registration stage closes.</p>
+              <div className="
+                text-center p-6 rounded-lg border
+                bg-slate-50 dark:bg-slate-800/50
+                border-slate-100 dark:border-slate-700
+              ">
+                <p className="text-sm italic text-slate-500 dark:text-slate-400">
+                  You have not been assigned to a team yet. Teams will be formed once the Registration stage closes.
+                </p>
               </div>
             )}
           </div>
