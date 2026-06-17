@@ -10,56 +10,100 @@ const CreateJudge = () => {
 
   const handleCreateJudge = async (e) => {
     e.preventDefault();
+
     setLoading(true);
-    setStatus({ message: 'Generating magic link and dispatching email...', type: 'info' });
+
+    setStatus({
+      message: 'Generating magic link and dispatching email...',
+      type: 'info',
+    });
 
     try {
-      const res = await axios.post('http://localhost:8000/auth/create-judge', { name, email });
-      setStatus({ message: '✅ Judge invited! Magic link emailed successfully.', type: 'success' });
-      
-      // Trigger Toast
-      const count = res.data?.judge_invite_emails_drafted || 1;
+      const res = await axios.post(
+        'http://localhost:8000/auth/create-judge',
+        {
+          name,
+          email,
+        }
+      );
+
+      setStatus({
+        message:
+          '✅ Judge invited! Magic link emailed successfully.',
+        type: 'success',
+      });
+
+      const count =
+        res.data?.judge_invite_emails_drafted || 1;
+
       notifyEmailDraft(count);
 
       setName('');
       setEmail('');
     } catch (error) {
       console.error(error);
-      const detail = error.response?.data?.detail || 'Failed to invite judge. Check backend logs.';
-      setStatus({ message: `❌ ${detail}`, type: 'error' });
+
+      const detail =
+        error.response?.data?.detail ||
+        'Failed to invite judge. Check backend logs.';
+
+      setStatus({
+        message: `❌ ${detail}`,
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // ... (Rest of the JSX remains exactly the same)
   return (
-  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 mb-8">
+    <div
+      className="
+        bg-white/80
+        dark:bg-slate-900/80
 
-    <div className="flex items-start gap-4 mb-8">
+        backdrop-blur-md
 
-      <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl">
-        👨‍⚖️
-      </div>
+        border
+        border-slate-200
+        dark:border-slate-800
 
-      <div>
-        <h3 className="text-2xl font-bold text-slate-900">
-          Invite a Judge
-        </h3>
+        rounded-2xl
 
-        <p className="mt-1 text-slate-500">
-          Generate secure magic links for evaluators to assess all finalist teams.
-        </p>
-      </div>
+        shadow-sm
 
-    </div>
+        p-6
+        mb-6
+      "
+    >
+      <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
+        Invite a Judge
+      </h3>
 
-    <form onSubmit={handleCreateJudge} className="space-y-6">
+      <p className="text-slate-500 dark:text-slate-400 mb-5 text-sm">
+        Enter the evaluator's details. They will receive a secure
+        magic link granting access to evaluate{' '}
+        <strong>all teams</strong>.
+      </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
+      <form
+        onSubmit={handleCreateJudge}
+        className="space-y-4 max-w-md"
+      >
+        {/* Judge Name */}
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">
+          <label
+            className="
+              block
+              text-sm
+              font-medium
+
+              text-slate-700
+              dark:text-slate-300
+
+              mb-2
+            "
+          >
             Judge Name
           </label>
 
@@ -71,21 +115,46 @@ const CreateJudge = () => {
             placeholder="e.g., Dr. Alan Turing"
             className="
               w-full
-              rounded-2xl
-              border border-slate-200
-              bg-slate-50
-              px-5 py-4
+              p-3
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:border-blue-500
+
               outline-none
+
               transition-all
-              focus:bg-white
-              focus:ring-4 focus:ring-indigo-100
-              focus:border-indigo-500
             "
           />
         </div>
 
+        {/* Email */}
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">
+          <label
+            className="
+              block
+              text-sm
+              font-medium
+
+              text-slate-700
+              dark:text-slate-300
+
+              mb-2
+            "
+          >
             Email Address
           </label>
 
@@ -97,76 +166,114 @@ const CreateJudge = () => {
             placeholder="judge@university.edu"
             className="
               w-full
-              rounded-2xl
-              border border-slate-200
-              bg-slate-50
-              px-5 py-4
+              p-3
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:border-blue-500
+
               outline-none
+
               transition-all
-              focus:bg-white
-              focus:ring-4 focus:ring-indigo-100
-              focus:border-indigo-500
             "
           />
         </div>
 
-      </div>
-
-      <div className="flex flex-col gap-4">
-
+        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
-          className={`
-            rounded-2xl
-            px-8
-            py-4
-            font-semibold
+          className="
+            w-full
+
+            bg-blue-600
+            hover:bg-blue-700
+
             text-white
+
+            py-3
+
+            rounded-xl
+
+            font-semibold
+
             transition-all
-            duration-300
-            ${
-              loading
-                ? "bg-indigo-300 cursor-not-allowed"
-                : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/25"
-            }
-          `}
+
+            disabled:bg-blue-400
+            disabled:cursor-not-allowed
+          "
         >
           {loading
-            ? "Generating Magic Link..."
-            : "Generate & Send Magic Link"}
+            ? 'Dispatching...'
+            : 'Generate & Send Magic Link'}
         </button>
 
-        <p className="text-sm text-slate-500">
-          ✓ Links are securely generated and sent directly to judges.
-        </p>
+        {/* Status */}
+        {status.message && (
+          <div
+            className={`
+              p-4
+              rounded-xl
+              text-sm
+              font-medium
+              mt-2
+              border
 
-      </div>
+              ${
+                status.type === 'error'
+                  ? `
+                    bg-red-50
+                    dark:bg-red-950/30
 
-      {status.message && (
-        <div
-          className={`
-            rounded-2xl
-            p-4
-            text-sm
-            font-medium
-            ${
-              status.type === "error"
-                ? "bg-red-50 text-red-700 border border-red-200"
-                : status.type === "success"
-                ? "bg-green-50 text-green-700 border border-green-200"
-                : "bg-blue-50 text-blue-700 border border-blue-200"
-            }
-          `}
-        >
-          {status.message}
-        </div>
-      )}
+                    text-red-700
+                    dark:text-red-300
 
-    </form>
+                    border-red-200
+                    dark:border-red-900
+                  `
+                  : status.type === 'success'
+                  ? `
+                    bg-green-50
+                    dark:bg-green-950/30
 
-  </div>
-);
+                    text-green-700
+                    dark:text-green-300
+
+                    border-green-200
+                    dark:border-green-900
+                  `
+                  : `
+                    bg-blue-50
+                    dark:bg-blue-950/30
+
+                    text-blue-700
+                    dark:text-blue-300
+
+                    border-blue-200
+                    dark:border-blue-900
+                  `
+              }
+            `}
+          >
+            {status.message}
+          </div>
+        )}
+      </form>
+    </div>
+  );
 };
 
 export default CreateJudge;

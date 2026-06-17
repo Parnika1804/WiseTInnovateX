@@ -14,8 +14,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return (
       <div className="p-8 text-center mt-10">
-        <h2 className="text-2xl font-bold text-red-600">Access Denied</h2>
-        <p className="text-gray-600 mt-2">You do not have permission to view this page.</p>
+        <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">Access Denied</h2>
+        <p className="text-gray-600 dark:text-slate-400 mt-2">You do not have permission to view this page.</p>
       </div>
     );
   }

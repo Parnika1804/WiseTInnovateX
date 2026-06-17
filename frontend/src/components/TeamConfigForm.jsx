@@ -20,20 +20,35 @@ const TeamConfigForm = () => {
   };
 
   return (
-    <div style={{ padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#fff' }}>
-      <h3 style={{ marginTop: 0 }}>1. Configure Formation Rules</h3>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+    <div className="p-5 border border-gray-200 dark:border-slate-700 rounded-lg mb-5 bg-white dark:bg-slate-900">
+      <h3 className="mt-0 mb-4 text-base font-bold text-slate-900 dark:text-slate-100">1. Configure Formation Rules</h3>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Team Size:</label>
-          <input type="number" value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))} min="2" max="10" style={{ padding: '5px', width: '60px' }} />
+          <label className="font-bold mr-2.5 text-slate-700 dark:text-slate-300">Team Size:</label>
+          <input
+            type="number"
+            value={teamSize}
+            onChange={(e) => setTeamSize(Number(e.target.value))}
+            min="2"
+            max="10"
+            className="p-1.5 w-16 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+          />
         </div>
         <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={balanceSkills} onChange={(e) => setBalanceSkills(e.target.checked)} />
+          <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={balanceSkills}
+              onChange={(e) => setBalanceSkills(e.target.checked)}
+              className="accent-blue-700 dark:accent-blue-500"
+            />
             Balance across participant skill tags
           </label>
         </div>
-        <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#0056b3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', width: 'fit-content' }}>
+        <button
+          type="submit"
+          className="px-4 py-2.5 bg-[#0056b3] dark:bg-blue-600 hover:bg-[#00468f] dark:hover:bg-blue-500 text-white border-none rounded font-medium cursor-pointer w-fit transition-colors"
+        >
           Save Configuration
         </button>
       </form>

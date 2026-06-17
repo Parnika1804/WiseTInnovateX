@@ -1,20 +1,35 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const ApproveRejectButtons = ({ teamId, currentStatus, onStatusChange }) => {
+const ApproveRejectButtons = ({
+  teamId,
+  currentStatus,
+  onStatusChange,
+}) => {
   const [loading, setLoading] = useState(false);
 
   const handleAction = async (action) => {
     setLoading(true);
+
     try {
-      await axios.post('http://localhost:8000/teams/approve', {
-        team_id: teamId,
-        action: action
-      });
-      if (onStatusChange) onStatusChange();
+      await axios.post(
+        'http://localhost:8000/teams/approve',
+        {
+          team_id: teamId,
+          action,
+        }
+      );
+
+      if (onStatusChange) {
+        onStatusChange();
+      }
     } catch (err) {
-      console.error(`Error marking team as ${action}:`, err);
-      alert("Failed to update status.");
+      console.error(
+        `Error marking team as ${action}:`,
+        err
+      );
+
+      alert('Failed to update status.');
     } finally {
       setLoading(false);
     }
@@ -23,18 +38,61 @@ const ApproveRejectButtons = ({ teamId, currentStatus, onStatusChange }) => {
   if (currentStatus !== 'PENDING') return null;
 
   return (
-    <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-      <button 
-        onClick={() => handleAction('APPROVED')} 
+    <div className="mt-4 flex gap-3">
+      <button
+        onClick={() =>
+          handleAction('APPROVED')
+        }
         disabled={loading}
-        style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-        Approve
+        className="
+          px-4
+          py-2
+
+          rounded-xl
+
+          bg-green-600
+          hover:bg-green-700
+
+          text-white
+
+          text-sm
+          font-semibold
+
+          transition-all
+
+          disabled:opacity-50
+          disabled:cursor-not-allowed
+        "
+      >
+        {loading ? 'Processing...' : '✓ Approve'}
       </button>
-      <button 
-        onClick={() => handleAction('REJECTED')} 
+
+      <button
+        onClick={() =>
+          handleAction('REJECTED')
+        }
         disabled={loading}
-        style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-        Reject
+        className="
+          px-4
+          py-2
+
+          rounded-xl
+
+          bg-red-600
+          hover:bg-red-700
+
+          text-white
+
+          text-sm
+          font-semibold
+
+          transition-all
+
+          disabled:opacity-50
+          disabled:cursor-not-allowed
+        "
+      >
+        {loading ? 'Processing...' : '✕ Reject'}
       </button>
     </div>
   );

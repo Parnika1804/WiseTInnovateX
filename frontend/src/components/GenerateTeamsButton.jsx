@@ -8,10 +8,13 @@ const GenerateTeamsButton = ({ onGenerated }) => {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const res = await axios.post('http://localhost:8000/teams/generate', { team_size: 3, skill_balance: true, constraints: null });
+      const res = await axios.post('http://localhost:8000/teams/generate', {
+        team_size: 3,
+        skill_balance: true,
+        constraints: null,
+      });
       alert("Teams successfully generated!");
-      
-      // Trigger Toast
+
       if (res.data?.team_assignment_emails_drafted) {
         notifyEmailDraft(res.data.team_assignment_emails_drafted);
       }
@@ -26,10 +29,26 @@ const GenerateTeamsButton = ({ onGenerated }) => {
   };
 
   return (
-    <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px dashed #ccc' }}>
-      <h3 style={{ marginTop: 0 }}>2. Auto-Generate Teams</h3>
-      <button onClick={handleGenerate} disabled={isGenerating} style={{ padding: '12px 24px', backgroundColor: '#28a745', color: 'white', fontSize: '16px', border: 'none', borderRadius: '5px', cursor: isGenerating ? 'not-allowed' : 'pointer' }}>
-        {isGenerating ? '🤖 AI is grouping...' : 'Generate Teams'}
+    <div className="
+      mb-5 p-5 rounded-xl border border-dashed
+      bg-slate-50 dark:bg-slate-900
+      border-slate-300 dark:border-slate-700
+    ">
+      <h3 className="mt-0 mb-3 text-base font-bold text-slate-800 dark:text-slate-100">
+        2. Auto-Generate Teams
+      </h3>
+      <button
+        onClick={handleGenerate}
+        disabled={isGenerating}
+        className="
+          px-6 py-3 rounded-lg font-semibold text-sm transition-colors
+          bg-green-600 hover:bg-green-700
+          dark:bg-green-500 dark:hover:bg-green-600
+          disabled:opacity-50 disabled:cursor-not-allowed
+          text-white
+        "
+      >
+        {isGenerating ? ' AI is grouping...' : 'Generate Teams'}
       </button>
     </div>
   );

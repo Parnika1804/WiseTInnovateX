@@ -19,13 +19,13 @@ const CSVUpload = ({ onUploadSuccess }) => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setNotification("Participants uploaded! Welcome emails are pending approval - go to the Comms page to review and approve.");
-      
+
       // Trigger Toast
       const draftedCount = res.data?.welcome_emails_drafted || 1;
       notifyEmailDraft(draftedCount);
 
-      setFile(null); 
-      if (onUploadSuccess) onUploadSuccess(); 
+      setFile(null);
+      if (onUploadSuccess) onUploadSuccess();
     } catch (error) {
       console.error("Error uploading CSV:", error);
       alert("Upload failed.");
@@ -35,99 +35,48 @@ const CSVUpload = ({ onUploadSuccess }) => {
   };
 
   return (
-  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 mb-8 hover:shadow-lg transition-all duration-300">
-    <div className="flex items-start gap-4 mb-8">
-      <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl">
-        📄
-      </div>
-
-      <div>
-        <h3 className="text-2xl font-bold text-slate-900">
-          Upload Participant Roster
-        </h3>
-
-        <p className="text-slate-500 mt-1">
-          Import your participant CSV to initialize the event roster and
-          draft welcome communications.
-        </p>
-      </div>
-    </div>
-
-    {notification && (
-      <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700">
-        <span>{notification}</span>
-
-        <button
-          onClick={() => setNotification("")}
-          className="text-xl font-bold hover:opacity-70"
-        >
-          ×
-        </button>
-      </div>
-    )}
-
-    <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 p-8">
-      <div className="flex flex-col items-center text-center">
-
-        <div className="mb-4 text-4xl">
-          📤
+    <div className="mb-8 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm transition-colors">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
+          <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
         </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white m-0">Upload Participant Roster</h3>
+      </div>
 
-        <h4 className="text-lg font-semibold text-slate-900">
-          Choose your participant CSV
-        </h4>
+      {notification && (
+        <div className="p-4 mb-5 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20 rounded-xl flex justify-between items-center text-sm font-medium">
+          <span>{notification}</span>
+          <button onClick={() => setNotification("")} className="text-lg leading-none hover:text-green-900 dark:hover:text-green-300 transition-colors">&times;</button>
+        </div>
+      )}
 
-        <p className="mt-2 text-sm text-slate-500">
-          Supported format: .CSV
-        </p>
-
-        <label className="mt-6 cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:text-blue-600">
-          Browse Files
-
-          <input
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => setFile(e.target.files[0])}
-          />
-        </label>
-
-        {file && (
-          <div className="mt-6 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">
-            Selected file:
-            <span className="ml-2 font-semibold">
-              {file.name}
-            </span>
-          </div>
-        )}
-
-        <button
-          onClick={handleUpload}
-          disabled={!file || isUploading}
-          className={`mt-8 rounded-2xl px-8 py-4 font-semibold text-white shadow-lg transition-all duration-300 ${
-            !file || isUploading
-              ? "cursor-not-allowed bg-slate-300 shadow-none"
-              : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:-translate-y-1 hover:shadow-blue-500/25"
-          }`}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <input 
+          type="file" 
+          accept=".csv" 
+          onChange={(e) => setFile(e.target.files[0])} 
+          className="block w-full text-sm text-slate-500 dark:text-slate-400
+            file:mr-4 file:py-2.5 file:px-4
+            file:rounded-lg file:border-0
+            file:text-sm file:font-semibold
+            file:bg-slate-100 file:text-slate-700
+            hover:file:bg-slate-200
+            dark:file:bg-slate-800 dark:file:text-slate-300
+            dark:hover:file:bg-slate-700
+            transition-all cursor-pointer"
+        />
+        <button 
+          onClick={handleUpload} 
+          disabled={isUploading || !file} 
+          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shadow-sm"
         >
-          {isUploading
-            ? "Uploading..."
-            : "Upload Participant Roster"}
+          {isUploading ? 'Uploading...' : 'Upload File'}
         </button>
       </div>
     </div>
-
-    <div className="mt-6 rounded-2xl bg-slate-50 px-5 py-4 text-sm text-slate-500">
-      <strong className="text-slate-700">
-        CSV should include:
-      </strong>
-
-      <div className="mt-2">
-        Name, Email, Skills, Year
-      </div>
-    </div>
-  </div>
-);
+  );
 };
 
 export default CSVUpload;

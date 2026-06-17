@@ -6,9 +6,10 @@ const ActivityLog = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
 
   const fetchLogs = useCallback(() => {
-    axios.get('http://localhost:8000/activity')
-      .then(res => setLogs(res.data))
-      .catch(err => console.error('Error fetching activity:', err));
+    axios
+      .get('http://localhost:8000/activity')
+      .then((res) => setLogs(res.data))
+      .catch((err) => console.error('Error fetching activity:', err));
   }, []);
 
   // WebSocket Live Refresh
@@ -23,51 +24,130 @@ const ActivityLog = ({ refreshTrigger }) => {
   }, [refreshTrigger, fetchLogs]);
 
   return (
-<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full overflow-hidden">
-            <h3 className="text-base font-bold text-gray-800 mb-4">System Activity Log</h3>
+    <div
+      className="
+        bg-white/80
+        dark:bg-slate-900/80
+        backdrop-blur-md
+        border
+        border-slate-200
+        dark:border-slate-800
+        rounded-2xl
+        shadow-sm
+        p-6
+        flex
+        flex-col
+        
+        /* FIX: Replaced h-full with a max-height. 
+          This forces the container to stop growing at 600px, 
+          which makes the 'overflow-y-auto' on the list actually work.
+        */
+        max-h-[600px] 
+        overflow-hidden
+      "
+    >
+      <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">
+        System Activity Log
+      </h3>
+
       {logs.length === 0 ? (
-        <p className="text-sm text-gray-400">No activity logged yet.</p>
+        <div
+          className="
+            flex-1
+            flex
+            items-center
+            justify-center
+            rounded-xl
+            bg-slate-50
+            dark:bg-slate-800/50
+            border
+            border-dashed
+            border-slate-200
+            dark:border-slate-700
+            p-6
+          "
+        >
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No activity logged yet.
+          </p>
+        </div>
       ) : (
-<ul className="divide-y divide-slate-100 flex-1 overflow-y-auto pr-2">
-              {logs.map(log => (
-            <li key={log.id} className="relative pl-8 pb-6">
-              <>
-  <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-50"></div>
+        <ul
+          className="
+            flex-1
+            overflow-y-auto
+            pr-2
+            divide-y
+            divide-slate-200
+            dark:divide-slate-800
+            
+            /* Optional: Custom scrollbar styling for a cleaner look */
+            scrollbar-thin
+            scrollbar-thumb-slate-300
+            dark:scrollbar-thumb-slate-600
+          "
+        >
+          {logs.map((log) => (
+            <li
+              key={log.id}
+              className="
+                py-4
+                hover:bg-slate-50
+                dark:hover:bg-slate-800/40
+                rounded-xl
+                transition-colors
+                px-2
+              "
+            >
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                  [{log.action}]
+                </span>
 
-  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 hover:bg-white hover:shadow-md">
+                {log.target_entity && (
+                  <span
+                    className="
+                      rounded-full
+                      px-3
+                      py-1
+                      text-xs
+                      bg-slate-100
+                      dark:bg-slate-800
+                      text-slate-600
+                      dark:text-slate-400
+                      border
+                      border-slate-200
+                      dark:border-slate-700
+                    "
+                  >
+                    Target: {log.target_entity}
+                    {log.target_id ? ` #${log.target_id}` : ''}
+                  </span>
+                )}
+              </div>
 
-    <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 leading-relaxed">
+                {log.description}
+              </p>
 
-      <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-        {log.action}
-      </span>
+              <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>👤 {log.performed_by}</span>
 
-      <span className="text-xs text-slate-400">
-        {new Date(log.created_at).toLocaleString()}
-      </span>
+                <span>•</span>
 
-    </div>
+                <span>
+                  🕒 {new Date(log.created_at).toLocaleString()}
+                </span>
 
-    <p className="mt-3 text-sm text-slate-700 leading-relaxed">
-      {log.description}
-    </p>
-
-    <div className="mt-4 flex flex-wrap gap-2">
-
-      <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-500 border border-slate-200">
-        👤 {log.performed_by}
-      </span>
-
-      {log.target_entity && (
-        <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-500 border border-slate-200">
-          🎯 {log.target_entity}
-        </span>
-      )}
-
-    </div>
-
-  </div>
-</>
+                {log.ip_address && (
+                  <>
+                    <span>•</span>
+                    <span title="Source IP">
+                      🌐 {log.ip_address}
+                    </span>
+                  </>
+                )}
+              </div>
             </li>
           ))}
         </ul>
