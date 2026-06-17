@@ -14,8 +14,8 @@ Return ONLY a valid JSON object with this exact structure. No extra text, no mar
   "stages": [
     {{
       "order": 1,
-      "name": "STAGE_NAME",
-      "label": "Human readable label for the stage, e.g. 'Qualifier Round', 'Semi Finals', 'Grand Finale'",
+      "name": "STAGE_NAME — use clean names like 'Registration', 'Team Formation', 'Round 1 - Problem Statement Submission'. Never append the word 'stage' to the name.",
+      "label": "Same as name. Clean and concise. e.g. 'Registration', 'Team Formation', 'Round 1 - Problem Statement Submission'.",
       "description": "A specific description of what happens in this stage."
     }}
   ],

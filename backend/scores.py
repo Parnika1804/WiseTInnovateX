@@ -379,7 +379,7 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
     if advancement_rules and len(advancement_rules) >= current_round:
         current_rule_str = advancement_rules[current_round - 1].get("rule", "final round").lower()
         
-    if "final" in current_rule_str or current_round >= len(advancement_rules):
+    if "final" in current_rule_str or current_round > len(advancement_rules):
         is_final_round = True
 
     # Regular qualified teams only (exclude SM teams from main finalization)

@@ -7,6 +7,7 @@ from typing import Optional
 import csv
 import io
 import json
+from teams import assign_mentors_to_teams
 
 router = APIRouter()
 
@@ -29,6 +30,12 @@ async def upload_mentors(file: UploadFile = File(...), db: Session = Depends(get
         added += 1
 
     db.commit()
+
+    all_teams = db.query(Team).all()
+    mentored_team_ids = {m.assigned_team_id for m in db.query(Mentor).filter(Mentor.assigned_team_id != None).all()}
+    unmentored_teams = [t for t in all_teams if t.id not in mentored_team_ids]
+    assign_mentors_to_teams(db, unmentored_teams)
+
     return {"message": f"{added} mentors uploaded successfully"}
 
 

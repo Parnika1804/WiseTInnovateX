@@ -131,8 +131,8 @@ def _compute_pipeline_status(config, db: Session) -> dict:
 
     # DB checks
     participant_count = db.query(Participant).filter(Participant.registration_status == 'approved').count()
-    all_teams = db.query(Team).filter(Team.status == "APPROVED").all()
-    approved_teams = all_teams
+    approved_teams = db.query(Team).filter(Team.status == "APPROVED").all()
+    all_teams = db.query(Team).all()
     
     results_finalized = db.query(ActivityLog).filter(
         ActivityLog.action == "EVALUATION_FINALIZED"
@@ -154,7 +154,7 @@ def _compute_pipeline_status(config, db: Session) -> dict:
 
         is_registration = "registr" in label or "registr" in name
         is_team = "team" in label or "team" in name
-        is_result = "result" in label or "result" in name or "final" in label or "winner" in label
+        is_result = "result" in label or "result" in name or "winner" in label
         is_evaluation = (
             "eval" in label or "eval" in name or
             "judg" in label or "judg" in name or
@@ -222,7 +222,7 @@ def _compute_pipeline_status(config, db: Session) -> dict:
     current_stage_name = active_stages[0]["name"] if active_stages else stages_with_status[-1]["name"]
     current_stage_index = next(
         (i for i, s in enumerate(stages_with_status) if s["status"] == "ACTIVE"),
-        len(stages_with_status) - 1
+        next((i for i, s in enumerate(stages_with_status) if s["status"] == "COMPLETED"), 0)
     )
 
     return {
