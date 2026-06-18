@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const ApproveRejectButtons = ({ teamId, currentStatus, onStatusChange }) => {
   const [loading, setLoading] = useState(false);
@@ -7,10 +8,16 @@ const ApproveRejectButtons = ({ teamId, currentStatus, onStatusChange }) => {
   const handleAction = async (action) => {
     setLoading(true);
     try {
-      await axios.post('http://localhost:8000/teams/approve', {
+      const res = await axios.post('http://localhost:8000/teams/approve', {
         team_id: teamId,
         action: action
       });
+      
+      // Trigger Toast for drafted emails
+      if (res.data?.emails_drafted) {
+        notifyEmailDraft(res.data.emails_drafted);
+      }
+
       if (onStatusChange) onStatusChange();
     } catch (err) {
       console.error(`Error marking team as ${action}:`, err);

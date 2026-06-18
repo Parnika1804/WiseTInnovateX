@@ -12,7 +12,8 @@ router = APIRouter()
 
 SECRET_KEY = "eventflow-secret-key-2026"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+# Bumping expiry to 7 days to accommodate approval workflows
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 
 def _pre_hash(password: str) -> bytes:
@@ -112,7 +113,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/auth/create-judge")
 def create_judge(request: CreateJudgeRequest, db: Session = Depends(get_db)):
     """
-    Creates (or reuses) a Judge user and emails them a magic link to the portal.
+    Creates (or reuses) a Judge user and queues a magic link email for approval.
     Judges evaluate ALL teams — no team_id assignment.
     Always encodes request.name in the token so the portal shows the correct
     judge name even if a User record with that email already existed.
@@ -145,7 +146,7 @@ def create_judge(request: CreateJudgeRequest, db: Session = Depends(get_db)):
     magic_link = f"http://localhost:5173/judge-dashboard?token={token}"
 
     try:
-        from email_service import send_email
+        from email_triggers import _save_as_draft
         subject = "Judge Invitation — EventFlow Evaluation Portal"
         body = f"""Hello {request.name},
 
@@ -157,16 +158,14 @@ Access your Judge Portal here:
 
 Please do not share this link — it is uniquely tied to your evaluation session.
 """
-        result = send_email(to_email=request.email, subject=subject, body=body)
-        if result.get("success"):
-            print(f"✅ Judge magic link sent to {request.email}")
-        else:
-            print(f"❌ Email failed: {result.get('error')}")
+        _save_as_draft(db, to_email=request.email, subject=subject, body=body, comm_type="JUDGE_INVITATION")
+        print(f"✅ Judge magic link queued for {request.email}")
     except Exception as e:
-        print(f"❌ Failed to send Judge email: {e}")
+        print(f"❌ Failed to draft Judge email: {e}")
 
     return {
-        "message": f"Magic link dispatched to {request.name}",
+        "message": f"Magic link queued for approval for {request.name}",
+        "judge_invite_emails_drafted": 1,
         "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role}
     }
 

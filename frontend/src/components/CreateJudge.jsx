@@ -11,11 +11,11 @@ const CreateJudge = () => {
   const handleCreateJudge = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setStatus({ message: 'Generating magic link and dispatching email...', type: 'info' });
+    setStatus({ message: 'Generating magic link and queuing email for approval...', type: 'info' });
 
     try {
       const res = await axios.post('http://localhost:8000/auth/create-judge', { name, email });
-      setStatus({ message: '✅ Judge invited! Magic link emailed successfully.', type: 'success' });
+      setStatus({ message: '✅ Judge invited! Magic link queued for approval. Go to Comms to review.', type: 'success' });
 
       // Trigger Toast
       const count = res.data?.judge_invite_emails_drafted || 1;
@@ -32,7 +32,6 @@ const CreateJudge = () => {
     }
   };
 
-  // ... (Rest of the JSX remains exactly the same)
   return (
     <div
       className="
@@ -164,7 +163,7 @@ const CreateJudge = () => {
             disabled:cursor-not-allowed
           "
         >
-          {loading ? 'Dispatching...' : 'Generate & Send Magic Link'}
+          {loading ? 'Queuing...' : 'Generate & Draft Magic Link'}
         </button>
 
         {status.message && (

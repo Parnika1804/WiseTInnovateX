@@ -283,6 +283,7 @@ def approve_reject_team(request: ApproveRejectRequest, background_tasks: Backgro
 
     background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
     
+    draft_count = 0
     try:
         from email_triggers import _save_as_draft
         config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
@@ -290,6 +291,7 @@ def approve_reject_team(request: ApproveRejectRequest, background_tasks: Backgro
         
         member_ids = json.loads(team.member_ids)
         members = db.query(Participant).filter(Participant.id.in_(member_ids)).all()
+        draft_count = len(members)
         
         if request.action == "APPROVED":
             member_names = [m.name for m in members]
@@ -328,7 +330,12 @@ Write a concise email (2-3 sentences) explaining that their team formation was r
     except Exception as e:
         print(f"[TEAM STATUS EMAIL ERROR] {e}")
 
-    return {"message": f"Team {team.name} has been {request.action}", "team_id": team.id, "status": team.status}
+    return {
+        "message": f"Team {team.name} has been {request.action}", 
+        "team_id": team.id, 
+        "status": team.status,
+        "emails_drafted": draft_count
+    }
 
 
 @router.patch("/teams/move-member")
