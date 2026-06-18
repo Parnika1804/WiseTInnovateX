@@ -45,8 +45,8 @@ const ParticipantTable = ({ refreshTrigger }) => {
 
   if (participants.length === 0) {
     return (
-      <div className="text-center p-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-        <p className="text-slate-500 font-medium">No participants uploaded yet. Upload a CSV to populate the roster.</p>
+      <div className="text-center p-8 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 transition-colors duration-300">
+        <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors duration-300">No participants uploaded yet. Upload a CSV to populate the roster.</p>
       </div>
     );
   }
@@ -54,50 +54,50 @@ const ParticipantTable = ({ refreshTrigger }) => {
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-        <h3 className="text-lg font-bold text-slate-800">Active Roster ({participants.length})</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 transition-colors duration-300">Active Roster ({participants.length})</h3>
         <button
           onClick={handleClearAll}
-          className="text-sm px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors border border-red-200 w-full sm:w-auto"
+          className="text-sm px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg font-semibold transition-colors duration-300 border border-red-200 dark:border-red-800/50 w-full sm:w-auto"
         >
           Clear All
         </button>
       </div>
       
-      <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
-        <table className="w-full text-left border-collapse bg-white min-w-[600px]">
+      <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-colors duration-300">
+        <table className="w-full text-left border-collapse bg-white dark:bg-slate-800 min-w-[600px] transition-colors duration-300">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Hacker</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Skill Track</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Institution</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Experience</th>
-              <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">
+              <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Hacker</th>
+              <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Skill Track</th>
+              <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Institution</th>
+              <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Experience</th>
+              <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {participants.map(p => (
-              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+              <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-300">
                 <td className="p-4">
-                  <div className="font-bold text-slate-800">{p.name}</div>
-                  <div className="text-xs text-slate-500">{p.email}</div>
+                  <div className="font-bold text-slate-800 dark:text-slate-200 transition-colors duration-300">{p.name}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 transition-colors duration-300">{p.email}</div>
                 </td>
                 <td className="p-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 transition-colors duration-300">
                     {p.skill}
                   </span>
                 </td>
                 <td className="p-4">
-                  <div className="text-sm text-slate-700 font-medium">{p.institution || 'N/A'}</div>
+                  <div className="text-sm text-slate-700 dark:text-slate-300 font-medium transition-colors duration-300">{p.institution || 'N/A'}</div>
                 </td>
                 <td className="p-4">
-                  <div className="text-sm text-slate-700">
+                  <div className="text-sm text-slate-700 dark:text-slate-300 transition-colors duration-300">
                     {p.experience_level ? (
                       <span className="font-medium">{p.experience_level}</span>
                     ) : (
-                      <span className="text-slate-400 italic">Level Not Provided</span>
+                      <span className="text-slate-400 dark:text-slate-500 italic">Level Not Provided</span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium transition-colors duration-300">
                     {p.prior_hackathons} Prior Hackathon{p.prior_hackathons !== 1 && 's'}
                   </div>
                 </td>
@@ -105,7 +105,7 @@ const ParticipantTable = ({ refreshTrigger }) => {
                   <button
                     onClick={() => handleDelete(p.id, p.name)}
                     disabled={loadingId === p.id}
-                    className="text-xs px-3 py-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-md font-bold transition-colors border border-slate-200 hover:border-red-200 disabled:opacity-50"
+                    className="text-xs px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md font-bold transition-colors duration-300 border border-slate-200 dark:border-slate-600 hover:border-red-200 dark:hover:border-red-800/50 disabled:opacity-50"
                   >
                     {loadingId === p.id ? 'Removing...' : 'Remove'}
                   </button>

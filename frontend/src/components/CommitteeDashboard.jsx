@@ -13,9 +13,10 @@ const API = 'http://localhost:8000';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'judges', label: 'Judges' },
   { id: 'mentors', label: 'Mentors' },
   { id: 'special-mentions', label: 'Special Mentions' },
-  { id: 'feedback', label: 'Feedback' }, 
+  { id: 'feedback', label: 'Feedback' },
 ];
 
 const SpecialMentions = () => {
@@ -58,62 +59,63 @@ const SpecialMentions = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Nominations</p>
-          <p className="text-3xl font-black text-slate-800">{nominations.length}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm transition-colors duration-300">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Nominations</p>
+          <p className="text-3xl font-black text-slate-800 dark:text-slate-100">{nominations.length}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pending Review</p>
-          <p className="text-3xl font-black text-amber-500">{pending.length}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm transition-colors duration-300">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Pending Review</p>
+          <p className="text-3xl font-black text-amber-500 dark:text-amber-400">{pending.length}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Approved</p>
-          <p className="text-3xl font-black text-green-600">{nominations.filter(n => n.status === 'APPROVED').length}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm transition-colors duration-300">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Approved</p>
+          <p className="text-3xl font-black text-green-600 dark:text-green-400">{nominations.filter(n => n.status === 'APPROVED').length}</p>
         </div>
       </div>
 
       {actionStatus && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${
-          actionStatus.startsWith('Success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
+        <div className={`p-3 rounded-lg text-sm font-medium transition-colors duration-300 ${actionStatus.startsWith('Success')
+            ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+            : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+          }`}>
           {actionStatus}
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800">Pending Nominations</h3>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden transition-colors duration-300">
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 transition-colors duration-300">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Pending Nominations</h3>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-slate-400">Loading nominations...</div>
+          <div className="p-8 text-center text-slate-400 dark:text-slate-500">Loading nominations...</div>
         ) : pending.length === 0 ? (
           <div className="p-10 text-center">
-            <p className="text-slate-500 font-medium">No pending nominations.</p>
-            <p className="text-slate-400 text-sm mt-1">Mentor nominations will appear here after elimination rounds.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">No pending nominations.</p>
+            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Mentor nominations will appear here after elimination rounds.</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {pending.map(n => (
               <div key={n.id} className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="font-bold text-slate-800">{n.team_name}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-bold">PENDING</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-100">{n.team_name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 font-bold">PENDING</span>
                     </div>
-                    <p className="text-sm text-slate-500 mb-3">
-                      Nominated by mentor <strong className="text-slate-700">{n.mentor_name}</strong>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                      Nominated by mentor <strong className="text-slate-700 dark:text-slate-300">{n.mentor_name}</strong>
                     </p>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {n.nominated_members.map(m => (
-                        <span key={m.id} className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-semibold">
+                        <span key={m.id} className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 rounded-full text-xs font-semibold">
                           {m.name} · {m.skill}
                         </span>
                       ))}
                     </div>
-                    <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Mentor's Reason</p>
-                      <p className="text-sm text-slate-700">{n.mentor_reason}</p>
+                    <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 rounded-lg p-3 transition-colors duration-300">
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Mentor's Reason</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{n.mentor_reason}</p>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 min-w-fit">
@@ -122,7 +124,7 @@ const SpecialMentions = () => {
                       Approve
                     </button>
                     <button onClick={() => handleAction(n.id, 'REJECTED')}
-                      className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold rounded-lg transition-colors">
+                      className="px-4 py-2 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-sm font-bold rounded-lg transition-colors">
                       Reject
                     </button>
                   </div>
@@ -134,31 +136,30 @@ const SpecialMentions = () => {
       </div>
 
       {reviewed.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h3 className="text-lg font-bold text-slate-800">Reviewed Nominations</h3>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden transition-colors duration-300">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 transition-colors duration-300">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Reviewed Nominations</h3>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {reviewed.map(n => (
               <div key={n.id} className="p-6 flex items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <span className="font-bold text-slate-800">{n.team_name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${
-                      n.status === 'APPROVED'
-                        ? 'bg-green-100 text-green-700 border-green-200'
-                        : 'bg-red-100 text-red-700 border-red-200'
-                    }`}>
+                    <span className="font-bold text-slate-800 dark:text-slate-100">{n.team_name}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold border transition-colors duration-300 ${n.status === 'APPROVED'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/50'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50'
+                      }`}>
                       {n.status}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500">
-                    Mentor: <strong className="text-slate-700">{n.mentor_name}</strong>
-                    {n.reviewed_by && <span> · Reviewed by <strong className="text-slate-700">{n.reviewed_by}</strong></span>}
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Mentor: <strong className="text-slate-700 dark:text-slate-300">{n.mentor_name}</strong>
+                    {n.reviewed_by && <span> · Reviewed by <strong className="text-slate-700 dark:text-slate-300">{n.reviewed_by}</strong></span>}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {n.nominated_members.map(m => (
-                      <span key={m.id} className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
+                      <span key={m.id} className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border border-transparent dark:border-slate-600 rounded-full text-xs font-medium transition-colors duration-300">
                         {m.name}
                       </span>
                     ))}
@@ -196,9 +197,9 @@ const FeedbackSummary = () => {
     return (
       <div className="mb-5">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-semibold text-slate-700">{label}</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</p>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-800">{value ? value.toFixed(1) : 'N/A'} / 5</span>
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{value ? value.toFixed(1) : 'N/A'} / 5</span>
           </div>
         </div>
         {breakdown && total > 0 && (
@@ -207,11 +208,11 @@ const FeedbackSummary = () => {
               const count = breakdown[String(star)] || 0;
               const pct = total > 0 ? (count / total) * 100 : 0;
               return (
-                <div key={star} className="flex items-center gap-2 text-xs text-slate-500">
+                <div key={star} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span className="w-6 text-right">{star} Pt</span>
-                  <div className="flex-1 bg-slate-100 rounded-full h-2">
+                  <div className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full h-2">
                     <div
-                      className="bg-slate-400 h-2 rounded-full transition-all"
+                      className="bg-slate-400 dark:bg-blue-500 h-2 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -225,34 +226,34 @@ const FeedbackSummary = () => {
     );
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-400">Loading feedback...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-400 dark:text-slate-500">Loading feedback...</div>;
 
   if (!summary || summary.total_responses === 0) return (
-    <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm">
-      <h3 className="text-lg font-bold text-slate-800 mb-2">No Feedback Yet</h3>
-      <p className="text-slate-500 text-sm">Feedback forms appear on participant portals once results are finalized. Responses will show up here automatically.</p>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-12 text-center shadow-sm transition-colors duration-300">
+      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">No Feedback Yet</h3>
+      <p className="text-slate-500 dark:text-slate-400 text-sm">Feedback forms appear on participant portals once results are finalized. Responses will show up here automatically.</p>
     </div>
   );
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Responses</p>
-          <p className="text-4xl font-black text-slate-800">{summary.total_responses}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm text-center transition-colors duration-300">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Responses</p>
+          <p className="text-4xl font-black text-slate-800 dark:text-slate-100">{summary.total_responses}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg Event Rating</p>
-          <p className="text-3xl font-black text-slate-700">{summary.avg_event_rating?.toFixed(1) ?? '—'}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm text-center transition-colors duration-300">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Avg Event Rating</p>
+          <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{summary.avg_event_rating?.toFixed(1) ?? '—'}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg Judging Rating</p>
-          <p className="text-3xl font-black text-slate-700">{summary.avg_judging_rating?.toFixed(1) ?? '—'}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm text-center transition-colors duration-300">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Avg Judging Rating</p>
+          <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{summary.avg_judging_rating?.toFixed(1) ?? '—'}</p>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3">Rating Breakdown</h3>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm transition-colors duration-300">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-5 border-b border-slate-100 dark:border-slate-700 pb-3 transition-colors duration-300">Rating Breakdown</h3>
         <RatingBar label="Overall Event" value={summary.avg_event_rating} breakdown={summary.breakdown?.event} />
         <RatingBar label="Judging Process" value={summary.avg_judging_rating} breakdown={summary.breakdown?.judging} />
         {summary.avg_mentor_rating !== null && (
@@ -261,23 +262,23 @@ const FeedbackSummary = () => {
       </div>
 
       {summary.comments?.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-800">Participant Comments</h3>
-            <span className="text-sm text-slate-500">{summary.comments.length} comment{summary.comments.length !== 1 ? 's' : ''}</span>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden transition-colors duration-300">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center transition-colors duration-300">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Participant Comments</h3>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{summary.comments.length} comment{summary.comments.length !== 1 ? 's' : ''}</span>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {summary.comments.map((c, idx) => (
               <div key={idx} className="p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-semibold text-slate-800 text-sm">{c.participant_name}</p>
-                  <div className="flex gap-3 text-xs text-slate-500">
-                    <span>Event: <strong className="text-slate-700">{c.event_rating}/5</strong></span>
-                    <span>Judging: <strong className="text-slate-700">{c.judging_rating}/5</strong></span>
-                    {c.mentor_rating && <span>Mentor: <strong className="text-slate-700">{c.mentor_rating}/5</strong></span>}
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{c.participant_name}</p>
+                  <div className="flex gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    <span>Event: <strong className="text-slate-700 dark:text-slate-300">{c.event_rating}/5</strong></span>
+                    <span>Judging: <strong className="text-slate-700 dark:text-slate-300">{c.judging_rating}/5</strong></span>
+                    {c.mentor_rating && <span>Mentor: <strong className="text-slate-700 dark:text-slate-300">{c.mentor_rating}/5</strong></span>}
                   </div>
                 </div>
-                <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-3 border border-slate-100">
+                <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 rounded-lg px-4 py-3 border border-slate-100 dark:border-slate-700 transition-colors duration-300">
                   "{c.comment}"
                 </p>
               </div>
@@ -289,7 +290,7 @@ const FeedbackSummary = () => {
       <div className="text-right">
         <button
           onClick={fetchSummary}
-          className="text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors"
+          className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
         >
           Refresh Data
         </button>
@@ -331,9 +332,9 @@ const CommitteeDashboard = () => {
     <div className="mt-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-gray-800">Command Center</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 transition-colors duration-300">Command Center</h2>
           {wsStatus === 'open' && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 transition-colors duration-300">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
               Live updates ON
             </span>
@@ -341,7 +342,7 @@ const CommitteeDashboard = () => {
         </div>
         <button
           onClick={handleFactoryReset}
-          className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
+          className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
         >
           Start New Event (Reset Data)
         </button>
@@ -349,34 +350,32 @@ const CommitteeDashboard = () => {
 
       <PipelineBar key={`pipeline-${refresh}`} />
 
-      <div className="mt-6 mb-6 border-b border-slate-200 w-full overflow-hidden">
-  <div className="flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-px">
-    {TABS.map(tab => (
-      <button
-        key={tab.id}
-        onClick={() => setActiveTab(tab.id)}
-        className={`px-5 py-3 sm:py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 outline-none flex-shrink-0 ${
-          activeTab === tab.id
-            ? 'border-slate-800 text-slate-800 bg-white'
-            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-        }`}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-</div>
+      <div className="mt-6 mb-6 border-b border-slate-200 dark:border-slate-700 w-full overflow-hidden transition-colors duration-300">
+        <div className="flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-px">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-5 py-3 sm:py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 outline-none flex-shrink-0 ${activeTab === tab.id
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 transition-colors duration-300">
               <CSVUpload onUploadSuccess={handleAction} />
               <div className="mt-6">
                 <ParticipantTable refreshTrigger={refresh} />
               </div>
             </div>
-            <CreateJudge />
           </div>
           <div className="space-y-6">
             <PendingApprovals onAction={handleAction} />
@@ -384,7 +383,11 @@ const CommitteeDashboard = () => {
           </div>
         </div>
       )}
-
+      {activeTab === 'judges' && (
+        <div className="max-w-xl">
+          <CreateJudge />
+        </div>
+      )}
       {activeTab === 'mentors' && <MentorManager />}
       {activeTab === 'special-mentions' && <SpecialMentions />}
       {activeTab === 'feedback' && <FeedbackSummary />}

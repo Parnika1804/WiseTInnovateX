@@ -4,8 +4,8 @@ const DynamicPipelineBar = ({ stages = [], currentStageIndex = 0 }) => {
   // Enterprise-ready UX: Handle the case where no stages are configured yet
   if (!stages || stages.length === 0) {
     return (
-      <div className="w-full p-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 mb-8">
-        <svg className="w-12 h-12 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <div className="w-full p-8 bg-gray-50 dark:bg-slate-800 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-gray-500 dark:text-slate-400 mb-8 transition-colors duration-300">
+        <svg className="w-12 h-12 mb-3 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
         </svg>
         <p className="font-medium">No event pipeline configured.</p>
@@ -19,11 +19,11 @@ const DynamicPipelineBar = ({ stages = [], currentStageIndex = 0 }) => {
       <div className="relative flex items-center justify-between w-full max-w-4xl mx-auto">
         
         {/* Background Track Line */}
-        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 z-0 rounded-full"></div>
+        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 dark:bg-slate-700 z-0 rounded-full transition-colors duration-300"></div>
         
         {/* Active Progress Line */}
         <div 
-          className="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 z-0 rounded-full transition-all duration-700 ease-in-out" 
+          className="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 dark:bg-blue-500 z-0 rounded-full transition-all duration-700 ease-in-out" 
           style={{ width: `${(currentStageIndex / (stages.length - 1)) * 100}%` }}
         ></div>
 
@@ -39,10 +39,10 @@ const DynamicPipelineBar = ({ stages = [], currentStageIndex = 0 }) => {
               <div 
                 className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm transition-all duration-300 ${
                   isActive 
-                    ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110' 
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white ring-4 ring-blue-100 dark:ring-blue-900/50 scale-110' 
                     : isCompleted 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-400 border-2 border-gray-300'
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white' 
+                    : 'bg-white dark:bg-slate-800 text-gray-400 dark:text-slate-500 border-2 border-gray-300 dark:border-slate-700'
                 }`}
               >
                 {isCompleted ? (
@@ -54,12 +54,12 @@ const DynamicPipelineBar = ({ stages = [], currentStageIndex = 0 }) => {
               
               {/* Stage Label */}
               <span 
-                className={`absolute top-12 mt-1 text-xs font-semibold whitespace-nowrap px-2 py-1 rounded transition-colors ${
+                className={`absolute top-12 mt-1 text-xs font-semibold whitespace-nowrap px-2 py-1 rounded transition-colors duration-300 ${
                   isActive 
-                    ? 'text-blue-700 bg-blue-50' 
+                    ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30' 
                     : isCompleted 
-                    ? 'text-gray-700' 
-                    : 'text-gray-400'
+                    ? 'text-gray-700 dark:text-slate-300' 
+                    : 'text-gray-400 dark:text-slate-500'
                 }`}
               >
                 {stage}

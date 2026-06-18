@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', 
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,7 +8,6 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // This overrides the default Tailwind 'font-sans' with Inter
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },

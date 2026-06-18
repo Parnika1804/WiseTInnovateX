@@ -44,26 +44,26 @@ const CommsLogTable = ({ refreshTrigger }) => {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'SENT': return <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold border border-green-200">Sent</span>;
-      case 'FAILED': return <span className="px-2.5 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold border border-red-200">Failed</span>;
-      case 'PENDING_APPROVAL': return <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold border border-amber-200">Pending Approval</span>;
-      default: return <span className="px-2.5 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold border border-gray-200">{status}</span>;
+      case 'SENT': return <span className="px-2.5 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-xs font-bold border border-green-200 dark:border-green-800/50 transition-colors duration-300">Sent</span>;
+      case 'FAILED': return <span className="px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 rounded-full text-xs font-bold border border-red-200 dark:border-red-800/50 transition-colors duration-300">Failed</span>;
+      case 'PENDING_APPROVAL': return <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-full text-xs font-bold border border-amber-200 dark:border-amber-800/50 transition-colors duration-300">Pending Approval</span>;
+      default: return <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-700 transition-colors duration-300">{status}</span>;
     }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors duration-300">
+      <div className="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between transition-colors duration-300">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-bold text-gray-800 m-0">Communication Logs</h3>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 m-0 transition-colors duration-300">Communication Logs</h3>
           {wsStatus === 'open' && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 transition-colors duration-300">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
               Live Tracking
             </span>
           )}
         </div>
-        <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-3 py-1 rounded-full transition-colors duration-300">
           Total Logs: {logs.length}
         </span>
       </div>
@@ -71,30 +71,30 @@ const CommsLogTable = ({ refreshTrigger }) => {
       <div className="overflow-x-auto">
         <div className="max-h-[600px] overflow-y-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm z-10 shadow-sm transition-colors duration-300">
               <tr>
-                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200">Recipient</th>
-                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200">Subject</th>
-                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200">Type</th>
-                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200">Status</th>
-                <th className="p-4 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200 text-center">Actions</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">Recipient</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">Subject</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">Type</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 transition-colors duration-300">Status</th>
+                <th className="p-4 font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 text-center transition-colors duration-300">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-gray-400 font-medium bg-white">No communications logged yet.</td>
+                  <td colSpan="5" className="p-8 text-center text-slate-400 dark:text-slate-500 font-medium bg-white dark:bg-slate-800 transition-colors duration-300">No communications logged yet.</td>
                 </tr>
               ) : (
                 logs.map((log) => (
                   <tr key={log.id} 
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors text-sm ${
-                      log.status === 'PENDING_APPROVAL' ? 'bg-amber-50/40' : ''
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-sm ${
+                      log.status === 'PENDING_APPROVAL' ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''
                     }`}>
-                    <td className="p-4 text-gray-800">{log.recipient_email}</td>
-                    <td className="p-4 text-gray-600 truncate max-w-xs" title={log.subject}>{log.subject}</td>
+                    <td className="p-4 text-slate-800 dark:text-slate-200 transition-colors duration-300">{log.recipient_email}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-300 truncate max-w-xs transition-colors duration-300" title={log.subject}>{log.subject}</td>
                     <td className="p-4">
-                      <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                      <span className="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-transparent dark:border-blue-800/50 rounded-full text-xs font-medium transition-colors duration-300">
                         {getTypeBadge(log.comm_type)}
                       </span>
                     </td>
@@ -103,7 +103,7 @@ const CommsLogTable = ({ refreshTrigger }) => {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleDeleteLog(log.id)}
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition-colors text-xs font-semibold"
+                          className="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded-md transition-colors text-xs font-semibold"
                         >
                           Delete
                         </button>

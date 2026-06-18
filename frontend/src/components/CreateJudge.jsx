@@ -16,7 +16,7 @@ const CreateJudge = () => {
     try {
       const res = await axios.post('http://localhost:8000/auth/create-judge', { name, email });
       setStatus({ message: '✅ Judge invited! Magic link emailed successfully.', type: 'success' });
-      
+
       // Trigger Toast
       const count = res.data?.judge_invite_emails_drafted || 1;
       notifyEmailDraft(count);
@@ -34,44 +34,184 @@ const CreateJudge = () => {
 
   // ... (Rest of the JSX remains exactly the same)
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-      <h3 className="text-xl font-bold mb-1">Invite a Judge</h3>
-      <p className="text-gray-500 mb-4 text-sm">
+    <div
+      className="
+        bg-white/80
+        dark:bg-slate-900/80
+
+        backdrop-blur-md
+
+        border
+        border-slate-200
+        dark:border-slate-800
+
+        rounded-2xl
+
+        shadow-sm
+
+        p-6
+        mb-6
+      "
+    >      <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">Invite a Judge</h3>
+      <p className="text-slate-500 dark:text-slate-400 mb-5 text-sm">
         Enter the evaluator's details. They will receive a secure magic link granting access to evaluate <strong>all teams</strong>.
       </p>
 
       <form onSubmit={handleCreateJudge} className="space-y-4 max-w-md">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Judge Name</label>
-          <input
-            type="text" required value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="e.g., Dr. Alan Turing"
-          />
+          <label
+  className="
+    block
+    text-sm
+    font-medium
+    text-slate-700
+    dark:text-slate-300
+    mb-2
+  "
+>Judge's Full Name</label>
+<input
+  type="text" required value={name} onChange={(e) => setName(e.target.value)}
+              className="
+              w-full
+              p-3
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:border-blue-500
+
+              outline-none
+
+              transition-all
+            "
+              placeholder="e.g., Dr. Alan Turing"
+            />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <label className="
+              block
+              text-sm
+              font-medium
+
+              text-slate-700
+              dark:text-slate-300
+
+              mb-2
+            ">Email Address</label>
           <input
             type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            className="
+              w-full
+              p-3
+
+              bg-white
+              dark:bg-slate-800
+
+              text-slate-900
+              dark:text-slate-100
+
+              border
+              border-slate-200
+              dark:border-slate-700
+
+              rounded-xl
+
+              focus:ring-2
+              focus:ring-blue-500
+
+              focus:border-blue-500
+
+              outline-none
+
+              transition-all
+            "
             placeholder="judge@university.edu"
           />
         </div>
 
         <button
           type="submit" disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold disabled:bg-blue-300 transition-colors"
+          className="
+            w-full
+
+            bg-blue-600
+            hover:bg-blue-700
+
+            text-white
+
+            py-3
+
+            rounded-xl
+
+            font-semibold
+
+            transition-all
+
+            disabled:bg-blue-400
+            disabled:cursor-not-allowed
+          "
         >
           {loading ? 'Dispatching...' : 'Generate & Send Magic Link'}
         </button>
 
         {status.message && (
-          <div className={`p-3 rounded-lg text-sm font-medium mt-2 ${
-            status.type === 'error' ? 'bg-red-50 text-red-700' :
-            status.type === 'success' ? 'bg-green-50 text-green-700' :
-            'bg-blue-50 text-blue-700'
-          }`}>
+          <div
+            className={`
+              p-4
+              rounded-xl
+              text-sm
+              font-medium
+              mt-2
+              border
+
+              ${status.type === 'error'
+                ? `
+                    bg-red-50
+                    dark:bg-red-950/30
+
+                    text-red-700
+                    dark:text-red-300
+
+                    border-red-200
+                    dark:border-red-900
+                  `
+                : status.type === 'success'
+                  ? `
+                    bg-green-50
+                    dark:bg-green-950/30
+
+                    text-green-700
+                    dark:text-green-300
+
+                    border-green-200
+                    dark:border-green-900
+                  `
+                  : `
+                    bg-blue-50
+                    dark:bg-blue-950/30
+
+                    text-blue-700
+                    dark:text-blue-300
+
+                    border-blue-200
+                    dark:border-blue-900
+                  `
+              }
+            `}
+          >
             {status.message}
           </div>
         )}

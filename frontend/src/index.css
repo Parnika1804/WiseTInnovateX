@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* 1. Tell Tailwind v4 to use 'Inter' as the default font */
 @theme {
@@ -27,4 +28,10 @@ body {
 /* 4. Ensure inputs and buttons inherit the crisp font */
 input, button, select, textarea {
   font-family: inherit;
+}
+/* Force solid background and remove gradients in dark mode */
+.dark body {
+  background-image: none !important;
+  background-color: #0f172a !important; /* Tailwind slate-900 */
+  color: #f8fafc !important; /* Tailwind slate-50 */
 }
