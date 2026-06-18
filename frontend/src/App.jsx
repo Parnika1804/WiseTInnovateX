@@ -43,7 +43,7 @@ const CommsLog = () => {
   const [refreshLog, setRefreshLog] = useState(0);
   return (
     <div>
-      <h2>Communications Center</h2>
+      <h2 className="text-2xl font-bold mb-6">Communications Center</h2>
       <CommsDraftForm onDraftSaved={() => setRefreshLog(prev => prev + 1)} />
       <CommsLogTable refreshTrigger={refreshLog} />
     </div>
