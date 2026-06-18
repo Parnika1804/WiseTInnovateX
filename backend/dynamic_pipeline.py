@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import EventConfig, Team, Score, CommunicationLog, Participant, ActivityLog, User, Mentor
+from models import EventConfig, Team, Score, CommunicationLog, Participant, ActivityLog, User, Mentor, SpecialMention
+from feedback import Feedback
 from pydantic import BaseModel
 from datetime import datetime
 from gemini_parser import parse_event_description
@@ -309,6 +310,8 @@ def reset_system(db: Session = Depends(get_db)):
     try:
         db.query(Score).delete()
         db.query(CommunicationLog).delete()
+        db.query(Feedback).delete()
+        db.query(SpecialMention).delete()
         db.query(Team).delete()
         db.query(Mentor).delete()
         db.query(Participant).delete()
