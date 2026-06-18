@@ -22,23 +22,34 @@ const AssessmentGuide = ({ teamId }) => {
   };
 
   return (
-    <div style={{ padding: '15px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px', marginBottom: '20px' }}>
-      <h3 style={{ marginTop: 0 }}>✨ AI Assessment Guide</h3>
-      <p style={{ fontSize: '14px', color: '#555' }}>
+    <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl mb-5 shadow-sm transition-colors duration-300">
+      <h3 className="mt-0 text-lg font-bold text-slate-800 dark:text-slate-100 transition-colors mb-2">
+        ✨ AI Assessment Guide
+      </h3>
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 transition-colors">
         Enter a Team ID in the score form below, then click here to generate a custom evaluation rubric for their specific skill set.
       </p>
+      
       <button 
         onClick={fetchGuide} 
         disabled={loading || !teamId}
-        style={{ padding: '8px 16px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: (!teamId || loading) ? 'not-allowed' : 'pointer' }}
+        className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-colors ${
+          (!teamId || loading) 
+            ? 'bg-slate-300 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed' 
+            : 'bg-cyan-600 hover:bg-cyan-700'
+        }`}
       >
         {loading ? 'Generating...' : 'Generate Rubric for this Team'}
       </button>
 
-      {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+      {error && (
+        <p className="text-red-600 dark:text-red-400 mt-3 text-sm font-medium transition-colors">
+          {error}
+        </p>
+      )}
 
       {guide && (
-        <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#f0f7ff', borderLeft: '4px solid #17a2b8', whiteSpace: 'pre-wrap', fontSize: '14px' }}>
+        <div className="mt-4 p-4 bg-cyan-50 dark:bg-cyan-900/10 border-l-4 border-cyan-500 text-slate-800 dark:text-slate-200 whitespace-pre-wrap text-sm rounded-r-lg transition-colors duration-300">
           {guide}
         </div>
       )}

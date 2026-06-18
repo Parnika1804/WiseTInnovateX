@@ -26,10 +26,20 @@ const GenerateTeamsButton = ({ onGenerated }) => {
   };
 
   return (
-    <div style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px dashed #ccc' }}>
-      <h3 style={{ marginTop: 0 }}>2. Auto-Generate Teams</h3>
-      <button onClick={handleGenerate} disabled={isGenerating} style={{ padding: '12px 24px', backgroundColor: '#28a745', color: 'white', fontSize: '16px', border: 'none', borderRadius: '5px', cursor: isGenerating ? 'not-allowed' : 'pointer' }}>
-        {isGenerating ? '🤖 AI is grouping...' : 'Generate Teams'}
+    <div className="mb-5 p-5 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-300 dark:border-slate-600 transition-colors duration-300">
+      <h3 className="mt-0 text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 transition-colors duration-300">
+        2. Auto-Generate Teams
+      </h3>
+      <button 
+        onClick={handleGenerate} 
+        disabled={isGenerating} 
+        className={`px-6 py-3 text-white text-base rounded-md transition-colors duration-300 ${
+          isGenerating 
+            ? 'bg-green-400 dark:bg-emerald-700/50 cursor-not-allowed' 
+            : 'bg-green-600 hover:bg-green-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 cursor-pointer'
+        }`}
+      >
+        {isGenerating ? ' AI is grouping...' : 'Generate Teams'}
       </button>
     </div>
   );

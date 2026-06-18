@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // Auth & Layout Imports
 import { AuthProvider } from './components/AuthContext';
+import { ThemeProvider } from './ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import Layout from './components/Layout';
@@ -65,37 +66,39 @@ const EvaluationResultsView = () => {
 // --- THE SECURE APP ROUTER ---
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public Login Route */}
-          <Route path="/login" element={<Login />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Public Login Route */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Fallback redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Fallback redirect */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-          {/* === COMMITTEE ONLY ROUTES === */}
-          <Route element={<ProtectedRoute allowedRoles={['Committee']}><Layout /></ProtectedRoute>}>
-            <Route path="/dashboard" element={<CommitteeDashboard />} />
-            <Route path="/setup" element={<EventDescriptionForm onConfigExtracted={(data) => console.log("Config:", data)} />} />
-            <Route path="/teams" element={<TeamView />} />
-            <Route path="/comms" element={<CommsLog />} />
-            {/* The Committee checks the results, but doesn't grade */}
-            <Route path="/evaluation" element={<EvaluationResultsView />} />
-          </Route>
+            {/* === COMMITTEE ONLY ROUTES === */}
+            <Route element={<ProtectedRoute allowedRoles={['Committee']}><Layout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<CommitteeDashboard />} />
+              <Route path="/setup" element={<EventDescriptionForm onConfigExtracted={(data) => console.log("Config:", data)} />} />
+              <Route path="/teams" element={<TeamView />} />
+              <Route path="/comms" element={<CommsLog />} />
+              {/* The Committee checks the results, but doesn't grade */}
+              <Route path="/evaluation" element={<EvaluationResultsView />} />
+            </Route>
 
-          {/* === JUDGE MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
-          <Route path="/judge-dashboard" element={<JudgePortal />} />
+            {/* === JUDGE MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
+            <Route path="/judge-dashboard" element={<JudgePortal />} />
 
-          {/* === PARTICIPANT MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
-          <Route path="/participant-portal" element={<ParticipantPortal />} />
+            {/* === PARTICIPANT MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
+            <Route path="/participant-portal" element={<ParticipantPortal />} />
 
-          {/* === MENTOR MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
-          <Route path="/mentor-portal" element={<MentorPortal />} />
+            {/* === MENTOR MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
+            <Route path="/mentor-portal" element={<MentorPortal />} />
 
-        </Routes>
-      </Router>
-    </AuthProvider>
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
