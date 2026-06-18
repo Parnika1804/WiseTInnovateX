@@ -72,58 +72,58 @@ const AITeamGenerator = ({ onTeamsGenerated }) => {
   const isJsonValid = !jsonError;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-      <h3 className="text-xl font-bold mb-2">AI Team Formation</h3>
-      <p className="text-gray-600 mb-4">Type a plain English requirement, and our AI will convert it into a strict formation rubric.</p>
+    <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+      <h3 className="text-xl font-bold mb-2 text-slate-800">AI Team Formation</h3>
+      <p className="text-slate-500 mb-5 text-sm sm:text-base">Type a plain English requirement, and our AI will convert it into a strict formation rubric.</p>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
           placeholder="e.g., form teams of 4 with diverse skills, no two people from same college"
-          className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           onClick={handleAskAI}
           disabled={loadingAI || !prompt}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold disabled:bg-blue-300 transition-colors"
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold disabled:bg-blue-300 transition-colors w-full sm:w-auto shrink-0 shadow-sm"
         >
           {loadingAI ? 'Thinking...' : 'Draft Rubric'}
         </button>
       </div>
 
       {error && (
-        <p className="text-red-500 mb-4 font-medium bg-red-50 border border-red-200 rounded-lg p-3">
+        <p className="text-red-600 mb-4 font-medium bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
           {error}
         </p>
       )}
 
       {rubric && (
         <div className="mt-6 animate-fade-in">
-          <label className="block text-sm font-bold text-gray-700 mb-2">
+          <label className="block text-sm font-bold text-slate-700 mb-2">
             AI Generated Rubric (Edit if needed):
           </label>
           <textarea
             value={rubric}
             onChange={handleRubricChange}
-            className={`w-full h-48 p-4 font-mono text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+            className={`w-full h-48 p-4 font-mono text-sm bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
               jsonError
                 ? 'border-red-400 focus:ring-red-400'
                 : 'border-green-400 focus:ring-green-500'
             }`}
           />
           {jsonError && (
-            <p className="text-red-500 text-xs mt-1 font-mono">{jsonError}</p>
+            <p className="text-red-500 text-xs mt-1.5 font-mono">{jsonError}</p>
           )}
           {!jsonError && (
-            <p className="text-green-600 text-xs mt-1">✓ Valid JSON</p>
+            <p className="text-green-600 text-xs mt-1.5 font-semibold">✓ Valid JSON</p>
           )}
           <button
             onClick={handleGenerateTeams}
             disabled={generating || !isJsonValid}
-            className="mt-4 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold disabled:bg-gray-300 disabled:cursor-not-allowed w-full transition-colors"
+            className="mt-5 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold disabled:bg-slate-300 disabled:cursor-not-allowed w-full transition-colors shadow-sm"
           >
             {generating ? 'Generating Teams...' : 'Confirm & Generate Teams'}
           </button>

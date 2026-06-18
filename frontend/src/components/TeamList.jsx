@@ -69,19 +69,14 @@ const TeamList = ({ refreshTrigger }) => {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '10px', marginBottom: '16px' }}>
-        <h3 style={{ margin: 0 }}>Review Proposed Teams ({teams.length})</h3>
+    <div className="w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b-2 border-slate-100 pb-4 mb-6 gap-4">
+        <h3 className="text-xl font-bold text-slate-800 m-0">Review Proposed Teams ({teams.length})</h3>
         {teams.length > 0 && (
           <button
             onClick={handleClearTeams}
             disabled={clearing}
-            style={{
-              backgroundColor: clearing ? '#aaa' : '#e53e3e',
-              color: 'white', border: 'none', padding: '6px 14px',
-              borderRadius: '6px', cursor: clearing ? 'not-allowed' : 'pointer',
-              fontSize: '13px', fontWeight: '600',
-            }}
+            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 disabled:bg-slate-400 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm"
           >
             {clearing ? 'Clearing...' : 'Clear All Teams'}
           </button>
@@ -89,68 +84,63 @@ const TeamList = ({ refreshTrigger }) => {
       </div>
 
       {moveStatus && (
-        <div style={{
-          marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
-          backgroundColor: moveStatus.startsWith('Success') ? '#d4edda' : '#f8d7da',
-          color: moveStatus.startsWith('Success') ? '#155724' : '#721c24',
-          border: `1px solid ${moveStatus.startsWith('Success') ? '#c3e6cb' : '#f5c6cb'}`
-        }}>
+        <div className={`mb-4 p-3 rounded-lg text-sm font-semibold border ${
+          moveStatus.startsWith('Success') ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
           {moveStatus}
         </div>
       )}
 
       {teams.length === 0 ? (
-        <p style={{ color: '#888', fontSize: '14px' }}>No teams generated yet. Use the AI Team Formation above to generate.</p>
+        <p className="text-slate-500 text-sm">No teams generated yet. Use the AI Team Formation above to generate.</p>
       ) : (
-        <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {teams.map((team) => (
-            <div key={team.id} style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div key={team.id} className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm flex flex-col">
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '10px' }}>
-                <h4 style={{ margin: 0 }}>{team.name}</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{
-                    padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold',
-                    backgroundColor: team.status === 'APPROVED' ? '#d4edda' : team.status === 'REJECTED' ? '#f8d7da' : '#fff3cd',
-                    color: team.status === 'APPROVED' ? '#155724' : team.status === 'REJECTED' ? '#721c24' : '#856404'
-                  }}>
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4 gap-3">
+                <h4 className="font-bold text-slate-800 m-0 truncate">{team.name}</h4>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    team.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
+                    team.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 
+                    'bg-amber-100 text-amber-800'
+                  }`}>
                     {team.status || 'PENDING'}
                   </span>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '10px' }}>
-                <strong style={{ fontSize: '13px' }}>Members:</strong>
-                <ul style={{ margin: '6px 0', paddingLeft: '0', listStyle: 'none', fontSize: '13px' }}>
+              <div className="mb-4 flex-1">
+                <strong className="text-sm text-slate-800 block mb-2">Members:</strong>
+                <ul className="space-y-2">
                   {team.members && team.members.length > 0
                     ? team.members.map((member) => (
-                      <li key={member.id} style={{ marginBottom: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8f9fa', padding: '6px 10px', borderRadius: '6px' }}>
-                          <span>
-                            <strong>{member.name}</strong>
-                            {member.skill && <span style={{ color: '#666', marginLeft: '6px', fontSize: '12px' }}>({member.skill})</span>}
+                      <li key={member.id}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100 gap-3">
+                          <span className="text-sm text-slate-800">
+                            <strong className="font-semibold">{member.name}</strong>
+                            {member.skill && <span className="text-slate-500 ml-1.5 text-xs">({member.skill})</span>}
                           </span>
                           <button
                             onClick={() => toggleMovePanel(member.id)}
-                            style={{
-                              fontSize: '11px', padding: '3px 8px', borderRadius: '5px', border: '1px solid #cbd5e0',
-                              backgroundColor: moveState[member.id]?.open ? '#e2e8f0' : '#fff',
-                              cursor: 'pointer', fontWeight: '600', color: '#4a5568'
-                            }}
+                            className={`text-xs px-3 py-1.5 rounded-md font-semibold transition-colors border w-full sm:w-auto shrink-0 ${
+                              moveState[member.id]?.open ? 'bg-slate-200 border-slate-300 text-slate-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                            }`}
                           >
                             {moveState[member.id]?.open ? 'Cancel' : 'Move'}
                           </button>
                         </div>
 
                         {moveState[member.id]?.open && (
-                          <div style={{ marginTop: '4px', padding: '8px', backgroundColor: '#eef2ff', borderRadius: '6px', border: '1px solid #c7d2fe', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                             <select
                               value={moveState[member.id]?.selectedTeam || ''}
                               onChange={(e) => setMoveState(prev => ({
                                 ...prev,
                                 [member.id]: { ...prev[member.id], selectedTeam: e.target.value }
                               }))}
-                              style={{ fontSize: '12px', padding: '4px 6px', borderRadius: '5px', border: '1px solid #a5b4fc', flex: 1 }}
+                              className="text-sm p-2 rounded-md border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white flex-1"
                             >
                               <option value="">Move to team...</option>
                               {teams
@@ -162,12 +152,9 @@ const TeamList = ({ refreshTrigger }) => {
                             <button
                               onClick={() => handleMoveConfirm(member, team.id)}
                               disabled={!moveState[member.id]?.selectedTeam || moveState[member.id]?.moving}
-                              style={{
-                                fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: 'none',
-                                backgroundColor: moveState[member.id]?.selectedTeam ? '#4f46e5' : '#a5b4fc',
-                                color: 'white', cursor: moveState[member.id]?.selectedTeam ? 'pointer' : 'not-allowed',
-                                fontWeight: '600'
-                              }}
+                              className={`text-sm px-4 py-2 rounded-md font-semibold transition-colors w-full sm:w-auto shrink-0 ${
+                                moveState[member.id]?.selectedTeam ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-300 text-indigo-50 cursor-not-allowed'
+                              }`}
                             >
                               {moveState[member.id]?.moving ? 'Processing' : 'Confirm'}
                             </button>
@@ -175,13 +162,13 @@ const TeamList = ({ refreshTrigger }) => {
                         )}
                       </li>
                     ))
-                    : team.member_ids?.map((id, i) => <li key={i}>Participant #{id}</li>)
+                    : team.member_ids?.map((id, i) => <li key={i} className="text-sm text-slate-500">Participant #{id}</li>)
                   }
                 </ul>
               </div>
 
-              <div style={{ fontSize: '13px', color: '#333', backgroundColor: '#f0f7ff', borderLeft: '3px solid #0056b3', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>
-                <strong>AI Rationale:</strong><br />
+              <div className="text-sm text-slate-700 bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg mb-4">
+                <strong className="block mb-1 text-blue-900">AI Rationale:</strong>
                 {team.rationale}
               </div>
 

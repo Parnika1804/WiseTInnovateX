@@ -349,21 +349,23 @@ const CommitteeDashboard = () => {
 
       <PipelineBar key={`pipeline-${refresh}`} />
 
-      <div className="flex gap-1 mt-6 mb-6 border-b border-slate-200">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? 'border-slate-800 text-slate-800 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <div className="mt-6 mb-6 border-b border-slate-200 w-full overflow-hidden">
+  <div className="flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-px">
+    {TABS.map(tab => (
+      <button
+        key={tab.id}
+        onClick={() => setActiveTab(tab.id)}
+        className={`px-5 py-3 sm:py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 outline-none flex-shrink-0 ${
+          activeTab === tab.id
+            ? 'border-slate-800 text-slate-800 bg-white'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+        }`}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+</div>
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

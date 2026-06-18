@@ -53,18 +53,18 @@ const ParticipantTable = ({ refreshTrigger }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
         <h3 className="text-lg font-bold text-slate-800">Active Roster ({participants.length})</h3>
         <button
           onClick={handleClearAll}
-          className="text-sm px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors border border-red-200"
+          className="text-sm px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors border border-red-200 w-full sm:w-auto"
         >
           Clear All
         </button>
       </div>
       
       <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
-        <table className="w-full text-left border-collapse bg-white">
+        <table className="w-full text-left border-collapse bg-white min-w-[600px]">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Hacker</th>

@@ -23,17 +23,19 @@ const ApproveRejectButtons = ({ teamId, currentStatus, onStatusChange }) => {
   if (currentStatus !== 'PENDING') return null;
 
   return (
-    <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+    <div className="mt-auto pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
       <button 
         onClick={() => handleAction('APPROVED')} 
         disabled={loading}
-        style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
+        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
+      >
         Approve
       </button>
       <button 
         onClick={() => handleAction('REJECTED')} 
         disabled={loading}
-        style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
+        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
+      >
         Reject
       </button>
     </div>

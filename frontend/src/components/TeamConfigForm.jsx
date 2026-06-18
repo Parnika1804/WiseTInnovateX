@@ -20,20 +20,35 @@ const TeamConfigForm = () => {
   };
 
   return (
-    <div style={{ padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#fff' }}>
-      <h3 style={{ marginTop: 0 }}>1. Configure Formation Rules</h3>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Team Size:</label>
-          <input type="number" value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))} min="2" max="10" style={{ padding: '5px', width: '60px' }} />
+    <div className="p-5 md:p-6 bg-white border border-slate-200 rounded-xl mb-6 shadow-sm">
+      <h3 className="mt-0 text-lg font-bold text-slate-800 mb-4">1. Configure Formation Rules</h3>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <label className="font-bold text-slate-700 text-sm">Team Size:</label>
+          <input 
+            type="number" 
+            value={teamSize} 
+            onChange={(e) => setTeamSize(Number(e.target.value))} 
+            min="2" 
+            max="10" 
+            className="p-2 border border-slate-300 rounded-lg w-full sm:w-24 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+          />
         </div>
         <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={balanceSkills} onChange={(e) => setBalanceSkills(e.target.checked)} />
+          <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-700">
+            <input 
+              type="checkbox" 
+              checked={balanceSkills} 
+              onChange={(e) => setBalanceSkills(e.target.checked)} 
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+            />
             Balance across participant skill tags
           </label>
         </div>
-        <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#0056b3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', width: 'fit-content' }}>
+        <button 
+          type="submit" 
+          className="w-full sm:w-auto self-start px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors text-sm"
+        >
           Save Configuration
         </button>
       </form>

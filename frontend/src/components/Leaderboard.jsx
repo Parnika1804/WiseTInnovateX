@@ -160,46 +160,46 @@ const Leaderboard = ({ refreshTrigger }) => {
           <p className="text-gray-500 text-sm">The evaluation is complete. Here are your winners.</p>
         </div>
 
-        <div className="flex justify-center items-end gap-4 mb-8">
-          {podium[1] && (
-            <div className="flex flex-col items-center">
-              <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-5 text-center w-48 shadow-sm">
-                <div className="text-xl font-bold mb-2">2nd Place</div>
-                <p className="font-black text-gray-800 text-lg">{podium[1].team_name}</p>
-                <p className="text-gray-500 text-sm font-semibold">{podium[1].final_score} pts</p>
-              </div>
-              <div className="bg-gray-300 w-48 h-16 rounded-b-xl flex items-center justify-center">
-                <span className="font-black text-white text-2xl">2</span>
-              </div>
-            </div>
-          )}
+        <div className="flex flex-col md:flex-row justify-center items-center md:items-end gap-6 md:gap-4 mb-10 md:mb-8">
+  {podium[1] && (
+    <div className="flex flex-col items-center order-2 md:order-1 w-full md:w-auto">
+      <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-5 text-center w-full max-w-[200px] md:w-48 shadow-sm">
+        <div className="text-xl font-bold mb-2">2nd Place</div>
+        <p className="font-black text-gray-800 text-lg truncate px-2">{podium[1].team_name}</p>
+        <p className="text-gray-500 text-sm font-semibold">{podium[1].final_score} pts</p>
+      </div>
+      <div className="bg-gray-300 w-full max-w-[200px] md:w-48 h-12 md:h-16 rounded-b-xl flex items-center justify-center">
+        <span className="font-black text-white text-2xl">2</span>
+      </div>
+    </div>
+  )}
 
-          {podium[0] && (
-            <div className="flex flex-col items-center">
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 text-center w-48 shadow-md">
-                <div className="text-xl font-bold mb-2">1st Place</div>
-                <p className="font-black text-gray-800 text-lg">{podium[0].team_name}</p>
-                <p className="text-yellow-600 text-sm font-semibold">{podium[0].final_score} pts</p>
-              </div>
-              <div className="bg-yellow-400 w-48 h-24 rounded-b-xl flex items-center justify-center">
-                <span className="font-black text-white text-2xl">1</span>
-              </div>
-            </div>
-          )}
+  {podium[0] && (
+    <div className="flex flex-col items-center order-1 md:order-2 w-full md:w-auto z-10">
+      <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6 md:p-5 text-center w-full max-w-[220px] md:w-48 shadow-md transform md:scale-110">
+        <div className="text-2xl md:text-xl font-bold mb-2">1st Place</div>
+        <p className="font-black text-gray-800 text-xl md:text-lg truncate px-2">{podium[0].team_name}</p>
+        <p className="text-yellow-600 text-base md:text-sm font-semibold">{podium[0].final_score} pts</p>
+      </div>
+      <div className="bg-yellow-400 w-full max-w-[220px] md:w-48 h-16 md:h-24 rounded-b-xl flex items-center justify-center transform md:scale-110">
+        <span className="font-black text-white text-3xl md:text-2xl">1</span>
+      </div>
+    </div>
+  )}
 
-          {podium[2] && (
-            <div className="flex flex-col items-center">
-              <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-5 text-center w-48 shadow-sm">
-                <div className="text-xl font-bold mb-2">3rd Place</div>
-                <p className="font-black text-gray-800 text-lg">{podium[2].team_name}</p>
-                <p className="text-orange-500 text-sm font-semibold">{podium[2].final_score} pts</p>
-              </div>
-              <div className="bg-orange-400 w-48 h-10 rounded-b-xl flex items-center justify-center">
-                <span className="font-black text-white text-2xl">3</span>
-              </div>
-            </div>
-          )}
-        </div>
+  {podium[2] && (
+    <div className="flex flex-col items-center order-3 md:order-3 w-full md:w-auto">
+      <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-5 text-center w-full max-w-[200px] md:w-48 shadow-sm">
+        <div className="text-xl font-bold mb-2">3rd Place</div>
+        <p className="font-black text-gray-800 text-lg truncate px-2">{podium[2].team_name}</p>
+        <p className="text-orange-500 text-sm font-semibold">{podium[2].final_score} pts</p>
+      </div>
+      <div className="bg-orange-400 w-full max-w-[200px] md:w-48 h-10 rounded-b-xl flex items-center justify-center">
+        <span className="font-black text-white text-2xl">3</span>
+      </div>
+    </div>
+  )}
+</div>
 
         {specialMentionWinner && (
           <div className="mb-8">
