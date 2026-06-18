@@ -7,7 +7,7 @@ const API = 'http://localhost:8000';
 const TeamList = ({ refreshTrigger }) => {
   const [teams, setTeams] = useState([]);
   const [clearing, setClearing] = useState(false);
-  const [moveState, setMoveState] = useState({}); // { memberId: { open, selectedTeam, moving } }
+  const [moveState, setMoveState] = useState({}); 
   const [moveStatus, setMoveStatus] = useState('');
 
   const fetchTeams = async () => {
@@ -59,11 +59,11 @@ const TeamList = ({ refreshTrigger }) => {
         from_team_id: fromTeamId,
         to_team_id: parseInt(state.selectedTeam)
       });
-      setMoveStatus(`✅ ${res.data.message}`);
+      setMoveStatus(`Success: ${res.data.message}`);
       setMoveState(prev => ({ ...prev, [member.id]: { open: false, selectedTeam: '', moving: false } }));
       fetchTeams();
     } catch (err) {
-      setMoveStatus(`❌ ${err.response?.data?.detail || 'Move failed.'}`);
+      setMoveStatus(`Error: ${err.response?.data?.detail || 'Move failed.'}`);
       setMoveState(prev => ({ ...prev, [member.id]: { ...prev[member.id], moving: false } }));
     }
   };
@@ -83,18 +83,17 @@ const TeamList = ({ refreshTrigger }) => {
               fontSize: '13px', fontWeight: '600',
             }}
           >
-            {clearing ? 'Clearing...' : '🗑 Clear All Teams'}
+            {clearing ? 'Clearing...' : 'Clear All Teams'}
           </button>
         )}
       </div>
 
-      {/* Move status message */}
       {moveStatus && (
         <div style={{
           marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
-          backgroundColor: moveStatus.startsWith('✅') ? '#d4edda' : '#f8d7da',
-          color: moveStatus.startsWith('✅') ? '#155724' : '#721c24',
-          border: `1px solid ${moveStatus.startsWith('✅') ? '#c3e6cb' : '#f5c6cb'}`
+          backgroundColor: moveStatus.startsWith('Success') ? '#d4edda' : '#f8d7da',
+          color: moveStatus.startsWith('Success') ? '#155724' : '#721c24',
+          border: `1px solid ${moveStatus.startsWith('Success') ? '#c3e6cb' : '#f5c6cb'}`
         }}>
           {moveStatus}
         </div>
@@ -139,11 +138,10 @@ const TeamList = ({ refreshTrigger }) => {
                               cursor: 'pointer', fontWeight: '600', color: '#4a5568'
                             }}
                           >
-                            {moveState[member.id]?.open ? 'Cancel' : '↔ Move'}
+                            {moveState[member.id]?.open ? 'Cancel' : 'Move'}
                           </button>
                         </div>
 
-                        {/* Move panel */}
                         {moveState[member.id]?.open && (
                           <div style={{ marginTop: '4px', padding: '8px', backgroundColor: '#eef2ff', borderRadius: '6px', border: '1px solid #c7d2fe', display: 'flex', gap: '6px', alignItems: 'center' }}>
                             <select
@@ -171,7 +169,7 @@ const TeamList = ({ refreshTrigger }) => {
                                 fontWeight: '600'
                               }}
                             >
-                              {moveState[member.id]?.moving ? '...' : 'Confirm'}
+                              {moveState[member.id]?.moving ? 'Processing' : 'Confirm'}
                             </button>
                           </div>
                         )}
@@ -183,7 +181,7 @@ const TeamList = ({ refreshTrigger }) => {
               </div>
 
               <div style={{ fontSize: '13px', color: '#333', backgroundColor: '#f0f7ff', borderLeft: '3px solid #0056b3', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>
-                <strong>✨ AI Rationale:</strong><br />
+                <strong>AI Rationale:</strong><br />
                 {team.rationale}
               </div>
 

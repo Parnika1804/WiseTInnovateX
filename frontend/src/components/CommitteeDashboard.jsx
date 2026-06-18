@@ -12,15 +12,12 @@ import { useWebSocket } from '../hooks/useWebSocket';
 const API = 'http://localhost:8000';
 
 const TABS = [
-  { id: 'overview', label: '🏠 Overview' },
-  { id: 'mentors', label: '🧑‍🏫 Mentors' },
-  { id: 'special-mentions', label: '⭐ Special Mentions' },
-  { id: 'feedback', label: '📝 Feedback' }, 
+  { id: 'overview', label: 'Overview' },
+  { id: 'mentors', label: 'Mentors' },
+  { id: 'special-mentions', label: 'Special Mentions' },
+  { id: 'feedback', label: 'Feedback' }, 
 ];
 
-// ---------------------------------------------------------------------------
-// Special Mentions 
-// ---------------------------------------------------------------------------
 const SpecialMentions = () => {
   const [nominations, setNominations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,10 +45,10 @@ const SpecialMentions = () => {
         action,
         reviewed_by: 'committee'
       });
-      setActionStatus(`✅ Nomination ${action.toLowerCase()} successfully.`);
+      setActionStatus(`Success: Nomination ${action.toLowerCase()} successfully.`);
       fetchNominations();
     } catch (err) {
-      setActionStatus(`❌ ${err.response?.data?.detail || 'Action failed.'}`);
+      setActionStatus(`Error: ${err.response?.data?.detail || 'Action failed.'}`);
     }
   };
 
@@ -77,7 +74,7 @@ const SpecialMentions = () => {
 
       {actionStatus && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
-          actionStatus.startsWith('✅') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          actionStatus.startsWith('Success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
         }`}>
           {actionStatus}
         </div>
@@ -91,9 +88,8 @@ const SpecialMentions = () => {
           <div className="p-8 text-center text-slate-400">Loading nominations...</div>
         ) : pending.length === 0 ? (
           <div className="p-10 text-center">
-            <div className="text-4xl mb-3">⭐</div>
             <p className="text-slate-500 font-medium">No pending nominations.</p>
-            <p className="text-slate-400 text-sm mt-1">Mentor nominations will appear here after elimination round.</p>
+            <p className="text-slate-400 text-sm mt-1">Mentor nominations will appear here after elimination rounds.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -123,11 +119,11 @@ const SpecialMentions = () => {
                   <div className="flex flex-col gap-2 min-w-fit">
                     <button onClick={() => handleAction(n.id, 'APPROVED')}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors">
-                      ✓ Approve
+                      Approve
                     </button>
                     <button onClick={() => handleAction(n.id, 'REJECTED')}
                       className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold rounded-lg transition-colors">
-                      ✕ Reject
+                      Reject
                     </button>
                   </div>
                 </div>
@@ -177,9 +173,6 @@ const SpecialMentions = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Feedback Summary 
-// ---------------------------------------------------------------------------
 const FeedbackSummary = () => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -198,13 +191,6 @@ const FeedbackSummary = () => {
     }
   };
 
-  const StarDisplay = ({ value }) => (
-    <span className="text-amber-400 text-lg">
-      {'★'.repeat(Math.round(value || 0))}
-      <span className="text-slate-200">{'★'.repeat(5 - Math.round(value || 0))}</span>
-    </span>
-  );
-
   const RatingBar = ({ label, value, breakdown }) => {
     const total = Object.values(breakdown || {}).reduce((a, b) => a + b, 0);
     return (
@@ -212,8 +198,7 @@ const FeedbackSummary = () => {
         <div className="flex items-center justify-between mb-1">
           <p className="text-sm font-semibold text-slate-700">{label}</p>
           <div className="flex items-center gap-2">
-            <StarDisplay value={value} />
-            <span className="text-sm font-bold text-slate-800">{value ? value.toFixed(1) : 'N/A'}</span>
+            <span className="text-sm font-bold text-slate-800">{value ? value.toFixed(1) : 'N/A'} / 5</span>
           </div>
         </div>
         {breakdown && total > 0 && (
@@ -223,10 +208,10 @@ const FeedbackSummary = () => {
               const pct = total > 0 ? (count / total) * 100 : 0;
               return (
                 <div key={star} className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="w-3 text-right">{star}★</span>
+                  <span className="w-6 text-right">{star} Pt</span>
                   <div className="flex-1 bg-slate-100 rounded-full h-2">
                     <div
-                      className="bg-amber-400 h-2 rounded-full transition-all"
+                      className="bg-slate-400 h-2 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -244,7 +229,6 @@ const FeedbackSummary = () => {
 
   if (!summary || summary.total_responses === 0) return (
     <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm">
-      <div className="text-5xl mb-4">📝</div>
       <h3 className="text-lg font-bold text-slate-800 mb-2">No Feedback Yet</h3>
       <p className="text-slate-500 text-sm">Feedback forms appear on participant portals once results are finalized. Responses will show up here automatically.</p>
     </div>
@@ -252,7 +236,6 @@ const FeedbackSummary = () => {
 
   return (
     <div className="space-y-6">
-      {/* Summary stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Responses</p>
@@ -260,17 +243,14 @@ const FeedbackSummary = () => {
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg Event Rating</p>
-          <p className="text-3xl font-black text-amber-500">{summary.avg_event_rating?.toFixed(1) ?? '—'}</p>
-          <StarDisplay value={summary.avg_event_rating} />
+          <p className="text-3xl font-black text-slate-700">{summary.avg_event_rating?.toFixed(1) ?? '—'}</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg Judging Rating</p>
-          <p className="text-3xl font-black text-blue-600">{summary.avg_judging_rating?.toFixed(1) ?? '—'}</p>
-          <StarDisplay value={summary.avg_judging_rating} />
+          <p className="text-3xl font-black text-slate-700">{summary.avg_judging_rating?.toFixed(1) ?? '—'}</p>
         </div>
       </div>
 
-      {/* Detailed breakdown */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3">Rating Breakdown</h3>
         <RatingBar label="Overall Event" value={summary.avg_event_rating} breakdown={summary.breakdown?.event} />
@@ -280,7 +260,6 @@ const FeedbackSummary = () => {
         )}
       </div>
 
-      {/* Comments */}
       {summary.comments?.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
@@ -293,9 +272,9 @@ const FeedbackSummary = () => {
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-semibold text-slate-800 text-sm">{c.participant_name}</p>
                   <div className="flex gap-3 text-xs text-slate-500">
-                    <span>Event: <strong className="text-amber-500">{c.event_rating}★</strong></span>
-                    <span>Judging: <strong className="text-blue-500">{c.judging_rating}★</strong></span>
-                    {c.mentor_rating && <span>Mentor: <strong className="text-indigo-500">{c.mentor_rating}★</strong></span>}
+                    <span>Event: <strong className="text-slate-700">{c.event_rating}/5</strong></span>
+                    <span>Judging: <strong className="text-slate-700">{c.judging_rating}/5</strong></span>
+                    {c.mentor_rating && <span>Mentor: <strong className="text-slate-700">{c.mentor_rating}/5</strong></span>}
                   </div>
                 </div>
                 <p className="text-sm text-slate-600 bg-slate-50 rounded-lg px-4 py-3 border border-slate-100">
@@ -312,23 +291,19 @@ const FeedbackSummary = () => {
           onClick={fetchSummary}
           className="text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors"
         >
-          🔄 Refresh
+          Refresh Data
         </button>
       </div>
     </div>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Committee Dashboard
-// ---------------------------------------------------------------------------
 const CommitteeDashboard = () => {
   const [refresh, setRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
 
   const handleAction = () => setRefresh(prev => prev + 1);
 
-  // WebSocket Live Refresh
   const wsStatus = useWebSocket('dashboard', (data) => {
     if (data.event === 'dashboard_updated') {
       handleAction();
@@ -336,10 +311,10 @@ const CommitteeDashboard = () => {
   });
 
   const handleFactoryReset = async () => {
-    const confirm1 = window.confirm("⚠️ WARNING: Are you sure you want to start a new event?");
+    const confirm1 = window.confirm("WARNING: Are you sure you want to start a new event?");
     if (!confirm1) return;
 
-    const confirm2 = window.confirm("🚨 FINAL WARNING: This will permanently delete ALL current participants, teams, scores, judges, and configurations. ONLY Committee accounts will remain. Proceed?");
+    const confirm2 = window.confirm("FINAL WARNING: This will permanently delete ALL current participants, teams, scores, judges, and configurations. ONLY Committee accounts will remain. Proceed?");
     if (!confirm2) return;
 
     try {
@@ -368,7 +343,7 @@ const CommitteeDashboard = () => {
           onClick={handleFactoryReset}
           className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
         >
-          <span>♻️</span> Start New Event (Reset Data)
+          Start New Event (Reset Data)
         </button>
       </div>
 

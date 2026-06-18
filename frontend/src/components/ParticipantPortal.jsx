@@ -6,9 +6,6 @@ import { useAuth } from './AuthContext';
 
 const API = 'http://localhost:8000';
 
-// ---------------------------------------------------------------------------
-// Feedback Form Component — shown only after results are finalized
-// ---------------------------------------------------------------------------
 const FeedbackForm = ({ participantId, hasMentor }) => {
   const [submitted, setSubmitted] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -25,7 +22,6 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
         const res = await axios.get(`${API}/feedback/check/${participantId}`);
         setSubmitted(res.data.submitted);
       } catch (e) {
-        // If check fails, let them try to submit anyway
       } finally {
         setChecking(false);
       }
@@ -84,8 +80,7 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
 
   if (submitted) return (
     <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6 text-center">
-      <div className="text-4xl mb-3">🙏</div>
-      <h4 className="text-lg font-bold text-green-800 mb-1">Thank You for Your Feedback!</h4>
+      <h4 className="text-lg font-bold text-green-800 mb-1">Thank You for Your Feedback.</h4>
       <p className="text-sm text-green-700">Your responses help us make future events even better.</p>
     </div>
   );
@@ -93,10 +88,9 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 mt-6 shadow-sm">
       <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
-        <div className="text-2xl">📝</div>
         <div>
           <h4 className="text-lg font-bold text-slate-800">Share Your Feedback</h4>
-          <p className="text-sm text-slate-500">Help us improve future events — takes 30 seconds.</p>
+          <p className="text-sm text-slate-500">Help us improve future events.</p>
         </div>
       </div>
 
@@ -132,9 +126,6 @@ const FeedbackForm = ({ participantId, hasMentor }) => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Judge Feedback Component — shows judge notes on team's project after results
-// ---------------------------------------------------------------------------
 const JudgeFeedback = ({ teamId }) => {
   const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -159,10 +150,9 @@ const JudgeFeedback = ({ teamId }) => {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 mt-6 shadow-sm">
       <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
-        <div className="text-2xl">🧑‍⚖️</div>
         <div>
           <h4 className="text-lg font-bold text-slate-800">Judge Feedback on Your Project</h4>
-          <p className="text-sm text-slate-500">Here's what the judges thought about your team's work.</p>
+          <p className="text-sm text-slate-500">Here is what the judges thought about your team's work.</p>
         </div>
       </div>
       <div className="space-y-4">
@@ -186,9 +176,6 @@ const JudgeFeedback = ({ teamId }) => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Main Portal
-// ---------------------------------------------------------------------------
 const ParticipantPortal = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
@@ -205,7 +192,7 @@ const ParticipantPortal = () => {
 
   useEffect(() => {
     if (!token) {
-      setError("No access token provided. Please check your email for the magic link.");
+      setError("No access token provided. Please check your email for the link.");
       return;
     }
     loadPortal();
@@ -240,7 +227,6 @@ const ParticipantPortal = () => {
           if (assigned) setMentor(assigned);
         }
       } catch (e) {
-        console.log("No mentor data available");
       }
 
       try {
@@ -254,7 +240,6 @@ const ParticipantPortal = () => {
           if (myMention) setSpecialMention(myMention);
         }
       } catch (e) {
-        console.log("No special mention data available");
       }
 
       const configRes = await axios.get(`${API}/event/config`);
@@ -311,21 +296,21 @@ const ParticipantPortal = () => {
 
     const statusConfig = {
       PENDING: {
-        bg: 'bg-amber-50', border: 'border-amber-200', icon: '⏳',
+        bg: 'bg-amber-50', border: 'border-amber-200',
         title: 'Special Mention Nomination Pending',
         body: 'Your mentor has nominated you for a Special Mention. The committee is reviewing this nomination — you will be notified once a decision is made.',
         badge: 'bg-amber-100 text-amber-800 border-amber-300',
         badgeText: 'Under Review',
       },
       APPROVED: {
-        bg: 'bg-purple-50', border: 'border-purple-200', icon: '⭐',
+        bg: 'bg-purple-50', border: 'border-purple-200',
         title: 'You\'ve Been Granted Special Mention!',
         body: 'The committee has approved your mentor\'s nomination. You will compete in the final round as a Special Mention entry alongside the qualified finalists.',
         badge: 'bg-purple-100 text-purple-800 border-purple-300',
         badgeText: 'Approved — Final Round Entry',
       },
       REJECTED: {
-        bg: 'bg-slate-50', border: 'border-slate-200', icon: '🏁',
+        bg: 'bg-slate-50', border: 'border-slate-200',
         title: 'Special Mention Not Approved',
         body: 'Your mentor\'s nomination was reviewed but could not be approved this time. Thank you for your effort and participation.',
         badge: 'bg-slate-100 text-slate-600 border-slate-300',
@@ -338,7 +323,6 @@ const ParticipantPortal = () => {
     return (
       <div className={`p-6 rounded-xl border shadow-sm mb-6 ${cfg.bg} ${cfg.border}`}>
         <div className="flex items-start gap-4">
-          <div className="text-3xl">{cfg.icon}</div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h4 className="text-base font-bold text-slate-800">{cfg.title}</h4>
@@ -358,14 +342,12 @@ const ParticipantPortal = () => {
     );
   };
 
-  // STATE 1: EVENT FINALIZED AND USER IS A WINNER
   if (finalResults && myWin) return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="bg-gradient-to-br from-amber-400 to-amber-600 text-white p-8 rounded-xl mb-6 shadow-lg text-center border-4 border-amber-300">
-          <div className="text-7xl mb-4 animate-bounce">🏆</div>
-          <h2 className="text-4xl font-black mb-2 tracking-tight">Congratulations, {data.participant.name}!</h2>
-          <p className="text-xl font-medium mb-6">Your team <strong className="text-amber-100">{data.team.name}</strong> emerged victorious!</p>
+          <h2 className="text-4xl font-black mb-2 tracking-tight">Status: Winner, {data.participant.name}</h2>
+          <p className="text-xl font-medium mb-6">Your team <strong className="text-amber-100">{data.team.name}</strong> emerged victorious.</p>
           <div className="inline-block bg-white text-amber-600 px-8 py-3 rounded-full font-black text-3xl shadow-md">
             {myWin.medal}
           </div>
@@ -374,10 +356,8 @@ const ParticipantPortal = () => {
           </p>
         </div>
 
-        {/* Judge feedback on project */}
         {data.team && <JudgeFeedback teamId={data.team.id} />}
 
-        {/* Feedback form for winners too */}
         <FeedbackForm participantId={data.participant.id} hasMentor={!!mentor} />
 
         <div className="mt-6">
@@ -387,7 +367,6 @@ const ParticipantPortal = () => {
     </div>
   );
 
-  // STATE 2: EVENT FINALIZED OR USER ELIMINATED
   if ((finalResults && !myWin) || isEliminated) return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -400,23 +379,20 @@ const ParticipantPortal = () => {
 
         {specialMention?.status !== 'APPROVED' && (
           <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
-            <div className="text-5xl mb-4 grayscale">🏁</div>
             <h3 className="text-xl font-bold text-slate-800 mb-2">Event Concluded</h3>
             <p className="text-slate-500 mb-4">Your team <strong className="text-slate-700">{data.team?.name}</strong> did not advance to the final podium.</p>
-            <p className="text-slate-400 text-sm">We truly appreciate your effort and participation. Keep building and we hope to see you at future events!</p>
+            <p className="text-slate-400 text-sm">We appreciate your effort and participation. Keep building and we hope to see you at future events.</p>
           </div>
         )}
 
         {specialMention?.status === 'APPROVED' && (
           <div className="bg-white p-8 rounded-xl border border-purple-200 shadow-sm text-center">
-            <div className="text-5xl mb-4">🚀</div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">You're in the Finals!</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Status: Finalist</h3>
             <p className="text-slate-500 mb-4">As a Special Mention wildcard entry, your team <strong className="text-slate-700">{data.team?.name}</strong> will compete in the final round.</p>
-            <p className="text-slate-400 text-sm">Judges will evaluate your work separately. Good luck!</p>
+            <p className="text-slate-400 text-sm">Judges will evaluate your work separately.</p>
           </div>
         )}
 
-        {/* Feedback form — shown to eliminated participants too */}
         {finalResults && (
           <>
             {data.team && <JudgeFeedback teamId={data.team.id} />}
@@ -431,7 +407,6 @@ const ParticipantPortal = () => {
     </div>
   );
 
-  // STATE 3: ACTIVE COMPETITION — no feedback form yet
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -453,10 +428,9 @@ const ParticipantPortal = () => {
         {data.progression?.is_qualified && currentRound === 1 && (
           <div className="p-6 rounded-xl mb-8 border shadow-sm bg-blue-50 border-blue-200">
             <div className="flex items-start gap-4">
-              <div className="text-3xl">🚀</div>
               <div className="flex-1">
-                <h4 className="text-lg font-bold mb-1 text-blue-900">Welcome to the Hackathon!</h4>
-                <p className="text-sm mb-0 text-blue-800">Round 1 is currently active. Work with your team to build your project. Judges will begin evaluating soon!</p>
+                <h4 className="text-lg font-bold mb-1 text-blue-900">Welcome to the Hackathon</h4>
+                <p className="text-sm mb-0 text-blue-800">Round 1 is currently active. Work with your team to build your project. Judges will begin evaluating soon.</p>
               </div>
             </div>
           </div>
@@ -465,15 +439,14 @@ const ParticipantPortal = () => {
         {data.progression?.is_qualified && currentRound > 1 && (
           <div className={`p-6 rounded-xl mb-8 border shadow-sm transition-colors ${confirmed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex items-start gap-4">
-              <div className="text-3xl">{confirmed ? '✅' : '🎉'}</div>
               <div className="flex-1">
                 <h4 className={`text-lg font-bold mb-1 ${confirmed ? 'text-green-800' : 'text-amber-900'}`}>
-                  {confirmed ? 'Spot Confirmed!' : `You Advanced to Round ${currentRound}!`}
+                  {confirmed ? 'Spot Confirmed' : `Status: Advanced to Round ${currentRound}`}
                 </h4>
                 <p className={`text-sm mb-4 ${confirmed ? 'text-green-700' : 'text-amber-800'}`}>
                   {confirmed
-                    ? "You've successfully confirmed your attendance for the current round. Keep an eye on your email for further instructions."
-                    : `Congratulations! Your team made the cut. Please confirm your spot for Round ${currentRound} below.`}
+                    ? "You have successfully confirmed your attendance for the current round. Monitor your email for further instructions."
+                    : `Your team made the cut. Please confirm your spot for Round ${currentRound} below.`}
                 </p>
                 {!confirmed && (
                   <button
@@ -534,7 +507,7 @@ const ParticipantPortal = () => {
 
                     {mentor && (
                       <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                        <p className="text-sm font-bold text-indigo-800 mb-2">🧑‍🏫 Your Mentor</p>
+                        <p className="text-sm font-bold text-indigo-800 mb-2">Your Mentor</p>
                         <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
                         <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
                         {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}

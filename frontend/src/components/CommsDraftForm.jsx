@@ -9,7 +9,6 @@ const STAGE_OPTIONS = [
   { value: 'RESULTS', label: 'Results / Final Outcomes' },
 ];
 
-// Email modal
 const EmailModal = ({ comm, mode, onClose, onSave }) => {
   const [subject, setSubject] = useState(comm.subject);
   const [message, setMessage] = useState(comm.message);
@@ -33,7 +32,7 @@ const EmailModal = ({ comm, mode, onClose, onSave }) => {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
           <h3 className="font-bold text-gray-800 text-lg">
-            {mode === 'edit' ? '✏️ Edit Email' : '👁️ View Email'}
+            {mode === 'edit' ? 'Edit Email' : 'View Email'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
         </div>
@@ -75,7 +74,6 @@ const EmailModal = ({ comm, mode, onClose, onSave }) => {
   );
 };
 
-// Email inbox section
 const EmailInbox = () => {
   const [pendingComms, setPendingComms] = useState([]);
   const [loadingId, setLoadingId] = useState(null);
@@ -128,7 +126,6 @@ const EmailInbox = () => {
     }
   };
 
-  // Group strictly by comm_type so there is only one header per category
   const typeMap = {};
   pendingComms.forEach(c => {
     const key = c.comm_type || "OTHER";
@@ -144,19 +141,18 @@ const EmailInbox = () => {
 
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <h3 className="text-base font-bold text-gray-800">📬 Emails Awaiting Approval</h3>
+          <h3 className="text-base font-bold text-gray-800">Emails Awaiting Approval</h3>
           {pendingComms.length > 0 && (
             <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
               {pendingComms.length}
             </span>
           )}
         </div>
-        <button onClick={load} className="text-xs text-gray-400 hover:text-gray-600">↻ Refresh</button>
+        <button onClick={load} className="text-xs text-gray-400 hover:text-gray-600">Refresh</button>
       </div>
 
       {pendingComms.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
-          <div className="text-3xl mb-2">✓</div>
           <p className="text-sm">No emails pending approval.</p>
         </div>
       ) : (
@@ -182,7 +178,7 @@ const EmailInbox = () => {
                   disabled={loadingId === `type-approve-${commType}`}
                   className="px-3 py-1 text-xs font-bold bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors disabled:opacity-50"
                 >
-                  ✓ Approve All
+                  Approve All
                 </button>
                 <button
                   onClick={async () => {
@@ -198,7 +194,7 @@ const EmailInbox = () => {
                   disabled={loadingId === `type-reject-${commType}`}
                   className="px-3 py-1 text-xs font-bold bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors disabled:opacity-50"
                 >
-                  ✗ Reject All
+                  Reject All
                 </button>
               </div>
             </div>
@@ -212,11 +208,11 @@ const EmailInbox = () => {
                 <div className="flex gap-2 flex-shrink-0">
                   <button onClick={() => setModal({ comm: c, mode: 'view' })}
                     className="px-3 py-1.5 text-xs font-semibold rounded-md bg-gray-200 hover:bg-gray-300 text-gray-700">
-                    👁 View
+                    View
                   </button>
                   <button onClick={() => setModal({ comm: c, mode: 'edit' })}
                     className="px-3 py-1.5 text-xs font-semibold rounded-md bg-purple-600 hover:bg-purple-700 text-white">
-                    ✏️ Edit
+                    Edit
                   </button>
                   <button onClick={() => handleApprove(c.id, c.recipient_email)}
                     disabled={loadingId === `approve-${c.id}`}
@@ -277,7 +273,7 @@ const CommsDraftForm = ({ onDraftSaved }) => {
     setIsSending(true);
     try {
       await axios.post(`${API}/comms/send`, { log_id: preview.id });
-      alert(`✅ Email sent to ${preview.recipient_email} via SendGrid!`);
+      alert(`Email dispatched successfully to ${preview.recipient_email} via SendGrid.`);
       setPreview(null); setEmail(''); setTeamId('');
       if (onDraftSaved) onDraftSaved();
     } catch (err) {
@@ -294,7 +290,7 @@ const CommsDraftForm = ({ onDraftSaved }) => {
         subject: preview.subject,
         message: preview.message,
       });
-      alert('Draft saved!');
+      alert('Draft saved.');
       setPreview(null); setEmail(''); setTeamId('');
       if (onDraftSaved) onDraftSaved();
     } catch (err) {
@@ -319,15 +315,11 @@ const CommsDraftForm = ({ onDraftSaved }) => {
 
   return (
     <div>
-      {/* Email inbox at top */}
       <EmailInbox />
-
-      {/* Announcement */}
       <AnnouncementForm onSent={onDraftSaved} />
 
-      {/* Stage Bulk Trigger */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
-        <h3 className="font-bold text-blue-800 mb-1">⚡ Stage Email Trigger</h3>
+        <h3 className="font-bold text-blue-800 mb-1">Stage Email Trigger</h3>
         <p className="text-sm text-blue-600 mb-4">Draft stage emails for all participants — goes to approval queue.</p>
         <div className="flex gap-3 items-center flex-wrap">
           <select value={triggerStage} onChange={e => setTriggerStage(e.target.value)}
@@ -336,21 +328,20 @@ const CommsDraftForm = ({ onDraftSaved }) => {
           </select>
           <button onClick={handleTriggerStage} disabled={isTriggering}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
-            {isTriggering ? 'Drafting...' : '📝 Draft Emails for Approval'}
+            {isTriggering ? 'Drafting...' : 'Draft Emails for Approval'}
           </button>
         </div>
         {triggerResult && (
           <div className="mt-3 p-3 bg-white border border-blue-200 rounded-lg text-sm text-blue-700">
             {triggerResult.triggered
-              ? `⏳ ${triggerResult.evaluation_reminder_emails_drafted ?? triggerResult.results_emails_drafted ?? triggerResult.stage_emails_drafted ?? 0} email(s) queued for approval.`
-              : `ℹ️ ${triggerResult.reason}`}
+              ? `Queued: ${triggerResult.evaluation_reminder_emails_drafted ?? triggerResult.results_emails_drafted ?? triggerResult.stage_emails_drafted ?? 0} email(s) queued for approval.`
+              : `Info: ${triggerResult.reason}`}
           </div>
         )}
       </div>
 
-      {/* Manual Gemini Draft */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="font-bold text-gray-800 mb-1">✨ Auto-Draft with Gemini</h3>
+        <h3 className="font-bold text-gray-800 mb-1">Auto-Draft with AI</h3>
         <p className="text-sm text-gray-500 mb-4">Preview an AI-drafted email before sending.</p>
         <div className="flex flex-col gap-3 mb-4">
           <input type="email" placeholder="Recipient Email" value={email} onChange={e => setEmail(e.target.value)}
@@ -381,11 +372,11 @@ const CommsDraftForm = ({ onDraftSaved }) => {
             <div className="flex gap-2">
               <button onClick={handleSendPreview} disabled={isSending}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
-                {isSending ? 'Sending...' : '✉️ Send via SendGrid'}
+                {isSending ? 'Sending...' : 'Send via SendGrid'}
               </button>
               <button onClick={handleSavePreview}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg">
-                💾 Save as Draft
+                Save as Draft
               </button>
             </div>
           </div>

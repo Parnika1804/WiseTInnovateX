@@ -10,8 +10,8 @@ const EmailEditModal = ({ log, onClose, onSave }) => {
     setSaving(true);
     try {
       await axios.patch(`http://localhost:8000/comms/log/${log.id}`, { subject, message });
-      onSave(); // Refresh list
-      onClose(); // Close modal
+      onSave(); 
+      onClose(); 
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to save changes.');
     } finally {
@@ -23,23 +23,21 @@ const EmailEditModal = ({ log, onClose, onSave }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-slate-200">
-          <h3 className="font-bold text-slate-800 text-lg">✏️ Edit Email Draft</h3>
+          <h3 className="font-bold text-slate-800 text-lg">Edit Email Draft</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
         </div>
         
-        <div className="p-5 flex-1 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">To</label>
-            <div className="text-sm text-slate-700 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-              {log.recipient_email}
-            </div>
+        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+            <span className="text-xs font-bold text-blue-800 uppercase tracking-wider block mb-1">Recipient</span>
+            <span className="text-sm text-blue-900 font-medium">{log.recipient_email}</span>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Subject</label>
             <input 
               type="text" 
               value={subject} 
-              onChange={e => setSubject(e.target.value)}
+              onChange={e => setSubject(e.target.value)} 
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
             />
           </div>
@@ -69,7 +67,7 @@ const EmailEditModal = ({ log, onClose, onSave }) => {
             disabled={saving}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save Draft'}
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

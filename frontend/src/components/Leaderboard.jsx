@@ -37,8 +37,6 @@ const Leaderboard = ({ refreshTrigger }) => {
         if (res.data.finalized) {
           setPodium(res.data.podium);
           setSpecialMentionWinner(res.data.special_mention_winner || null);
-          // Don't fetch specialMentions separately after finalization —
-          // the winner card is the canonical SM display on the results page.
         } else {
           fetchData();
         }
@@ -112,14 +110,12 @@ const Leaderboard = ({ refreshTrigger }) => {
     3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', badge: 'bg-orange-400 text-white' },
   };
 
-  // FIX: SpecialMentionLeaderboard is only shown on the LIVE leaderboard view,
-  // never after finalization — the winner card is the canonical post-results display.
   const SpecialMentionLeaderboard = () => {
     if (specialMentions.length === 0) return null;
     return (
       <div className="mt-8">
         <div className="flex items-center gap-3 mb-4">
-          <h3 className="text-2xl font-bold text-gray-800">⭐ Special Mention</h3>
+          <h3 className="text-2xl font-bold text-gray-800">Special Mention</h3>
           <span className="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full border border-purple-200">
             WILDCARD FINALISTS
           </span>
@@ -138,7 +134,7 @@ const Leaderboard = ({ refreshTrigger }) => {
               {specialMentions.map((sm) =>
                 sm.nominated_members.map((member) => (
                   <tr key={`${sm.nomination_id}-${member.id}`} className="hover:bg-purple-50 transition-colors">
-                    <td className="p-4 font-bold text-purple-800">⭐ {member.name}</td>
+                    <td className="p-4 font-bold text-purple-800">{member.name}</td>
                     <td className="p-4 text-gray-600 font-medium">{sm.team_name}</td>
                     <td className="p-4">
                       <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-semibold">
@@ -160,16 +156,15 @@ const Leaderboard = ({ refreshTrigger }) => {
     return (
       <div className="w-full">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-black text-gray-800 mb-1">🏆 Final Results</h2>
-          <p className="text-gray-500 text-sm">The evaluation is complete. Here are your winners!</p>
+          <h2 className="text-3xl font-black text-gray-800 mb-1">Final Results</h2>
+          <p className="text-gray-500 text-sm">The evaluation is complete. Here are your winners.</p>
         </div>
 
-        {/* Podium */}
         <div className="flex justify-center items-end gap-4 mb-8">
           {podium[1] && (
             <div className="flex flex-col items-center">
               <div className="bg-gray-50 border-2 border-gray-300 rounded-xl p-5 text-center w-48 shadow-sm">
-                <div className="text-4xl mb-2">🥈</div>
+                <div className="text-xl font-bold mb-2">2nd Place</div>
                 <p className="font-black text-gray-800 text-lg">{podium[1].team_name}</p>
                 <p className="text-gray-500 text-sm font-semibold">{podium[1].final_score} pts</p>
               </div>
@@ -182,7 +177,7 @@ const Leaderboard = ({ refreshTrigger }) => {
           {podium[0] && (
             <div className="flex flex-col items-center">
               <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5 text-center w-48 shadow-md">
-                <div className="text-4xl mb-2">🥇</div>
+                <div className="text-xl font-bold mb-2">1st Place</div>
                 <p className="font-black text-gray-800 text-lg">{podium[0].team_name}</p>
                 <p className="text-yellow-600 text-sm font-semibold">{podium[0].final_score} pts</p>
               </div>
@@ -195,7 +190,7 @@ const Leaderboard = ({ refreshTrigger }) => {
           {podium[2] && (
             <div className="flex flex-col items-center">
               <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-5 text-center w-48 shadow-sm">
-                <div className="text-4xl mb-2">🥉</div>
+                <div className="text-xl font-bold mb-2">3rd Place</div>
                 <p className="font-black text-gray-800 text-lg">{podium[2].team_name}</p>
                 <p className="text-orange-500 text-sm font-semibold">{podium[2].final_score} pts</p>
               </div>
@@ -206,18 +201,13 @@ const Leaderboard = ({ refreshTrigger }) => {
           )}
         </div>
 
-        {/* Special Mention Winner Card — only shown when there IS a winner.
-            FIX: SpecialMentionLeaderboard table is NOT rendered here to prevent
-            the same person appearing twice (winner card + table row). */}
         {specialMentionWinner && (
           <div className="mb-8">
             <div className="text-center mb-4">
-              <h3 className="text-2xl font-black text-purple-800">⭐ Special Mention Award</h3>
+              <h3 className="text-2xl font-black text-purple-800">Special Mention Award</h3>
               <p className="text-purple-500 text-sm">Wildcard finalist recognized for outstanding contribution</p>
             </div>
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-2xl p-6 shadow-md text-center max-w-md mx-auto">
-              <div className="text-5xl mb-3">⭐</div>
-              {/* FIX: guard against null/empty members array to prevent crash */}
               {(specialMentionWinner.members && specialMentionWinner.members.length > 0)
                 ? specialMentionWinner.members.map((m) => (
                     <div key={m.id}>
@@ -244,7 +234,6 @@ const Leaderboard = ({ refreshTrigger }) => {
           </div>
         )}
 
-        {/* Full results table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -274,7 +263,7 @@ const Leaderboard = ({ refreshTrigger }) => {
         </div>
 
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-          <p className="text-green-700 font-semibold text-sm">✅ Result emails have been drafted and sent to Pending Approvals. Go to the Comms tab to review and send.</p>
+          <p className="text-green-700 font-semibold text-sm">Result emails have been drafted and sent to Pending Approvals. Go to the Comms tab to review and send.</p>
           <button
             onClick={() => navigate('/comms')}
             className="mt-3 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors text-sm"
@@ -282,21 +271,16 @@ const Leaderboard = ({ refreshTrigger }) => {
             Go to Comms →
           </button>
         </div>
-
-        {/* FIX: SpecialMentionLeaderboard NOT rendered here after finalization.
-            The winner card above is the only SM display on the results page. */}
       </div>
     );
   }
 
-  // Live leaderboard view (pre-finalization)
   return (
     <div className="w-full">
       {anomalies.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">⚠️</span>
-            <h3 className="text-xl font-bold text-red-800 m-0">Action Required: Anomaly Resolution</h3>
+            <h3 className="text-xl font-bold text-red-800 m-0">Attention Required: Anomaly Resolution</h3>
           </div>
           <p className="text-red-700 text-sm mb-5">
             The evaluation engine has paused the pipeline. The following scores deviate significantly from the panel average (&gt; 20% variance). Review the judge's notes and resolve the discrepancies to unlock the leaderboard.
@@ -311,7 +295,6 @@ const Leaderboard = ({ refreshTrigger }) => {
                     <strong>Flagged Score:</strong> <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">{anomaly.score}</span>
                   </p>
                   <div className="text-sm text-gray-700 italic bg-slate-50 p-3 rounded-md border border-slate-100 relative">
-                    <span className="absolute -left-2 -top-2 text-xl opacity-50">❝</span>
                     {anomaly.notes}
                   </div>
                 </div>
@@ -321,14 +304,14 @@ const Leaderboard = ({ refreshTrigger }) => {
                     disabled={resolvingId === anomaly.id}
                     className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors disabled:opacity-50 shadow-sm w-full"
                   >
-                    {resolvingId === anomaly.id ? 'Processing...' : '✓ Accept & Resolve'}
+                    {resolvingId === anomaly.id ? 'Processing...' : 'Accept & Resolve'}
                   </button>
                   <button
                     onClick={() => handleReject(anomaly.id, anomaly.judge_name)}
                     disabled={resolvingId === anomaly.id}
                     className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors disabled:opacity-50 shadow-sm w-full"
                   >
-                    {resolvingId === anomaly.id ? 'Processing...' : '❌ Reject & Re-score'}
+                    {resolvingId === anomaly.id ? 'Processing...' : 'Reject & Re-score'}
                   </button>
                 </div>
               </div>
@@ -339,7 +322,6 @@ const Leaderboard = ({ refreshTrigger }) => {
 
       {leaderboard.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3">
-          <span className="text-blue-600 text-xl">🔄</span>
           <div>
             <span className="font-bold text-blue-800">Round {leaderboard[0].current_round}</span>
             <span className="text-blue-600 text-sm ml-2">— Currently active evaluation round</span>
@@ -362,7 +344,7 @@ const Leaderboard = ({ refreshTrigger }) => {
           disabled={finalizing || leaderboard.length === 0}
           className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
         >
-          {finalizing ? 'Drafting Emails...' : '✅ End Evaluation & Draft Results'}
+          {finalizing ? 'Drafting Emails...' : 'End Evaluation & Draft Results'}
         </button>
       </div>
 
@@ -415,7 +397,7 @@ const Leaderboard = ({ refreshTrigger }) => {
                                   <div className="flex justify-between mb-2">
                                     <span className="font-bold text-slate-800">{score.judge_name}</span>
                                     <span className={`font-bold ${score.anomaly_flagged ? 'text-red-600' : 'text-blue-600'}`}>
-                                      {score.score.toFixed(2)} {score.anomaly_flagged && " (⚠️ Flagged)"}
+                                      {score.score.toFixed(2)} {score.anomaly_flagged && " (Flagged)"}
                                     </span>
                                   </div>
                                   <p className="text-sm text-slate-600 italic m-0">"{score.notes}"</p>
@@ -439,8 +421,6 @@ const Leaderboard = ({ refreshTrigger }) => {
         * Teams flagged with an anomaly have a judge score deviating &gt; 20% from the panel average. Click any row to view individual judge scores.
       </p>
 
-      {/* FIX: SpecialMentionLeaderboard only shown on LIVE view (pre-finalization).
-          After finalization, the winner card above handles SM display exclusively. */}
       <SpecialMentionLeaderboard />
     </div>
   );

@@ -6,7 +6,7 @@ const EmailViewModal = ({ log, onClose }) => {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            <h3 className="font-bold text-slate-800 text-lg">👁️ View Email</h3>
+            <h3 className="font-bold text-slate-800 text-lg">View Email</h3>
             <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-full text-xs font-bold">
               {log.comm_type}
             </span>

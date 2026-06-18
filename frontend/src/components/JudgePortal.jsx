@@ -66,14 +66,12 @@ const JudgePortal = () => {
         if (res.data.length > 0) setSelectedTeam(res.data[0]);
       }).catch(console.error);
 
-    // Fetch approved special mention teams and normalize shape
     axios.get(`${API}/special-mention/approved`)
       .then(res => {
-        // Normalize: give each SM entry a consistent id and name for scoring
         const normalized = res.data.map(sm => ({
           ...sm,
-          id: sm.team_id,           // FIX: scoring uses selectedTeam.id
-          name: sm.team_name,        // FIX: display uses team.name
+          id: sm.team_id,           
+          name: sm.team_name,        
         }));
         setSpecialMentionTeams(normalized);
       })
@@ -96,7 +94,7 @@ const JudgePortal = () => {
   const handleSubmit = async () => {
     if (!selectedTeam) return;
     if (parseFloat(score) < 0 || parseFloat(score) > maxScore) {
-      setSubmitStatus(`❌ Score must be between 0 and ${maxScore}.`);
+      setSubmitStatus(`Invalid: Score must be between 0 and ${maxScore}.`);
       return;
     }
     setSubmitting(true);
@@ -108,12 +106,12 @@ const JudgePortal = () => {
         score: parseFloat(score),
         notes,
       });
-      setSubmitStatus(`✅ Score submitted for ${selectedTeam.name}!`);
+      setSubmitStatus(`Score submitted for ${selectedTeam.name}.`);
       setScore('');
       setNotes('');
       fetchScoredTeams();
     } catch (err) {
-      setSubmitStatus(`❌ ${err.response?.data?.detail || 'Submission failed.'}`);
+      setSubmitStatus(`Error: ${err.response?.data?.detail || 'Submission failed.'}`);
     } finally {
       setSubmitting(false);
     }
@@ -123,7 +121,7 @@ const JudgePortal = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="p-8 max-w-xl mx-auto bg-red-50 border border-red-200 rounded-xl text-center text-red-800">
         <h2 className="text-xl font-bold mb-2">Invalid or Missing Access Token</h2>
-        <p>A secure magic link is required to access the Judge Portal.</p>
+        <p>A secure link is required to access the Judge Portal.</p>
       </div>
     </div>
   );
@@ -139,8 +137,8 @@ const JudgePortal = () => {
     : [];
 
   const renderTeamCard = (t, isSpecialMention = false) => {
-    const teamId = t.id; // Already normalized
-    const teamName = t.name; // Already normalized
+    const teamId = t.id;
+    const teamName = t.name; 
     const isScored = scoredTeamIds.includes(teamId);
     return (
       <button
@@ -154,8 +152,8 @@ const JudgePortal = () => {
               : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
         }`}
       >
-        {isSpecialMention && <span>⭐</span>}
-        {teamName} {isScored && '✓'}
+        {isSpecialMention && <span className="text-xs uppercase font-bold text-amber-600">[Special]</span>}
+        {teamName} {isScored && '[Completed]'}
       </button>
     );
   };
@@ -171,15 +169,12 @@ const JudgePortal = () => {
       </div>
 
       <div className="bg-blue-600 text-white px-8 py-3 flex flex-wrap items-center gap-3">
-        <span className="text-lg">🔄</span>
         <span className="font-bold tracking-wide">Evaluating Round {currentRound}</span>
         <span className="text-blue-200 text-sm hidden sm:inline">— Ensure scores reflect current stage criteria.</span>
         <span className="ml-auto text-blue-200 text-sm">Max score constraint: <strong className="text-white">{maxScore}</strong></span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-
-        {/* Section toggle */}
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => { setActiveSection('main'); setSelectedTeam(teams[0] || null); setScore(''); setNotes(''); setSubmitStatus(''); }}
@@ -187,7 +182,7 @@ const JudgePortal = () => {
               activeSection === 'main' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
             }`}
           >
-            🏆 Main Finalists ({teams.length})
+            Main Finalists ({teams.length})
           </button>
           <button
             onClick={() => { setActiveSection('special'); setSelectedTeam(specialMentionTeams[0] || null); setScore(''); setNotes(''); setSubmitStatus(''); }}
@@ -195,18 +190,16 @@ const JudgePortal = () => {
               activeSection === 'special' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
             }`}
           >
-            ⭐ Special Mentions ({specialMentionTeams.length})
+            Special Mentions ({specialMentionTeams.length})
           </button>
         </div>
 
-        {/* Special mention notice */}
         {activeSection === 'special' && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <p className="text-sm text-amber-800 font-medium">⭐ These are Special Mention wildcard entries. Score them separately — their scores do not affect main finalist rankings.</p>
+            <p className="text-sm text-amber-800 font-medium">Note: These are Special Mention wildcard entries. Score them separately — their scores do not affect main finalist rankings.</p>
           </div>
         )}
 
-        {/* Main finalists */}
         {activeSection === 'main' && (
           teams.length === 0 ? (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">
@@ -219,7 +212,6 @@ const JudgePortal = () => {
           )
         )}
 
-        {/* Special mention teams */}
         {activeSection === 'special' && (
           specialMentionTeams.length === 0 ? (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center text-amber-800">
@@ -232,7 +224,6 @@ const JudgePortal = () => {
           )
         )}
 
-        {/* Team detail + scoring */}
         {selectedTeam && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -240,7 +231,7 @@ const JudgePortal = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <h3 className="text-lg font-bold text-slate-900">Team Portfolio & Projects</h3>
                   {activeSection === 'special' && (
-                    <span className="px-2.5 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-xs font-bold">⭐ Special Mention</span>
+                    <span className="px-2.5 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-xs font-bold">Special Mention</span>
                   )}
                 </div>
 
@@ -248,7 +239,7 @@ const JudgePortal = () => {
                   const mentor = mentors.find(m => m.assigned_team_id === selectedTeam.id);
                   return mentor ? (
                     <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                      <p className="text-sm font-bold text-indigo-800 mb-1">🧑‍🏫 Assigned Mentor</p>
+                      <p className="text-sm font-bold text-indigo-800 mb-1">Assigned Mentor</p>
                       <p className="text-sm text-indigo-700"><strong>Name:</strong> {mentor.name}</p>
                       <p className="text-sm text-indigo-700"><strong>Email:</strong> {mentor.email}</p>
                       {mentor.expertise && <p className="text-sm text-indigo-700"><strong>Expertise:</strong> {mentor.expertise}</p>}
@@ -266,13 +257,12 @@ const JudgePortal = () => {
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 font-semibold rounded-lg hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm text-sm"
                       >
-                        📦 View Team Project {uniqueProjectLinks.length > 1 ? `#${idx + 1}` : ''}
+                        View Team Project {uniqueProjectLinks.length > 1 ? `#${idx + 1}` : ''}
                       </a>
                     ))}
                   </div>
                 )}
 
-                {/* Regular team members */}
                 {selectedTeam.members && selectedTeam.members.length > 0 ? (
                   selectedTeam.members.map(m => (
                     <div key={m.id} className="mb-4 last:mb-0 p-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -287,7 +277,7 @@ const JudgePortal = () => {
                       <div className="flex gap-4 mt-3 text-sm">
                         {m.resume_link ? (
                           <a href={m.resume_link} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline font-medium">
-                            📄 View Resume
+                            View Resume
                           </a>
                         ) : (
                           <span className="text-slate-400">No resume</span>
@@ -296,13 +286,12 @@ const JudgePortal = () => {
                     </div>
                   ))
                 ) : (
-                  // Special mention — show only the nominated member
                   selectedTeam.nominated_members && selectedTeam.nominated_members.map(m => (
                     <div key={m.id} className="mb-4 last:mb-0 p-3 bg-amber-50 rounded-lg border border-amber-100">
                       <p className="font-semibold text-slate-800">
                         {m.name} <span className="text-sm font-normal text-slate-500">({m.skill})</span>
                       </p>
-                      <span className="text-xs text-amber-600 font-medium">⭐ Nominated wildcard finalist</span>
+                      <span className="text-xs text-amber-600 font-medium">Nominated wildcard finalist</span>
                     </div>
                   ))
                 )}
@@ -318,13 +307,12 @@ const JudgePortal = () => {
 
               {activeSection === 'special' && (
                 <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-700 font-medium">⭐ Scoring as Special Mention — this score is separate from main finalist rankings.</p>
+                  <p className="text-xs text-amber-700 font-medium">Scoring as Special Mention — this score is separate from main finalist rankings.</p>
                 </div>
               )}
 
               {scoredTeamIds.includes(selectedTeam.id) ? (
                 <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center mt-4">
-                  <div className="text-green-500 text-5xl mb-4">✅</div>
                   <h3 className="text-xl font-bold text-green-900 mb-2">Score Locked In</h3>
                   <p className="text-sm text-green-700">
                     You have successfully completed the evaluation for {selectedTeam.name} in Round {currentRound}.
@@ -365,7 +353,7 @@ const JudgePortal = () => {
                   </button>
                   {submitStatus && (
                     <div className={`p-3 rounded-lg text-sm font-medium ${
-                      submitStatus.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                      submitStatus.startsWith('Score submitted') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                     }`}>
                       {submitStatus}
                     </div>

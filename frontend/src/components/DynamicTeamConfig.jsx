@@ -53,7 +53,7 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
       <div className="bg-blue-50 border-b border-blue-100 p-5 flex items-start justify-between">
         <div>
           <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
-            🏆 Round Configuration
+            Round Configuration
           </h3>
           <p className="text-sm text-blue-700 mt-1">
             Define how many rounds this event has and what percentage of teams advance after each round.
@@ -118,7 +118,7 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
 
         {saveError && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
-            ⚠️ {saveError}
+            Error: {saveError}
           </div>
         )}
 
@@ -135,7 +135,7 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
               : isConfirmed ? 'bg-green-600 hover:bg-green-700'
               : 'bg-blue-600 hover:bg-blue-700'
             }`}>
-            {saving ? 'Saving…' : isConfirmed ? '✓ Confirmed — Update' : 'Confirm Rounds'}
+            {saving ? 'Saving…' : isConfirmed ? 'Confirmed — Update' : 'Confirm Rounds'}
           </button>
         </div>
       </form>
