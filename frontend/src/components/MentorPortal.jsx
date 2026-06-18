@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { useTheme } from '../ThemeContext';
 
 const API = 'http://localhost:8000';
 
 const MentorPortal = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const { theme, toggleTheme } = useTheme();
 
   const [mentorInfo, setMentorInfo] = useState(null);
   const [team, setTeam] = useState(null);
@@ -136,7 +138,7 @@ const MentorPortal = () => {
   };
 
   if (tokenError) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <div className="
         p-8 max-w-xl mx-auto rounded-xl text-center border
         bg-red-50 dark:bg-red-950/30
@@ -150,30 +152,47 @@ const MentorPortal = () => {
   );
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <div className="font-medium text-slate-500 dark:text-slate-400">Loading Mentor Portal...</div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Header */}
-      <div className="bg-slate-900 dark:bg-slate-950 text-white px-8 py-5 border-b border-slate-800 flex flex-wrap gap-4 justify-between items-center">
+      <div className="bg-slate-900 dark:bg-slate-950 text-white px-8 py-5 border-b border-slate-800 flex flex-wrap gap-4 justify-between items-center transition-colors duration-300">
         <div>
           <h2 className="text-xl font-bold">Mentor Portal</h2>
           <p className="text-slate-400 text-sm mt-1">
             Welcome, <span className="text-white font-semibold">{mentorInfo?.name}</span>
           </p>
         </div>
-        {currentRound && !isFinalized && (
-          <div className="bg-blue-600 border border-blue-500 px-4 py-2 rounded-lg text-center shadow-inner">
-            <p className="text-blue-200 text-xs font-bold uppercase tracking-wider mb-0.5">Current Stage</p>
-            <p className="text-white font-black text-xl leading-none">Round {currentRound}</p>
-            {currentStageLabel && (
-              <p className="text-blue-200 text-xs mt-1">{currentStageLabel}</p>
+        <div className="flex items-center gap-4">
+          {currentRound && !isFinalized && (
+            <div className="bg-blue-600 dark:bg-blue-800 border border-blue-500 dark:border-blue-700 px-4 py-2 rounded-lg text-center shadow-inner hidden sm:block">
+              <p className="text-blue-200 text-xs font-bold uppercase tracking-wider mb-0.5">Current Stage</p>
+              <p className="text-white font-black text-xl leading-none">Round {currentRound}</p>
+              {currentStageLabel && (
+                <p className="text-blue-200 text-xs mt-1">{currentStageLabel}</p>
+              )}
+            </div>
+          )}
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle Dark Mode"
+            className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-all duration-200 border border-slate-700 shadow-sm"
+          >
+            {theme === 'dark' ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
             )}
-          </div>
-        )}
+          </button>
+        </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
@@ -181,7 +200,7 @@ const MentorPortal = () => {
         {/* Team Card */}
         {team && (
           <div className="
-            rounded-xl p-6 shadow-sm border
+            rounded-xl p-6 shadow-sm border transition-colors duration-300
             bg-white dark:bg-slate-900
             border-slate-200 dark:border-slate-800
           ">
@@ -211,7 +230,7 @@ const MentorPortal = () => {
                 <div
                   key={m.id}
                   className="
-                    flex justify-between items-center p-3 rounded-lg border
+                    flex justify-between items-center p-3 rounded-lg border transition-colors duration-300
                     bg-slate-50 dark:bg-slate-800/50
                     border-slate-100 dark:border-slate-700
                   "
@@ -239,7 +258,7 @@ const MentorPortal = () => {
         {/* Judge Feedback — round by round */}
         {feedbackHistory.length > 0 && (
           <div className="
-            rounded-xl p-6 shadow-sm border
+            rounded-xl p-6 shadow-sm border transition-colors duration-300
             bg-white dark:bg-slate-900
             border-slate-200 dark:border-slate-800
           ">
@@ -250,7 +269,7 @@ const MentorPortal = () => {
               {feedbackHistory.map((f, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-lg border bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
+                  className="p-4 rounded-lg border bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700 transition-colors duration-300"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Round {f.round_number}</p>
@@ -272,7 +291,7 @@ const MentorPortal = () => {
         {/* Event in progress — no rounds yet */}
         {team && !roundsHappened && !isFinalized && (
           <div className="
-            rounded-xl p-6 text-center shadow-sm border
+            rounded-xl p-6 text-center shadow-sm border transition-colors duration-300
             bg-blue-50 dark:bg-blue-950/30
             border-blue-200 dark:border-blue-800
           ">
@@ -287,7 +306,7 @@ const MentorPortal = () => {
         {/* Rounds happened — team qualified */}
         {team && roundsHappened && team.is_qualified && !isFinalized && (
           <div className="
-            rounded-xl p-6 text-center shadow-sm border
+            rounded-xl p-6 text-center shadow-sm border transition-colors duration-300
             bg-green-50 dark:bg-green-950/30
             border-green-200 dark:border-green-800
           ">
@@ -303,7 +322,7 @@ const MentorPortal = () => {
         {team && roundsHappened && !team.is_qualified && !isFinalized && (
           <>
             <div className="
-              rounded-xl p-6 text-center shadow-sm border
+              rounded-xl p-6 text-center shadow-sm border transition-colors duration-300
               bg-red-50 dark:bg-red-950/30
               border-red-200 dark:border-red-800
             ">
@@ -318,7 +337,7 @@ const MentorPortal = () => {
             {/* Special Mention */}
             {isSecondLastRound && (
               <div className="
-                rounded-xl p-6 shadow-sm border
+                rounded-xl p-6 shadow-sm border transition-colors duration-300
                 bg-white dark:bg-slate-900
                 border-indigo-200 dark:border-indigo-800
               ">
@@ -385,7 +404,7 @@ const MentorPortal = () => {
                         onChange={e => setReason(e.target.value)}
                         rows={4}
                         className="
-                          w-full px-3 py-2 rounded-lg outline-none resize-vertical text-sm border
+                          w-full px-3 py-2 rounded-lg outline-none resize-vertical text-sm border transition-colors duration-300
                           bg-white dark:bg-slate-800
                           border-slate-200 dark:border-slate-700
                           text-slate-700 dark:text-slate-300
@@ -428,7 +447,7 @@ const MentorPortal = () => {
 
         {/* Event finalized */}
         {team && isFinalized && (
-          <div className={`rounded-xl p-6 text-center shadow-sm border ${
+          <div className={`rounded-xl p-6 text-center shadow-sm border transition-colors duration-300 ${
             team.is_qualified
               ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
               : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
