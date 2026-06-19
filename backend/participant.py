@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Participant, Team, Score, EventConfig
 from pydantic import BaseModel
-from activity import log_action
+from dynamic_pipeline import _compute_pipeline_status
 import json
 
 router = APIRouter()
@@ -34,12 +34,20 @@ def _get_current_stage_info(db: Session):
         return {"name": "INTAKE", "label": "Participant Intake"}
     
     stages = json.loads(config.stages)
-    idx = config.current_stage_index if config.current_stage_index is not None else 0
     if not stages:
         return {"name": "INTAKE", "label": "Participant Intake"}
         
-    idx = min(idx, len(stages) - 1)
-    return stages[idx]
+    # Dynamically compute the pipeline status instead of reading the static DB integer
+    pipeline_status = _compute_pipeline_status(config, db)
+    
+    if not pipeline_status or not pipeline_status.get("stages"):
+         return {"name": "INTAKE", "label": "Participant Intake"}
+
+    idx = pipeline_status.get("current_stage_index", 0)
+    idx = min(idx, len(pipeline_status["stages"]) - 1)
+    
+    # Returns the full dict shape for the current active stage, including the 'label' key
+    return pipeline_status["stages"][idx]
 
 
 def get_participant_data(participant_id: int, db: Session):
@@ -122,12 +130,12 @@ def confirm_progression(participant_id: int, db: Session = Depends(get_db)):
         performed_by=participant.name
     )
     log_action(
-    db=db,
-    action="PARTICIPANTS_UPLOADED",
-    description="Committee uploaded a new participant roster via CSV",
-    performed_by="committee",
-    target_entity="Participant",
-    target_id=None 
+        db=db,
+        action="PARTICIPANTS_UPLOADED",
+        description="Committee uploaded a new participant roster via CSV",
+        performed_by="committee",
+        target_entity="Participant",
+        target_id=None 
     )
 
     return {"message": "Progression confirmed successfully. See you in the next round!"}
