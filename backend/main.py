@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from roster import router as roster_router
@@ -19,6 +19,24 @@ from feedback import router as feedback_router
 from websocket_manager import manager # NEW
 from sqlalchemy import text
 from database import engine
+
+# --- NEW IMPORTS FOR AI CHAT (GROQ) ---
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from groq import Groq
+import os
+
+# Load the variables from the .env file
+load_dotenv()
+
+# Initialize Groq client
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# Define what the React frontend will send
+class ChatRequest(BaseModel):
+    system_prompt: str
+    message: str
+# -------------------------------
 
 def run_migrations():
     with engine.connect() as conn:
@@ -60,6 +78,33 @@ app.include_router(feedback_router)
 @app.get("/")
 def root():
     return {"message": "EventFlow API is running"}
+
+# --- NEW: AI Chat Endpoint (GROQ) ---
+@app.post("/ai/chat")
+async def support_chat(request: ChatRequest):
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": request.system_prompt,
+                },
+                {
+                    "role": "user",
+                    "content": request.message,
+                }
+            ],
+            model="llama-3.1-8b-instant", 
+            temperature=0.5,
+            max_tokens=500,
+        )
+        
+        return {"reply": chat_completion.choices[0].message.content}
+    
+    except Exception as e:
+        print(f"Groq Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to connect to AI assistant.")
+# -----------------------------
 
 # NEW: Global WebSocket router endpoint
 @app.websocket("/ws/{channel}")

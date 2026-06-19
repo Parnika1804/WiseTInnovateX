@@ -1,3 +1,4 @@
+import SupportChat from './SupportChat';
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -382,6 +383,7 @@ const ParticipantPortal = () => {
     </div>
   );
 
+  // 1. WINNER SCREEN
   if (finalResults && myWin) return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -403,9 +405,22 @@ const ParticipantPortal = () => {
           <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
         </div>
       </div>
+
+      <SupportChat 
+        supportEmail="wisetinnovatex@gmail.com"
+        participantContext={{
+          name: data.participant.name,
+          stage: data.current_stage?.label,
+          teamName: data.team?.name,
+          teamMembers: data.team_members,
+          mentorName: mentor?.name,
+          mentorEmail: mentor?.email
+        }}
+      />
     </div>
   );
 
+  // 2. ELIMINATED / EVENT CONCLUDED SCREEN
   if ((finalResults && !myWin) || isEliminated) return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -439,9 +454,22 @@ const ParticipantPortal = () => {
           <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
         </div>
       </div>
+
+      <SupportChat 
+        supportEmail="wisetinnovatex@gmail.com"
+        participantContext={{
+          name: data.participant.name,
+          stage: data.current_stage?.label,
+          teamName: data.team?.name,
+          teamMembers: data.team_members,
+          mentorName: mentor?.name,
+          mentorEmail: mentor?.email
+        }}
+      />
     </div>
   );
 
+  // 3. ACTIVE COMPETITION SCREEN
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
@@ -550,6 +578,18 @@ const ParticipantPortal = () => {
 
         <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
       </div>
+
+      <SupportChat 
+        supportEmail="wisetinnovatex@gmail.com"
+        participantContext={{
+          name: data.participant.name,
+          stage: data.current_stage?.label,
+          teamName: data.team?.name,
+          teamMembers: data.team_members,
+          mentorName: mentor?.name,
+          mentorEmail: mentor?.email
+        }}
+      />
     </div>
   );
 };
