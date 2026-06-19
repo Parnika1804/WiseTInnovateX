@@ -231,7 +231,7 @@ const FeedbackSummary = () => {
   if (!summary || summary.total_responses === 0) return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-12 text-center shadow-sm transition-colors duration-300">
       <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">No Feedback Yet</h3>
-      <p className="text-slate-500 dark:text-slate-400 text-sm">Feedback forms appear on participant portals once results are finalized. Responses will show up here automatically.</p>
+      <p className="text-slate-500 dark:text-slate-400 text-sm">Feedback emails are sent automatically when the event is finalized. Responses will show up here.</p>
     </div>
   );
 
@@ -288,10 +288,7 @@ const FeedbackSummary = () => {
       )}
 
       <div className="text-right">
-        <button
-          onClick={fetchSummary}
-          className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
-        >
+        <button onClick={fetchSummary} className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors">
           Refresh Data
         </button>
       </div>
@@ -302,8 +299,22 @@ const FeedbackSummary = () => {
 const CommitteeDashboard = () => {
   const [refresh, setRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
+  const [unreadFeedback, setUnreadFeedback] = useState(0);
+  const [showToast, setShowToast] = useState(false);
 
   const handleAction = () => setRefresh(prev => prev + 1);
+
+  useEffect(() => {
+    axios.get(`${API}/feedback/count`).then(res => {
+      const total = res.data.count;
+      const lastSeen = parseInt(localStorage.getItem('feedback_last_seen') || '0');
+      if (total > lastSeen) {
+        setUnreadFeedback(total - lastSeen);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 5000);
+      }
+    }).catch(() => {});
+  }, []);
 
   const wsStatus = useWebSocket('dashboard', (data) => {
     if (data.event === 'dashboard_updated') {
@@ -314,10 +325,8 @@ const CommitteeDashboard = () => {
   const handleFactoryReset = async () => {
     const confirm1 = window.confirm("WARNING: Are you sure you want to start a new event?");
     if (!confirm1) return;
-
     const confirm2 = window.confirm("FINAL WARNING: This will permanently delete ALL current participants, teams, scores, judges, and configurations. ONLY Committee accounts will remain. Proceed?");
     if (!confirm2) return;
-
     try {
       await axios.delete('http://localhost:8000/system/reset');
       alert("System reset successful. You may now configure your new event.");
@@ -325,6 +334,17 @@ const CommitteeDashboard = () => {
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to reset system. Please check the backend connection.");
       console.error("Reset Error:", error);
+    }
+  };
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === 'feedback') {
+      axios.get(`${API}/feedback/count`).then(res => {
+        localStorage.setItem('feedback_last_seen', res.data.count);
+        setUnreadFeedback(0);
+        setShowToast(false);
+      }).catch(() => {});
     }
   };
 
@@ -355,13 +375,20 @@ const CommitteeDashboard = () => {
           {TABS.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
               className={`px-5 py-3 sm:py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 outline-none flex-shrink-0 ${activeTab === tab.id
                   ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800'
                   : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
             >
-              {tab.label}
+              <span className="flex items-center gap-2">
+                {tab.label}
+                {tab.id === 'feedback' && unreadFeedback > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    {unreadFeedback}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -383,14 +410,17 @@ const CommitteeDashboard = () => {
           </div>
         </div>
       )}
-      {activeTab === 'judges' && (
-        <div className="max-w-xl">
-          <CreateJudge />
-        </div>
-      )}
+      {activeTab === 'judges' && <div className="max-w-xl"><CreateJudge /></div>}
       {activeTab === 'mentors' && <MentorManager />}
       {activeTab === 'special-mentions' && <SpecialMentions />}
       {activeTab === 'feedback' && <FeedbackSummary />}
+
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-5 py-3 rounded-xl shadow-xl font-semibold text-sm flex items-center gap-3">
+          🔔 {unreadFeedback} new feedback{unreadFeedback > 1 ? 's' : ''} received
+          <button onClick={() => setShowToast(false)} className="text-slate-400 hover:text-white ml-2">✕</button>
+        </div>
+      )}
     </div>
   );
 };

@@ -149,3 +149,58 @@ def get_feedback_summary(db: Session = Depends(get_db)):
 def check_feedback(participant_id: int, db: Session = Depends(get_db)):
     existing = db.query(Feedback).filter(Feedback.participant_id == participant_id).first()
     return {"submitted": existing is not None}
+# ---------------------------------------------------------------------------
+# GET /feedback/count  — total count for toast notification
+# ---------------------------------------------------------------------------
+@router.get("/feedback/count")
+def get_feedback_count(db: Session = Depends(get_db)):
+    count = db.query(Feedback).count()
+    return {"count": count}
+
+
+# ---------------------------------------------------------------------------
+# POST /feedback/send-emails  — draft feedback emails to all approved participants
+# ---------------------------------------------------------------------------
+@router.post("/feedback/send-emails")
+def send_feedback_emails(db: Session = Depends(get_db)):
+    from datetime import timedelta
+    from jose import jwt
+    from email_triggers import _save_as_draft
+
+    SECRET_KEY = "eventflow-secret-key-2026"
+    ALGORITHM = "HS256"
+
+    participants = db.query(Participant).filter(
+        Participant.registration_status == "approved"
+    ).all()
+
+    if not participants:
+        raise HTTPException(status_code=404, detail="No approved participants found.")
+
+    sent_count = 0
+    for participant in participants:
+        token_data = {
+            "email": participant.email,
+            "role": "Participant",
+            "name": participant.name,
+            "exp": datetime.utcnow() + timedelta(days=7),
+        }
+        token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        feedback_link = f"http://localhost:5173/feedback?token={token}"
+
+        subject = "Share Your Feedback — Thank You for Participating!"
+        body = (
+            f"Dear {participant.name},\n\n"
+            f"Thank you for being part of this event!\n\n"
+            f"Please take 2 minutes to share your feedback:\n\n"
+            f"{feedback_link}\n\n"
+            f"Warm regards,\nEvent Committee"
+        )
+        try:
+            _save_as_draft(db, to_email=participant.email, subject=subject, body=body, comm_type="FEEDBACK_REQUEST")
+            sent_count += 1
+        except Exception as e:
+            print(f"Failed to draft feedback email for {participant.email}: {e}")
+
+    db.commit()
+    return {"message": f"Feedback emails drafted for {sent_count} participants.", "count": sent_count}

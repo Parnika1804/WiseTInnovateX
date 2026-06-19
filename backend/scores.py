@@ -3,7 +3,7 @@ from models import Team, Score, Participant, EventConfig, User, CommunicationLog
 from sqlalchemy.orm import Session
 from database import get_db
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from email_service import send_email
 from activity import log_action
 from websocket_manager import manager
@@ -492,7 +492,34 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
                 "reason": special_mention_winner.reason,
                 "final_score": sm_scores[0]["avg"] if sm_scores else 0.0
             }
-
+        # --- Feedback Emails ---
+        try:
+            from jose import jwt as jose_jwt
+            from email_triggers import _save_as_draft
+            SECRET_KEY = "eventflow-secret-key-2026"
+            all_participants = db.query(Participant).filter(Participant.registration_status == "approved").all()
+            for participant in all_participants:
+                token_data = {
+                    "email": participant.email,
+                    "role": "Participant",
+                    "name": participant.name,
+                    "exp": datetime.utcnow() + timedelta(days=7),
+                }
+                token = jose_jwt.encode(token_data, SECRET_KEY, algorithm="HS256")
+                feedback_link = f"http://localhost:5173/feedback?token={token}"
+                fb_log = CommunicationLog(
+                    recipient_email=participant.email,
+                    subject=f"Share Your Feedback — {event_name}",
+                    message=f"Dear {participant.name},\n\nThank you for being part of {event_name}!\n\nPlease share your feedback here:\n{feedback_link}\n\nWarm regards,\nEvent Committee",
+                    comm_type="FEEDBACK_REQUEST",
+                    status="PENDING_APPROVAL",
+                    batch_id=batch_id
+                )
+                db.add(fb_log)
+                drafted_count += 1
+            db.commit()
+        except Exception as e:
+            print(f"Failed to draft feedback emails: {e}")
         log_action(db, "EVALUATION_FINALIZED", f"Final results declared. Winner: {team_scores[0]['team'].name}. {drafted_count} result emails drafted for approval.", "committee")
         
         background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})

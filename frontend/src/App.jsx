@@ -19,6 +19,7 @@ import ParticipantPortal from './components/ParticipantPortal';
 import JudgePortal from './components/JudgePortal';
 import EventDescriptionForm from './components/EventDescriptionForm';
 import MentorPortal from './components/MentorPortal';
+import FeedbackPage from './components/FeedbackPage';
 
 // --- INLINE PAGE COMPONENTS (COMMITTEE ONLY) ---
 const TeamView = () => {
@@ -94,7 +95,8 @@ function App() {
 
             {/* === MENTOR MAGIC LINK ROUTE (public – self-authenticates via token in URL) === */}
             <Route path="/mentor-portal" element={<MentorPortal />} />
-
+            {/* === FEEDBACK ROUTE (public) === */}
+            <Route path="/feedback" element={<FeedbackPage />} />
           </Routes>
         </Router>
       </AuthProvider>
