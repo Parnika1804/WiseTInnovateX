@@ -27,7 +27,7 @@ export const useWebSocket = (channel, onMessage) => {
 
     const connect = () => {
       if (!wsCache[channel] || wsCache[channel].readyState === WebSocket.CLOSED) {
-        const ws = new WebSocket(`ws://localhost:8000/ws/${channel}`);
+        const ws = new WebSocket(`wss://wisetinnovatex-r4vx.onrender.com/ws/${channel}`);
         wsCache[channel] = ws;
         retryCounts[channel] = retryCounts[channel] || 0;
 
