@@ -15,7 +15,7 @@ const CSVUpload = ({ onUploadSuccess }) => {
     formData.append('file', file);
 
     try {
-      const res = await axios.post('http://localhost:8000/roster/upload', formData, {
+      const res = await axios.post('https://wisetinnovatex-r4vx.onrender.com/roster/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setNotification("Participants uploaded! Welcome emails are pending approval - go to the Comms page to review and approve.");

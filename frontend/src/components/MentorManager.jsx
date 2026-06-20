@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const MentorManager = () => {
   const [mentors, setMentors] = useState([]);

@@ -24,7 +24,7 @@ export default function ScoreSubmitForm({ teamId, judgeName, maxScore, onScoreSu
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:8000/scores/submit', {
+      const response = await fetch('https://wisetinnovatex-r4vx.onrender.com/scores/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

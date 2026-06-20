@@ -9,7 +9,7 @@ const EmailEditModal = ({ log, onClose, onSave }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await axios.patch(`http://localhost:8000/comms/log/${log.id}`, { subject, message });
+      await axios.patch(`https://wisetinnovatex-r4vx.onrender.com/comms/log/${log.id}`, { subject, message });
       onSave(); 
       onClose(); 
     } catch (err) {

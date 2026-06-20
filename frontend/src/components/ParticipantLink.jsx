@@ -6,8 +6,8 @@ const ParticipantLink = () => {
   const [teams, setTeams] = useState([]);
 
   useEffect(() => {
-    axios.get('http://localhost:8000/participants/portal').then(res => setParticipants(res.data));
-    axios.get('http://localhost:8000/teams').then(res => setTeams(res.data));
+    axios.get('https://wisetinnovatex-r4vx.onrender.com/participants/portal').then(res => setParticipants(res.data));
+    axios.get('https://wisetinnovatex-r4vx.onrender.com/teams').then(res => setTeams(res.data));
   }, []);
 
   const generateParticipantToken = (id) => btoa(JSON.stringify({ id }));

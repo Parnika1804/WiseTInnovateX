@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import AnnouncementForm from './AnnouncementForm';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const STAGE_OPTIONS = [
   { value: 'EVALUATION', label: 'Evaluation Reminder' },

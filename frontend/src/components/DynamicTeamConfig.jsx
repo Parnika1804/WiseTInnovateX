@@ -36,7 +36,7 @@ const DynamicTeamConfig = ({ onRulesConfirmed }) => {
           : `top ${pct}% advance`,
       }));
 
-      await axios.patch('http://localhost:8000/event/config/advancement-rules', { rules });
+      await axios.patch('https://wisetinnovatex-r4vx.onrender.com/event/config/advancement-rules', { rules });
       setIsConfirmed(true);
       if (onRulesConfirmed) onRulesConfirmed({ numRounds, qualifyPercents });
     } catch (err) {

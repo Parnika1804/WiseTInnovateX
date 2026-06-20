@@ -8,7 +8,7 @@ const ApproveRejectButtons = ({ teamId, currentStatus, onStatusChange }) => {
   const handleAction = async (action) => {
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:8000/teams/approve', {
+      const res = await axios.post('https://wisetinnovatex-r4vx.onrender.com/teams/approve', {
         team_id: teamId,
         action: action
       });

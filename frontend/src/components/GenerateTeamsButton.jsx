@@ -7,7 +7,7 @@ const GenerateTeamsButton = ({ onGenerated }) => {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      await axios.post('http://localhost:8000/teams/generate', { team_size: 3, skill_balance: true, constraints: null });
+      await axios.post('https://wisetinnovatex-r4vx.onrender.com/teams/generate', { team_size: 3, skill_balance: true, constraints: null });
       alert("Teams successfully generated!");
 
       if (onGenerated) onGenerated();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const FeedbackPage = () => {
   const [searchParams] = useSearchParams();

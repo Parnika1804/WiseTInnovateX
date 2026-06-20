@@ -14,7 +14,7 @@ const CreateJudge = () => {
     setStatus({ message: 'Generating magic link and queuing email for approval...', type: 'info' });
 
     try {
-      const res = await axios.post('http://localhost:8000/auth/create-judge', { name, email });
+      const res = await axios.post('https://wisetinnovatex-r4vx.onrender.com/auth/create-judge', { name, email });
       setStatus({ message: '✅ Judge invited! Magic link queued for approval. Go to Comms to review.', type: 'success' });
 
       // Trigger Toast

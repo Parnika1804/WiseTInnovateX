@@ -6,7 +6,7 @@ import ParticipantProfileForm from './ParticipantProfileForm';
 import { useAuth } from './AuthContext';
 import { useTheme } from '../ThemeContext';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const FeedbackForm = ({ participantId, hasMentor }) => {
   const [submitted, setSubmitted] = useState(false);

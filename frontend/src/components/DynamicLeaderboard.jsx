@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const DynamicLeaderboard = ({ scoringCategories = [], teamData = [], currentRound = 1, onRoundEnded }) => {
   const [finalizing, setFinalizing] = useState(false);

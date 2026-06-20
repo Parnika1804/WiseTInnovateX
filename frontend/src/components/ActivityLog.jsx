@@ -6,7 +6,7 @@ const ActivityLog = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);
 
   const fetchLogs = useCallback(() => {
-    axios.get('http://localhost:8000/activity')
+    axios.get('https://wisetinnovatex-r4vx.onrender.com/activity')
       .then(res => setLogs(res.data))
       .catch(err => console.error('Error fetching activity:', err));
   }, []);

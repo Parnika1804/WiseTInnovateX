@@ -18,7 +18,7 @@ const ParticipantProfileForm = ({ participant, onProfileUpdate }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:8000/participant/${participant.id}/profile`, {
+      await axios.put(`https://wisetinnovatex-r4vx.onrender.com/participant/${participant.id}/profile`, {
         tech_stack: techStack,
         project_link: projectLink,
         resume_link: resumeLink

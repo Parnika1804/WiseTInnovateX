@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 // Call this from any committee action component to refresh the pipeline instantly
 export const refreshPipeline = () => {

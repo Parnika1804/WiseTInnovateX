@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useWebSocket } from '../hooks/useWebSocket';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const CommsLogTable = ({ refreshTrigger }) => {
   const [logs, setLogs] = useState([]);

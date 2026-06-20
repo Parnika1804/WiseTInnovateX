@@ -52,7 +52,7 @@ const SupportChat = ({ participantContext, supportEmail }) => {
             // Using your existing backend proxy to Gemini or Groq (assuming you have a generic chat endpoint or you can hit Gemini directly if you have the API key exposed, though backend is safer).
             // For this implementation, I am directly calling the Gemini API endpoint you likely have in your backend.
             // If you don't have a specific chat endpoint, you will need to add a quick POST route in FastAPI to handle this payload.
-            const res = await axios.post('http://localhost:8000/ai/chat', {
+            const res = await axios.post('https://wisetinnovatex-r4vx.onrender.com/ai/chat', {
                 system_prompt: systemPrompt,
                 message: userMessage
             });

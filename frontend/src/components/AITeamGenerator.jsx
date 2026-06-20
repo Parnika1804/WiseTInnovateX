@@ -16,7 +16,7 @@ const AITeamGenerator = ({ onTeamsGenerated }) => {
     setJsonError('');
 
     try {
-      const res = await axios.post('http://localhost:8000/teams/translate-rubric', { prompt });
+      const res = await axios.post('https://wisetinnovatex-r4vx.onrender.com/teams/translate-rubric', { prompt });
       setRubric(JSON.stringify(res.data, null, 2));
     } catch (err) {
       setError("Failed to generate rubric. Check backend connection.");
@@ -51,7 +51,7 @@ const AITeamGenerator = ({ onTeamsGenerated }) => {
     }
 
     try {
-      await axios.post('http://localhost:8000/teams/generate', parsedConfig);
+      await axios.post('https://wisetinnovatex-r4vx.onrender.com/teams/generate', parsedConfig);
       alert("Teams successfully generated based on your custom rubric!");
       onTeamsGenerated();
     } catch (err) {

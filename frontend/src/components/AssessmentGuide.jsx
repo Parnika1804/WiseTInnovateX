@@ -11,7 +11,7 @@ const AssessmentGuide = ({ teamId }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.get(`http://localhost:8000/scores/assessment-guide/${teamId}`);
+      const res = await axios.get(`https://wisetinnovatex-r4vx.onrender.com/scores/assessment-guide/${teamId}`);
       setGuide(res.data.assessment_guide);
     } catch (err) {
       console.error(err);

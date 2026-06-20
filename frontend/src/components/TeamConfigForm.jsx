@@ -8,7 +8,7 @@ const TeamConfigForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:8000/teams/configure', {
+      await axios.post('https://wisetinnovatex-r4vx.onrender.com/teams/configure', {
         team_size: teamSize,
         skill_balance: balanceSkills,
         constraints: null

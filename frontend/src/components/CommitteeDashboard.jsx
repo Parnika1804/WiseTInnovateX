@@ -9,7 +9,7 @@ import PendingApprovals from './PendingApprovals';
 import MentorManager from './MentorManager';
 import { useWebSocket } from '../hooks/useWebSocket';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -328,7 +328,7 @@ const CommitteeDashboard = () => {
     const confirm2 = window.confirm("FINAL WARNING: This will permanently delete ALL current participants, teams, scores, judges, and configurations. ONLY Committee accounts will remain. Proceed?");
     if (!confirm2) return;
     try {
-      await axios.delete('http://localhost:8000/system/reset');
+      await axios.delete('https://wisetinnovatex-r4vx.onrender.com/system/reset');
       alert("System reset successful. You may now configure your new event.");
       window.location.reload();
     } catch (error) {

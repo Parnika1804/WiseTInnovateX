@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const Leaderboard = ({ refreshTrigger }) => {
   const [leaderboard, setLeaderboard] = useState([]);

@@ -26,12 +26,12 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
     setIsLoading(true);
 
     try {
-      const describeRes = await axios.post('http://localhost:8000/event/describe', { description });
+      const describeRes = await axios.post('https://wisetinnovatex-r4vx.onrender.com/event/describe', { description });
 
       if (describeRes.data.status === 'incomplete') {
         setStatus({ type: 'info', message: 'Analyzing missing information...' });
 
-        const clarifyRes = await axios.post('http://localhost:8000/event/clarify', {
+        const clarifyRes = await axios.post('https://wisetinnovatex-r4vx.onrender.com/event/clarify', {
           description: description,
           missing_fields: describeRes.data.missing_fields
         });
@@ -47,7 +47,7 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
         setStatus({ type: '', message: '' });
 
       } else {
-        const configRes = await axios.post('http://localhost:8000/event/configure', { description });
+        const configRes = await axios.post('https://wisetinnovatex-r4vx.onrender.com/event/configure', { description });
         setStatus({ type: 'success', message: '✅ Event configured successfully!' });
         if (onConfigExtracted) onConfigExtracted(describeRes.data.config);
         setDescription('');
@@ -67,13 +67,13 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
     setStatus({ type: 'info', message: 'Processing your answers and configuring event...' });
 
     try {
-      const resubmitRes = await axios.post('http://localhost:8000/event/clarify/resubmit', {
+      const resubmitRes = await axios.post('https://wisetinnovatex-r4vx.onrender.com/event/clarify/resubmit', {
         original_description: description,
         answers: answers
       });
 
       const combinedDescription = resubmitRes.data.combined_description;
-      const configRes = await axios.post('http://localhost:8000/event/configure', { description: combinedDescription });
+      const configRes = await axios.post('https://wisetinnovatex-r4vx.onrender.com/event/configure', { description: combinedDescription });
 
       setStatus({ type: 'success', message: `✅ Event "${configRes.data.config?.event_name || 'configured'}" successfully!` });
 
@@ -124,7 +124,7 @@ const EventDescriptionForm = ({ onConfigExtracted }) => {
 
     setSavingRules(true);
     try {
-      await axios.patch('http://localhost:8000/event/config/advancement-rules', {
+      await axios.patch('https://wisetinnovatex-r4vx.onrender.com/event/config/advancement-rules', {
         rules: advancementRules.map(r => ({
           round: r.round,
           stage_name: r.stage_name,

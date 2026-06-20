@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ApproveRejectButtons from './ApproveRejectButtons';
 
-const API = 'http://localhost:8000';
+const API = 'https://wisetinnovatex-r4vx.onrender.com';
 
 const TeamList = ({ refreshTrigger }) => {
   const [teams, setTeams] = useState([]);
