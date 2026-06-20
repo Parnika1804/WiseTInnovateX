@@ -29,6 +29,7 @@ migrations = [
     ("scores", "round_number",  "INTEGER NOT NULL DEFAULT 1"),
     
     ("teams",  "mentor_rationale", "TEXT"),
+    ("scores", "anomaly_resolved", "BOOLEAN NOT NULL DEFAULT 0"),
 ]
 
 for table, column, definition in migrations:

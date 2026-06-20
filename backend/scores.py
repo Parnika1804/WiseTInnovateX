@@ -11,6 +11,7 @@ from gemini import call_gemini
 import json
 import uuid
 import re
+import statistics
 
 router = APIRouter()
 
@@ -29,12 +30,24 @@ def get_dynamic_scoring_config(db: Session):
         return scoring
     return None
 
-def check_anomaly(scores: list, new_score: float, max_score: float = 10.0) -> bool:
-    if len(scores) == 0:
-        return False
-    average = sum(scores) / len(scores)
+def recompute_team_anomalies(db: Session, team_id: int, round_number: int, max_score: float):
+    scores = db.query(Score).filter(
+        Score.team_id == team_id,
+        Score.round_number == round_number
+    ).all()
+
+    if not scores:
+        return
+
+    median = statistics.median([s.score for s in scores])
     threshold = max_score * 0.2
-    return abs(new_score - average) > threshold
+
+    for s in scores:
+        if getattr(s, 'anomaly_resolved', False):
+            continue
+        s.anomaly_flagged = abs(s.score - median) > threshold
+
+    db.commit()
 
 # ---------------------------------------------------------
 # Assessment Guide
@@ -103,28 +116,26 @@ def submit_score(request: ScoreRequest, background_tasks: BackgroundTasks, db: S
     if request.score < 0 or request.score > max_score:
         raise HTTPException(status_code=400, detail=f"Score must be between 0 and {max_score}")
 
-    existing_scores = [s.score for s in db.query(Score).filter(
-        Score.team_id == request.team_id,
-        Score.round_number == current_round
-    ).all()]
-    is_anomaly = check_anomaly(existing_scores, request.score, max_score)
-
     new_score = Score(
         team_id=request.team_id,
         judge_name=request.judge_name,
         score=request.score,
         notes=request.notes,
-        anomaly_flagged=is_anomaly,
+        anomaly_flagged=False,
         round_number=current_round
     )
 
     db.add(new_score)
     db.commit()
+    
+    # Recompute team anomalies (applies median check across all scores for team)
+    recompute_team_anomalies(db, request.team_id, current_round, max_score)
+    db.refresh(new_score) # Fetch the updated anomaly state for the response
 
     log_action(db, "SCORE_SUBMITTED", f"Score of {request.score} submitted for team {request.team_id}", "judge", "Score", new_score.id)
     background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
 
-    if is_anomaly:
+    if new_score.anomaly_flagged:
         return {"message": "Score submitted.", "warning": "Your score deviates significantly from the panel average and has been flagged for committee review."}
 
     return {"message": "Score submitted successfully"}
@@ -211,7 +222,6 @@ def get_finalized_podium(db: Session = Depends(get_db)):
         return {"finalized": False, "podium": None}
 
     # FIX: Get the final round number from non-SM qualified teams only.
-    # Using a global max could be skewed if SM teams were scored in a different round.
     from sqlalchemy import func
     non_sm_team_ids = [
         t.id for t in db.query(Team).filter(
@@ -316,6 +326,7 @@ def resolve_anomaly(score_id: int, background_tasks: BackgroundTasks, db: Sessio
         raise HTTPException(status_code=404, detail="Score not found")
 
     score.anomaly_flagged = False
+    score.anomaly_resolved = True # Marking this as resolved ensures it escapes future recomputes
     db.commit()
 
     log_action(db, "ANOMALY_RESOLVED", f"Anomaly resolved for score {score_id} (Team {score.team_id})", "committee")
@@ -332,12 +343,20 @@ def reject_anomaly(score_id: int, background_tasks: BackgroundTasks, db: Session
 
     judge_name = score.judge_name
     team_id = score.team_id
+    round_number = score.round_number
 
     team = db.query(Team).filter(Team.id == team_id).first()
     team_name = team.name if team else f"Team #{team_id}"
 
     db.delete(score)
     db.commit()
+
+    # Recompute anomalies for the remaining scores of this team since the median has shifted
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    scoring_data = json.loads(config.scoring) if config else {}
+    max_score = scoring_data.get("max_score", 10.0)
+    
+    recompute_team_anomalies(db, team_id, round_number, max_score)
 
     judge = db.query(User).filter(User.name == judge_name, User.role == "Judge").first()
     if judge and judge.email:

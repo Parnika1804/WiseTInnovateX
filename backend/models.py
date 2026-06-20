@@ -81,6 +81,7 @@ class Score(Base):
     score = Column(Float, nullable=False)
     notes = Column(String, nullable=True)
     anomaly_flagged = Column(Boolean, default=False)
+    anomaly_resolved = Column(Boolean, default=False)
     round_number = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
 
