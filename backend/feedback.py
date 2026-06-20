@@ -186,7 +186,7 @@ def send_feedback_emails(db: Session = Depends(get_db)):
             "exp": datetime.utcnow() + timedelta(days=7),
         }
         token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-        feedback_link = f"http://localhost:5173/feedback?token={token}"
+        feedback_link = f"wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app/feedback?token={token}"
 
         subject = "Share Your Feedback — Thank You for Participating!"
         body = (

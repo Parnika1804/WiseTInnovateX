@@ -38,7 +38,7 @@ EventFlow is an AI-powered hackathon management platform that automates the full
 
 1. **Directory:** Navigate to `/frontend`.
 2. **Install:** `npm install`.
-3. **Execution:** `npm run dev` (Runs at `http://localhost:5173`).
+3. **Execution:** `npm run dev` (Runs at `wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app`).
 
 ---
 
@@ -73,7 +73,7 @@ The following features are now live and should be utilized in all front-end buil
 1. **Safety First:** Committee approval is required before triggering any `POST /comms/send` request.
 2. **Rate Limiting:** If a 429 error occurs, the system defaults to a retry queue via Celery; avoid manual spamming of the Gemini endpoint.
 3. **Anomaly Threshold:** Adjust the `ANOMALY_THRESHOLD` constant in `scores.py` to tune the sensitivity of the judge-bias detector.
-4. **CORS Policy:** Localhost (`http://localhost:5173`) is currently white-listed. Ensure the CORS middleware in `main.py` is updated to include your final production domain before deploying to Vercel/Render.
+4. **CORS Policy:** Localhost (`wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app`) is currently white-listed. Ensure the CORS middleware in `main.py` is updated to include your final production domain before deploying to Vercel/Render.
 
 ---
 

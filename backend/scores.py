@@ -532,7 +532,7 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
                     "exp": datetime.utcnow() + timedelta(days=7),
                 }
                 token = jose_jwt.encode(token_data, SECRET_KEY, algorithm="HS256")
-                feedback_link = f"http://localhost:5173/feedback?token={token}"
+                feedback_link = f"wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app/feedback?token={token}"
                 fb_log = CommunicationLog(
                     recipient_email=participant.email,
                     subject=f"Share Your Feedback — {event_name}",
