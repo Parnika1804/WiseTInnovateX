@@ -576,8 +576,13 @@ const ParticipantPortal = () => {
           </div>
         </div>
 
+        {data.team && currentRound > 1 && (
+          <JudgeFeedback teamId={data.team.id} />
+        )}
+
         <ParticipantProfileForm participant={data.participant} onProfileUpdate={loadPortal} />
       </div>
+
 
       <SupportChat 
         supportEmail="wisetinnovatex@gmail.com"
