@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from database import get_db
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from email_service import send_email
 from activity import log_action
 from websocket_manager import manager
 from gemini import call_gemini
@@ -359,22 +358,30 @@ def reject_anomaly(score_id: int, background_tasks: BackgroundTasks, db: Session
     recompute_team_anomalies(db, team_id, round_number, max_score)
 
     judge = db.query(User).filter(User.name == judge_name, User.role == "Judge").first()
+    emails_drafted = 0
     if judge and judge.email:
         subject = f"Action Required: Re-evaluation for {team_name}"
         body = f"Hello {judge_name},\n\nYour recent score for {team_name} was flagged for a discrepancy during committee review and has been rejected.\n\nPlease log back into your Judge Portal using your secure magic link and submit a new, re-evaluated score for this team.\n\nThank you,\nEvent Committee"
-        send_email(judge.email, subject, body)
+        from email_triggers import _save_as_draft
+        _save_as_draft(db, judge.email, subject, body, comm_type="ANOMALY_REEVALUATION")
+        emails_drafted = 1
 
     log_action(
         db=db,
         action="ANOMALY_REJECTED",
-        description=f"Rejected anomalous score from {judge_name} for {team_name}. Score deleted and re-evaluation email dispatched.",
+        description=f"Rejected anomalous score from {judge_name} for {team_name}. Score deleted and re-evaluation email queued for committee approval.",
         performed_by="committee"
     )
 
     background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
     background_tasks.add_task(manager.broadcast_to_channel, "leaderboard", {"event": "leaderboard_updated"})
+    background_tasks.add_task(manager.broadcast_to_channel, "comms", {"event": "comms_updated"})
 
-    return {"message": "Anomaly rejected. Score deleted and judge notified for re-scoring."}
+    return {
+        "message": "Anomaly rejected. Score deleted and re-evaluation email queued for committee approval.",
+        "status": "PENDING_APPROVAL",
+        "emails_drafted": emails_drafted,
+    }
 
 # ---------------------------------------------------------
 # Finalize Evaluation (Chronological Round Advancement)

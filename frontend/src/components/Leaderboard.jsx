@@ -69,11 +69,14 @@ const Leaderboard = ({ refreshTrigger }) => {
   };
 
   const handleReject = async (scoreId, judgeName) => {
-    if (!window.confirm(`Are you sure? This will delete the score and automatically email ${judgeName} to re-evaluate the team.`)) return;
+    if (!window.confirm(`Are you sure? This will delete the score and draft an email to ${judgeName} for committee approval, asking them to re-evaluate the team.`)) return;
     setResolvingId(scoreId);
     try {
-      await axios.post(`${API}/scores/reject/${scoreId}`);
-      alert(`Score rejected. ${judgeName} has been notified to re-evaluate.`);
+      const res = await axios.post(`${API}/scores/reject/${scoreId}`);
+      alert(`Score rejected. A re-evaluation email for ${judgeName} has been drafted and is awaiting committee approval.`);
+      if (res.data.emails_drafted) {
+        notifyEmailDraft(res.data.emails_drafted);
+      }
       loadLeaderboardData();
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to reject anomaly.");
