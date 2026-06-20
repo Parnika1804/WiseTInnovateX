@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { notifyEmailDraft } from '../hooks/useEmailDraftNotifier';
 
 const API = 'http://localhost:8000';
 
@@ -92,6 +93,11 @@ const Leaderboard = ({ refreshTrigger }) => {
       const res = await axios.post(`${API}/scores/finalize`);
       setPodium(res.data.podium);
       setSpecialMentionWinner(res.data.special_mention_winner || null);
+      
+      // Hook into the shared email draft notification system
+      if (res.data.emails_drafted !== undefined) {
+        notifyEmailDraft(res.data.emails_drafted);
+      }
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to finalize evaluation.");
       console.error(error);
