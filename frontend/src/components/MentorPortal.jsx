@@ -68,29 +68,37 @@ const MentorPortal = () => {
         const feedback = feedbackRes.data?.feedback || [];
         setFeedbackHistory(feedback);
         if (feedback.length > 0) {
-          setRoundsHappened(true);
           lastScoredRound = Math.max(...feedback.map(f => f.round_number));
         }
       } catch (e) {}
 
+      let activeRound = 1;
       try {
         const configRes = await axios.get(`${API}/event/config`);
         if (configRes.data.status === 'found') {
           let scoring = configRes.data.config.scoring;
           if (typeof scoring === 'string') scoring = JSON.parse(scoring);
-          const round = scoring?.current_round || 1;
-          setCurrentRound(round);
+          activeRound = scoring?.current_round || 1;
+          setCurrentRound(activeRound);
 
           const stages = configRes.data.config.stages || [];
           const roundStages = stages.filter(s => /^round\s/i.test(s.name));
           const totalRounds = roundStages.length;
 
-          const activeStage = roundStages[round - 1];
+          const activeStage = roundStages[activeRound - 1];
           if (activeStage) setCurrentStageLabel(activeStage.label);
 
           if (totalRounds >= 2 && lastScoredRound === totalRounds - 1) setIsSecondLastRound(true);
         }
       } catch (e) {}
+
+      // A round only counts as "decided" once the committee has finalized it and
+      // the pipeline has advanced past it (current_round > lastScoredRound).
+      // A single judge submitting one score is not enough — otherwise the
+      // qualified/eliminated banner fires before the round is even over.
+      if (lastScoredRound > 0 && activeRound > lastScoredRound) {
+        setRoundsHappened(true);
+      }
 
       try {
         const finalRes = await axios.get(`${API}/scores/finalized`);
@@ -298,7 +306,7 @@ const MentorPortal = () => {
             <div className="text-4xl mb-3"></div>
             <h3 className="text-lg font-bold mb-1 text-blue-800 dark:text-blue-200">Event is in Progress</h3>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              Support your team as they build their project. Results will appear here once judging begins.
+              Support your team as they build their project. Results will appear here once this round has been finalized.
             </p>
           </div>
         )}
