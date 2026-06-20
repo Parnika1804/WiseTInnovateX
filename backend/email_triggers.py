@@ -391,3 +391,18 @@ Write 3-4 sentences acknowledging that their mentor nominated them for a Special
         "status": "PENDING_APPROVAL",
         "note": "Special mention decision emails queued for committee approval."
     }
+def send_mentor_nomination_invite_email(db: Session, mentor, team) -> None:
+    config = db.query(EventConfig).filter(EventConfig.is_active == True).first()
+    event_name = config.event_name if config else "the event"
+    batch_id = str(uuid.uuid4())
+
+    prompt = f"""You are an event coordinator. Write a brief email to a mentor informing them that their team has been eliminated and they can nominate one member for a Special Mention wildcard entry to the finals.
+Event: {event_name}
+Mentor Name: {mentor.name}
+Team Name: {team.name}
+
+Write 3-4 sentences informing them of the elimination, explaining they can nominate one outstanding member for a Special Mention award, and telling them to log into their mentor portal to submit the nomination. Do not include a subject line."""
+
+    body = call_gemini(prompt)
+    subject = f"Action Required: Nominate a Member for Special Mention | {event_name}"
+    _save_as_draft(db, mentor.email, subject, body, comm_type="MENTOR_NOMINATION_INVITE", batch_id=batch_id)
