@@ -80,7 +80,7 @@ Return ONLY a valid JSON array, no markdown, no explanation, in this exact forma
         if "```" in raw:
             raw = raw.split("```")[1].replace("json", "").strip()
         start = raw.find("[")
-        end = raw.find("]", start) + 1  # find FIRST closing bracket, not last
+        end = raw.rfind("]") + 1 # find FIRST closing bracket, not last
         pairings = json.loads(raw[start:end])
 
         for pair in pairings:
@@ -107,6 +107,8 @@ Return ONLY a valid JSON array, no markdown, no explanation, in this exact forma
 
     for t in teams:
         if t.id in assigned_team_ids:
+            continue
+        if t.status != "APPROVED":
             continue
         for m in mentors:
             current_count = mentor_assigned_count.get(m.id, 0)
@@ -239,8 +241,6 @@ def generate_teams(background_tasks: BackgroundTasks, manual_config: Optional[Ma
             member_skills=member_skills,
             institutions=institutions
         )
-
-    assign_mentors_to_teams(db, created_team_records)
     background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
 
     return {
@@ -271,6 +271,14 @@ def approve_reject_team(request: ApproveRejectRequest, background_tasks: Backgro
     
     team.status = request.action
     db.commit()
+
+    if request.action == "APPROVED":
+        assign_mentors_to_teams(db, [team])
+    elif request.action == "REJECTED":
+        mentor = db.query(Mentor).filter(Mentor.assigned_team_id == team.id).first()
+        if mentor:
+            mentor.assigned_team_id = None
+            db.commit()
     
     log_action(
         db=db,

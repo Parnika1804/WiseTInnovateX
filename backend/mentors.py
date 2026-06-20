@@ -31,7 +31,7 @@ async def upload_mentors(file: UploadFile = File(...), db: Session = Depends(get
 
     db.commit()
 
-    all_teams = db.query(Team).all()
+    all_teams = db.query(Team).filter(Team.status == "APPROVED").all()
     mentored_team_ids = {m.assigned_team_id for m in db.query(Mentor).filter(Mentor.assigned_team_id != None).all()}
     unmentored_teams = [t for t in all_teams if t.id not in mentored_team_ids]
     assign_mentors_to_teams(db, unmentored_teams)
