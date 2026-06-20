@@ -70,14 +70,16 @@ def get_participant_data(participant_id: int, db: Session):
         team_members = [{"name": m.name, "skill": m.skill} for m in team_members_db]
 
     # Calculate Scores and Progression
-    is_qualified = False
+    # NOTE: is_qualified must reflect the committee's actual advancement decision
+    # (Team.is_qualified, set by /pipeline/advance), not a re-derived score guess.
+    # Re-deriving from a raw score threshold caused eliminated teams to still see
+    # "Advanced to Round X" whenever their average happened to clear the bar.
+    is_qualified = my_team.is_qualified if my_team else False
     avg_score = 0.0
     if my_team:
         scores = db.query(Score).filter(Score.team_id == my_team.id).all()
         if scores:
             avg_score = sum([s.score for s in scores]) / len(scores)
-            # MVP Rule: Teams averaging 6.0 or higher advance to the next round
-            is_qualified = avg_score >= 6.0
 
     current_stage = _get_current_stage_info(db)
 
@@ -90,14 +92,17 @@ def get_participant_data(participant_id: int, db: Session):
             "institution": participant.institution,
             "registration_status": participant.registration_status
         },
-        # THE FIX: Added my_team.status so the frontend knows if it was rejected
-        "team": {"id": my_team.id, "name": my_team.name, "status": my_team.status} if my_team else None,
+        # THE FIX: Added my_team.status so the frontend knows if it was rejected,
+        # and is_qualified so the frontend can detect elimination (isEliminated
+        # checks data.team.is_qualified === false — without this field it was
+        # always undefined, so eliminated teams never reached the elimination screen)
+        "team": {"id": my_team.id, "name": my_team.name, "status": my_team.status, "is_qualified": my_team.is_qualified} if my_team else None,
         "team_members": team_members,
         "current_stage": current_stage,
         "progression": {
             "is_qualified": is_qualified,
             "average_score": avg_score,
-            "message": "Congratulations! You have scored high enough to advance to the next phase." if is_qualified else "Results are currently being processed."
+            "message": "Congratulations! Your team has advanced to the next round." if is_qualified else "Your team did not advance this round."
         }
     }
 
