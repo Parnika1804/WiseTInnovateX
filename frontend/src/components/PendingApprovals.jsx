@@ -51,12 +51,13 @@ const PendingApprovals = ({ onAction }) => {
   const [pendingTeams, setPendingTeams] = useState([]);
   const [anomalies,    setAnomalies]    = useState([]);
   const [pendingComms, setPendingComms] = useState([]);
+  const [pendingMentions, setPendingMentions] = useState([]);
   const [loadingId,    setLoadingId]    = useState(null);
   const [toast,        setToast]        = useState('');
   const [expanded,     setExpanded]     = useState({});
 
   const emailCount = pendingComms.length;
-  const totalCount = pendingTeams.length + anomalies.length + emailCount;
+  const totalCount = pendingTeams.length + anomalies.length + emailCount + pendingMentions.length;
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
@@ -65,14 +66,16 @@ const PendingApprovals = ({ onAction }) => {
 
   const load = useCallback(async () => {
     try {
-      const [teamsRes, anomalyRes, pendingRes] = await Promise.all([
+      const [teamsRes, anomalyRes, pendingRes, mentionsRes] = await Promise.all([
         axios.get(`${API}/teams`),
         axios.get(`${API}/scores/anomalies`),
         axios.get(`${API}/comms/pending`),
+        axios.get(`${API}/special-mention`),
       ]);
       setPendingTeams((teamsRes.data || []).filter(t => t.status === 'PENDING'));
       setAnomalies(anomalyRes.data?.anomalies || []);
       setPendingComms(pendingRes.data || []);
+      setPendingMentions((mentionsRes.data || []).filter(m => m.status === 'PENDING'));
     } catch (e) {
       console.error('PendingApprovals load error:', e);
     }
@@ -92,6 +95,23 @@ const PendingApprovals = ({ onAction }) => {
     try {
       await axios.post(`${API}/teams/approve`, { team_id: teamId, action });
       showToast(`Team ${action.toLowerCase()} successfully.`);
+      load(); onAction?.();
+    } catch (e) {
+      showToast(e.response?.data?.detail || 'Action failed.', false);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleMention = async (nominationId, action) => {
+    setLoadingId(`mention-${nominationId}-${action}`);
+    try {
+      await axios.post(`${API}/special-mention/approve`, { 
+        nomination_id: nominationId, 
+        action, 
+        reviewed_by: 'committee' 
+      });
+      showToast(`Nomination ${action.toLowerCase()} successfully.`);
       load(); onAction?.();
     } catch (e) {
       showToast(e.response?.data?.detail || 'Action failed.', false);
@@ -231,6 +251,48 @@ const PendingApprovals = ({ onAction }) => {
                 <div className="flex flex-col gap-2 flex-shrink-0">
                   <ActionBtn variant="green" disabled={loadingId === `team-${team.id}-APPROVED`} onClick={() => handleTeam(team.id, 'APPROVED')}>Approve</ActionBtn>
                   <ActionBtn variant="red" disabled={loadingId === `team-${team.id}-REJECTED`} onClick={() => handleTeam(team.id, 'REJECTED')}>Reject</ActionBtn>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* SPECIAL MENTIONS */}
+      {pendingMentions.length > 0 && (
+        <div className="mb-2">
+          <SectionHead icon="🌟" label="Special Mentions" count={pendingMentions.length} />
+          {pendingMentions.map(m => (
+            <Card key={m.id}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{m.team_name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Nominated by mentor: <strong className="text-slate-700 dark:text-slate-300">{m.mentor_name}</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {m.nominated_members.map(member => (
+                      <span key={member.id} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 rounded-full text-[10px] font-semibold">
+                        {member.name}
+                      </span>
+                    ))}
+                  </div>
+                  {m.mentor_reason && (
+                    <div className="mt-3">
+                      <button onClick={() => toggleExpand(`mention-${m.id}`)} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors flex items-center gap-1">
+                        {expanded[`mention-${m.id}`] ? '▲ Hide reason' : '▼ View reason'}
+                      </button>
+                      {expanded[`mention-${m.id}`] && (
+                        <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 border-l-2 border-indigo-400 dark:border-indigo-500 pl-3 py-2 rounded-r-lg transition-colors duration-300">
+                          {m.mentor_reason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 flex-shrink-0">
+                  <ActionBtn variant="green" disabled={loadingId === `mention-${m.id}-APPROVED`} onClick={() => handleMention(m.id, 'APPROVED')}>Approve</ActionBtn>
+                  <ActionBtn variant="red" disabled={loadingId === `mention-${m.id}-REJECTED`} onClick={() => handleMention(m.id, 'REJECTED')}>Reject</ActionBtn>
                 </div>
               </div>
             </Card>

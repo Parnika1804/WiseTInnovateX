@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const EmailDraftToast = () => {
   const [visible, setVisible] = useState(false);
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useState(0); // Kept internally so existing call sites don't break
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,14 +17,14 @@ const EmailDraftToast = () => {
   }, []);
 
   useEffect(() => {
-    // Auto-dismiss after 8 seconds, but ONLY if count is 10 or less
-    if (visible && count <= 10) {
+    // Auto-dismiss unconditionally after 8 seconds
+    if (visible) {
       const timer = setTimeout(() => {
         setVisible(false);
       }, 8000);
       return () => clearTimeout(timer);
     }
-  }, [visible, count]);
+  }, [visible]); // Removed count dependency
 
   if (!visible) return null;
 
@@ -32,7 +32,7 @@ const EmailDraftToast = () => {
     <div className="fixed bottom-6 right-6 bg-white dark:bg-slate-800 border-l-4 border-blue-500 dark:border-indigo-500 shadow-xl rounded-lg p-4 z-50 flex items-start gap-4 max-w-sm transition-all transform duration-300 translate-y-0 opacity-100">
       <div className="flex-1">
         <p className="text-slate-800 dark:text-slate-100 font-semibold text-sm transition-colors duration-300">
-          {count} email{count !== 1 ? 's' : ''} {count === 1 ? 'has' : 'have'} been drafted.
+          New email draft(s) are ready for review.
         </p>
         <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 transition-colors duration-300">
           Go to Comms Page Approvals to review.

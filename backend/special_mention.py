@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 from models import SpecialMention, Mentor, Team, Participant, EventConfig
 from pydantic import BaseModel
 from typing import List, Optional
 import json
+from websocket_manager import manager
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ class ApproveRequest(BaseModel):
 
 
 @router.post("/special-mention/nominate")
-def nominate(request: NominateRequest, db: Session = Depends(get_db)):
+def nominate(request: NominateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     if len(request.nominated_member_ids) != 1:
         raise HTTPException(status_code=400, detail="You must nominate exactly one member.")
 
@@ -64,6 +65,9 @@ def nominate(request: NominateRequest, db: Session = Depends(get_db)):
         send_special_mention_nomination_email(db, nomination)
     except Exception as e:
         print(f"[SPECIAL MENTION NOMINATION EMAIL ERROR] {e}")
+
+    # Broadcast to the dashboard to auto-refresh the Action Center
+    background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
 
     return {"message": "Nomination submitted successfully", "nomination_id": nomination.id}
 
