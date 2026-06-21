@@ -103,7 +103,7 @@ async def upload_roster(
             "id": p["id"],
         }
         token = create_token(token_data)
-        magic_link = f"wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app/participant-portal?token={token}"
+        magic_link = f"https://wise-t-innovate-x-nu.vercel.app/participant-portal?token={token}"
 
         subject = f"Welcome to {event_name} — Your Secure Access Link"
         body = (
