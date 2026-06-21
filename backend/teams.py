@@ -234,13 +234,16 @@ def generate_teams(background_tasks: BackgroundTasks, manual_config: Optional[Ma
         db.refresh(new_team)
         created_team_records.append(new_team)
 
-        generate_team_rationale.delay(
-            team_id=new_team.id,
-            team_name=new_team.name,
-            member_names=member_names,
-            member_skills=member_skills,
-            institutions=institutions
-        )
+        try:
+            generate_team_rationale(
+                team_id=new_team.id,
+                team_name=new_team.name,
+                member_names=member_names,
+                member_skills=member_skills,
+                institutions=institutions
+            )
+        except Exception as e:
+            print(f"[RATIONALE ERROR] {e}")
     background_tasks.add_task(manager.broadcast_to_channel, "dashboard", {"event": "dashboard_updated"})
 
     return {
