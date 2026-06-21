@@ -143,7 +143,7 @@ def create_judge(request: CreateJudgeRequest, db: Session = Depends(get_db)):
         "name": request.name,
     }
     token = create_token(token_data)
-    magic_link = f"wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app/judge-dashboard?token={token}"
+    magic_link = f"https://wise-t-innovate-x-nu.vercel.app/judge-dashboard?token={token}"
 
     try:
         from email_triggers import _save_as_draft
