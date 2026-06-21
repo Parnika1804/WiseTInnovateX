@@ -575,7 +575,8 @@ def finalize_evaluation(background_tasks: BackgroundTasks, db: Session = Depends
             e["team"].is_special_mention = False  # Clear stale SM approval if team is eliminated
 
         # Send nomination invite to mentors of eliminated teams — only in second last round
-        total_rounds = len(advancement_rules) + 1  # +1 because final round has no advancement rule
+        real_advancement_rules = [r for r in advancement_rules if "final" not in r.get("rule", "").lower()]
+        total_rounds = len(real_advancement_rules) + 1
         if current_round == total_rounds - 1:
             from models import Mentor
             from email_triggers import send_mentor_nomination_invite_email
