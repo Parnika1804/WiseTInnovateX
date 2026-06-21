@@ -23,7 +23,7 @@ const ParticipantLink = () => {
           <h3 style={{ marginTop: 0 }}>Participant Links</h3>
           <ul style={{ listStyleType: 'none', padding: 0 }}>
             {participants.map(p => {
-              const link = `http://localhost:5173/portal?token=${generateParticipantToken(p.id)}`;
+              const link = `https://wise-t-innovate-x-nu.vercel.app/portal?token=${generateParticipantToken(p.id)}`;
               return (
                 <li key={p.id} style={{ marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
                   <strong>{p.name}</strong> (ID: {p.id})<br/>
@@ -40,7 +40,7 @@ const ParticipantLink = () => {
           <p style={{ fontSize: '14px', color: '#666' }}>Generate evaluation links for active teams.</p>
           <ul style={{ listStyleType: 'none', padding: 0 }}>
             {teams.filter(t => t.status === 'APPROVED').map(t => {
-              const link = `http://localhost:5173/judge?token=${generateJudgeToken(t.id, 'Main Judge')}`;
+              const link = `https://wise-t-innovate-x-nu.vercel.app/judge?token=${generateJudgeToken(t.id, 'Main Judge')}`;
               return (
                 <li key={t.id} style={{ marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
                   <strong>{t.name}</strong><br/>
