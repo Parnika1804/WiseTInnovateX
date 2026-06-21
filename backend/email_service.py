@@ -68,8 +68,23 @@ def send_email(to_email: str, subject: str, body: str) -> dict:
         print(f"[EMAIL FAILED ✗] {error_msg}")
         return {"success": False, "error": error_msg}
     except Exception as exc:
-        print(f"[EMAIL ERROR] {exc}")
-        return {"success": False, "error": str(exc)}
+        print(f"[EMAIL ERROR] {exc} — trying SendGrid fallback")
+        try:
+            import sendgrid
+            from sendgrid.helpers.mail import Mail, Email, To, Content
+            sg = sendgrid.SendGridAPIClient(api_key=os.environ.get("SENDGRID_API_KEY", ""))
+            mail = Mail(
+                from_email=Email(FROM_EMAIL, FROM_NAME),
+                to_emails=To(to_email),
+                subject=subject,
+                plain_text_content=Content("text/plain", body)
+            )
+            sg.client.mail.send.post(request_body=mail.get())
+            print(f"[EMAIL SENT VIA SENDGRID ✓] To: {to_email}")
+            return {"success": True}
+        except Exception as sg_exc:
+            print(f"[SENDGRID ERROR] {sg_exc}")
+            return {"success": False, "error": str(sg_exc)}
 
 
 def send_bulk_emails(recipients: list[dict], subject: str, body: str) -> dict:
