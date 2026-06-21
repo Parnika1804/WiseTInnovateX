@@ -282,7 +282,7 @@ def send_mentor_link_emails(db: Session) -> dict:
             "name": mentor.name,
         }
         token = create_token(token_data)
-        magic_link = f"wise-t-innovate-290xryk41-tweetdiaries935-8517s-projects.vercel.app/mentor-portal?token={token}"
+        magic_link = f"https://wise-t-innovate-x-nu.vercel.app/mentor-portal?token={token}"
 
         team = db.query(Team).filter(Team.id == mentor.assigned_team_id).first() if mentor.assigned_team_id else None
         team_info = f"Your assigned team is: {team.name}" if team else "You have not been assigned a team yet — check back soon."
